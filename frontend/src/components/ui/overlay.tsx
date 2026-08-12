@@ -22,18 +22,18 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
   const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl' }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="fixed inset-0 bg-black/30" onClick={onClose} />
-      <div className={`relative w-full ${sizes[size]} bg-white rounded-md modal-shadow z-10`}>
+      <div className={`relative w-full ${sizes[size]} max-h-[85vh] flex flex-col bg-white rounded-md modal-shadow z-10`}>
         {title && (
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-hairline">
+          <div className="flex shrink-0 items-center justify-between px-5 py-3.5 border-b border-hairline">
             <h3 className="text-[15px] font-semibold text-ink tracking-[-0.02em]">{title}</h3>
             <button onClick={onClose} className="p-1 rounded-sm hover:bg-canvas-soft text-mute hover:text-ink transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
-        <div className="p-5">{children}</div>
+        <div className="p-5 overflow-y-auto">{children}</div>
       </div>
     </div>
   )
