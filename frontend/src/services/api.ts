@@ -1,6 +1,6 @@
 import type { ApiError, ApiResponse, PaginationMeta } from '@/types/api'
 
-const API = '/api'
+const API = import.meta.env.VITE_API_URL || '/api'
 
 let token: string | null = localStorage.getItem('staffsway_token')
 
