@@ -53,7 +53,7 @@ add(`DELETE FROM sqlite_sequence WHERE name IN ('${TABLES.join("','")}');`)
 add('')
 
 // ---------- Users ----------
-add(`INSERT INTO users (id, name, email, password_hash, role, status) VALUES (1, 'System Administrator', 'admin@primeworkforce.in', '${adminHash}', 'admin', 'active');`)
+add(`INSERT INTO users (id, name, email, password_hash, role, status) VALUES (1, 'System Administrator', 'admin@staffsway.in', '${adminHash}', 'admin', 'active');`)
 add('')
 
 // ---------- Settings ----------

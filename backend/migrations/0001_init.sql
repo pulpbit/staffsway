@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS settings (
   id                        INTEGER PRIMARY KEY AUTOINCREMENT,
-  company_name              TEXT NOT NULL DEFAULT 'Prime Workforce Solutions',
+  company_name              TEXT NOT NULL DEFAULT 'Staffsway',
   company_tagline           TEXT NOT NULL DEFAULT 'Manpower Staffing & HR Services',
   address                   TEXT,
   city                      TEXT,

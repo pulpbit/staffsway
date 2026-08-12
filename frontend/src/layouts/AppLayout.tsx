@@ -34,7 +34,7 @@ export default function AppLayout() {
   const Sidebar = () => (
     <div className="flex flex-col h-full">
       <div className="px-3 py-3.5 border-b border-hairline flex items-center gap-2.5">
-        <img src="/images/logo.png" alt="Prime Workforce" className="w-7 h-7 rounded-xs object-contain" />
+        <img src="/images/logo.png" alt="Staffsway" className="w-7 h-7 rounded-xs object-contain" />
         <span className="text-[14px] font-semibold text-ink tracking-[-0.02em]">Staffsway</span>
       </div>
       <nav className="flex-1 px-2 py-3 space-y-0.5">
@@ -73,7 +73,7 @@ export default function AppLayout() {
           <aside className="fixed left-0 top-0 bottom-0 w-64 bg-white border-r border-hairline z-50 shadow-modal flex flex-col">
             <div className="flex items-center justify-between px-3 py-3 border-b border-hairline">
               <div className="flex items-center gap-2">
-                <img src="/images/logo.png" alt="Prime Workforce" className="w-6 h-6 rounded-xs" />
+                <img src="/images/logo.png" alt="Staffsway" className="w-6 h-6 rounded-xs" />
                 <span className="text-[14px] font-semibold text-ink">Staffsway</span>
               </div>
               <button onClick={() => setSidebarOpen(false)} className="p-1 rounded-sm hover:bg-canvas-soft text-mute">

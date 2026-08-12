@@ -3,15 +3,15 @@ export const ADMIN_PASSWORD = 'Demo@123'
 export const SALT = 'pwsdemo-salt'
 
 export const SETTINGS = {
-  company_name: 'Prime Workforce Solutions',
-  company_tagline: 'Manpower Staffing & HR Services',
+  company_name: 'Staffsway',
+  company_tagline: 'Manpower Staffing & HRMS',
   address: '501 Corporate Tower, Andheri East',
   city: 'Mumbai',
   state: 'Maharashtra',
   pincode: '400069',
   phone: '+91 22 4890 2200',
-  email: 'info@primeworkforce.in',
-  website: 'https://primeworkforce.in',
+  email: 'info@staffsway.in',
+  website: 'https://staffsway.in',
   gstin: '27AABCP8892Q1Z5',
   pan: 'AABCP8892Q',
   cin: 'U74900MH2014PTC284110',

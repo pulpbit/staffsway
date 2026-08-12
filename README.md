@@ -1,6 +1,6 @@
 # Staffsway — Manpower Staffing HRMS
 
-A complete HRMS + Attendance + Payroll management application for manpower staffing companies. Built as a demo for Prime Workforce Solutions.
+A complete HRMS + Attendance + Payroll management application for manpower staffing companies. Built as a demo for Staffsway.
 
 ## Features
 
@@ -82,7 +82,7 @@ Visit **http://localhost:5173**
 ### Demo credentials
 
 ```
-Email:    admin@primeworkforce.in
+Email:    admin@staffsway.in
 Password: Demo@123
 ```
 

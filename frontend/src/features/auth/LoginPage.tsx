@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { Eye, EyeOff } from 'lucide-react'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@primeworkforce.in')
+  const [email, setEmail] = useState('admin@staffsway.in')
   const [password, setPassword] = useState('Demo@123')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -33,7 +33,7 @@ export default function LoginPage() {
             <img src="/images/logo.png" alt="Logo" className="w-8 h-8 rounded-xs" />
             <div>
               <h1 className="text-[16px] font-semibold text-ink tracking-[-0.02em]">Staffsway</h1>
-              <p className="text-[11px] text-mute">Prime Workforce Solutions</p>
+              <p className="text-[11px] text-mute">Staffsway</p>
             </div>
           </div>
 
@@ -46,7 +46,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full h-9 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink transition-colors"
-                placeholder="admin@primeworkforce.in"
+                placeholder="admin@staffsway.in"
               />
             </div>
             <div>
@@ -75,7 +75,7 @@ export default function LoginPage() {
           </form>
         </div>
         <p className="text-center text-[11px] text-mute mt-4">
-          Demo credentials are pre-filled. Use <strong>admin@primeworkforce.in</strong> / <strong>Demo@123</strong>
+          Demo credentials are pre-filled. Use <strong>admin@staffsway.in</strong> / <strong>Demo@123</strong>
         </p>
       </div>
     </div>

@@ -15,10 +15,10 @@ DELETE FROM users;
 
 DELETE FROM sqlite_sequence WHERE name IN ('salary_slips','payroll_items','payroll','advances','attendance_monthly','salary_structures','employee_documents','employees','sites','clients','leave_types','shift_types','settings','users');
 
-INSERT INTO users (id, name, email, password_hash, role, status) VALUES (1, 'System Administrator', 'admin@primeworkforce.in', 'pwsdemo-salt$72de2b21c4fbdd684791cc22e7a532605afdeaeebf9c89ce1bd6beef113fd8fd', 'admin', 'active');
+INSERT INTO users (id, name, email, password_hash, role, status) VALUES (1, 'System Administrator', 'admin@staffsway.in', 'pwsdemo-salt$72de2b21c4fbdd684791cc22e7a532605afdeaeebf9c89ce1bd6beef113fd8fd', 'admin', 'active');
 
 INSERT INTO settings (id, company_name, company_tagline, address, city, state, pincode, phone, email, website, gstin, pan, cin, currency, financial_year_start, salary_basis_days, pf_rate, pf_cap, pf_eligibility, esic_rate, esic_eligibility, professional_tax_amount, professional_tax_min_gross, default_ot_rate, attendance_lock_enabled)
-VALUES (1, 'Prime Workforce Solutions', 'Manpower Staffing & HR Services', '501 Corporate Tower, Andheri East', 'Mumbai', 'Maharashtra', '400069', '+91 22 4890 2200', 'info@primeworkforce.in', 'https://primeworkforce.in', '27AABCP8892Q1Z5', 'AABCP8892Q', 'U74900MH2014PTC284110', 'INR', 4, 26, 12, 1800, 15000, 0.75, 21000, 200, 10000, 80, 1);
+VALUES (1, 'Staffsway', 'Manpower Staffing & HRMS', '501 Corporate Tower, Andheri East', 'Mumbai', 'Maharashtra', '400069', '+91 22 4890 2200', 'info@staffsway.in', 'https://staffsway.in', '27AABCP8892Q1Z5', 'AABCP8892Q', 'U74900MH2014PTC284110', 'INR', 4, 26, 12, 1800, 15000, 0.75, 21000, 200, 10000, 80, 1);
 
 INSERT INTO leave_types (id, name, code, paid_default, max_days) VALUES
   (1, 'Casual Leave', 'CL', 1, 10),
