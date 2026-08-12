@@ -3,10 +3,9 @@ main = "src/index.ts"
 compatibility_date = "2024-12-18"
 compatibility_flags = ["nodejs_compat"]
 
-migrations_dir = "migrations"
-
 [[d1_databases]]
 binding = "DB"
 database_name = "staffsway-demo"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "b4665e7a-2427-42e3-aba6-1d1dae3d5d22"
+migrations_dir = "migrations"
 migrations_table = "d1_migrations"
