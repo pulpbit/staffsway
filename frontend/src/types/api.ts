@@ -27,14 +27,18 @@ export interface Employee {
   employee_code: string
   first_name: string
   last_name: string
+  father_name?: string | null
   gender: string | null
   dob: string | null
   mobile: string | null
   email: string | null
+  aadhaar?: string | null
   address: string | null
   city: string | null
   state: string | null
   pincode: string | null
+  emergency_contact_name?: string | null
+  emergency_contact_phone?: string | null
   bank_name: string | null
   bank_account: string | null
   bank_ifsc: string | null
@@ -43,6 +47,9 @@ export interface Employee {
   joining_date: string | null
   designation: string | null
   department: string | null
+  grade?: string | null
+  reporting_manager?: string | null
+  previous_employment?: string | null
   employee_type: string
   shift_type: string | null
   site_id: number | null
@@ -50,8 +57,19 @@ export interface Employee {
   client_name?: string
   site_name?: string
   salary?: SalaryStructure | null
+  statutory?: EmployeeStatutory | null
   documents?: EmployeeDocument[]
   site?: Site | null
+}
+
+export interface EmployeeStatutory {
+  employee_id: number
+  pf_applicable: number
+  esi_applicable: number
+  lwf_applicable: number
+  pt_applicable: number
+  tds_applicable: number
+  lwf_state?: string | null
 }
 
 export interface SalaryStructure {
@@ -179,10 +197,16 @@ export interface PayrollItem {
   other_allowance: number
   overtime_earnings: number
   attendance_deduction: number
+  incentive: number
+  bonus: number
+  arrears: number
+  loan_deduction: number
   gross: number
   pf: number
   esic: number
   professional_tax: number
+  lwf: number
+  tds: number
   advance_deduction: number
   other_deduction: number
   total_deductions: number
@@ -227,6 +251,11 @@ export interface SalarySlipDetail {
     bank_ifsc?: string
     uan?: string
     pan?: string
+    joining_date?: string
+    department?: string
+    gender?: string
+    site_name?: string
+    client_name?: string
   }
   payroll: { status: string; finalized_at: string | null; paid_at: string | null }
   company: Settings
@@ -257,6 +286,14 @@ export interface Settings {
   professional_tax_min_gross: number
   default_ot_rate: number
   attendance_lock_enabled: number
+  financial_year_start: number
+  lwf_employee_amount: number
+  lwf_employer_amount: number
+  tds_percent: number
+  state_name: string
+  bonus_percent: number
+  bonus_max_percent: number
+  bonus_wage_ceiling: number
 }
 
 export interface LeaveType {
@@ -279,9 +316,28 @@ export interface DashboardData {
   year: number
   kpi: Record<string, unknown>
   totals: Record<string, unknown>
-  recent_employees: Employee[]
-  recent_payroll: Payroll[]
+  recent_employees: Record<string, unknown>[]
+  recent_payroll: Record<string, unknown>[]
   charts: Record<string, unknown[]>
+}
+
+export interface ManagementDashboard {
+  month: number
+  year: number
+  employees: number
+  enrolled: number
+  present_subtotal: number
+  absent_subtotal: number
+  late_marks: number
+  on_leave: number
+  new_joinings: number
+  resignations: number
+  salary_cost: number
+  overtime_hours: number
+  attrition_rate: number
+  department_manpower: { name: string; value: number }[]
+  attendance_trend: { month: number; year: number; present: number; absent: number; ot: number; paid_leave: number }[]
+  salary_cost_trend: { month: number; year: number; net_total: number }[]
 }
 
 export interface PayrollPreview {
@@ -296,4 +352,499 @@ export interface PayrollPreview {
     has_attendance_draft: boolean
   })[]
   totals: { gross: number; net: number; deductions: number }
+}
+
+// ---------- Performance Management ----------
+
+export interface PerformanceKpi {
+  id: number
+  employee_id: number
+  fiscal_year: number
+  title: string
+  description: string | null
+  category: string
+  weight: number
+  target: string | null
+  status: string
+  created_by: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface PerformanceGoal {
+  id: number
+  employee_id: number
+  fiscal_year: number
+  quarter: number | null
+  title: string
+  description: string | null
+  target_value: string | null
+  actual_value: string | null
+  weight: number
+  status: string
+  created_by: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface PerformanceReview {
+  id: number
+  employee_id: number
+  review_period: string
+  review_type: string
+  reviewer_name: string | null
+  overall_rating: number | null
+  strengths: string | null
+  improvements: string | null
+  comments: string | null
+  status: string
+  created_by: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface PerformanceFeedback {
+  id: number
+  employee_id: number
+  review_id: number | null
+  feedback_type: string
+  from_name: string | null
+  rating: number | null
+  strengths: string | null
+  areas_improvement: string | null
+  comments: string | null
+  is_anonymous: number
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface SelfAppraisal {
+  id: number
+  employee_id: number
+  fiscal_year: number
+  quarter: number | null
+  achievements: string | null
+  challenges: string | null
+  goals_next_period: string | null
+  training_needs: string | null
+  overall_comments: string | null
+  status: string
+  submitted_at: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface PerformanceHistory {
+  id: number
+  employee_id: number
+  action: string
+  details: string | null
+  performed_by: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface IncrementRecommendation {
+  id: number
+  employee_id: number
+  fiscal_year: number
+  recommended_by: string | null
+  current_salary: number | null
+  recommended_increment: number | null
+  increment_percent: number | null
+  justification: string | null
+  performance_score: number | null
+  status: string
+  reviewed_by: string | null
+  reviewed_at: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface PromotionRecommendation {
+  id: number
+  employee_id: number
+  fiscal_year: number
+  recommended_by: string | null
+  current_designation: string | null
+  recommended_designation: string | null
+  justification: string | null
+  performance_score: number | null
+  status: string
+  reviewed_by: string | null
+  reviewed_at: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface PerformancePip {
+  id: number
+  employee_id: number
+  title: string
+  description: string | null
+  start_date: string
+  end_date: string
+  goals: string | null
+  status: string
+  outcome: string | null
+  manager_comments: string | null
+  created_by: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface PerformanceSummary {
+  kpi_count: number
+  goals: { total: number; not_started?: number; in_progress?: number; completed?: number; not_achieved?: number }
+  avg_rating: number | null
+  total_reviews: number
+  total_feedback: number
+  active_pips: number
+}
+
+// ---------- Asset Management ----------
+
+export interface Asset {
+  id: number
+  asset_code: string
+  asset_type: string
+  brand: string | null
+  model: string | null
+  serial_number: string | null
+  purchase_date: string | null
+  purchase_price: number | null
+  warranty_expiry: string | null
+  condition_notes: string | null
+  status: string
+  created_at: string
+  updated_at: string
+  assignments?: AssetAssignment[]
+}
+
+export interface AssetAssignment {
+  id: number
+  asset_id: number
+  employee_id: number
+  action: string
+  issue_date: string
+  return_date: string | null
+  replacement_id: number | null
+  reason: string | null
+  performed_by: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+  asset_code?: string
+  asset_type?: string
+  brand?: string
+  model?: string
+}
+
+export interface AssetSummary {
+  total: number
+  available: number
+  assigned: number
+  maintenance: number
+  retired: number
+  by_type: { asset_type: string; count: number }[]
+}
+
+// ---------- Training Management ----------
+
+export interface Training {
+  id: number
+  title: string
+  description: string | null
+  training_type: string
+  trainer_name: string | null
+  trainer_org: string | null
+  mode: string
+  location: string | null
+  start_date: string
+  end_date: string | null
+  start_time: string | null
+  end_time: string | null
+  duration_hours: number | null
+  max_participants: number | null
+  status: string
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  assignments?: TrainingAssignment[]
+  attendance?: TrainingAttendance[]
+  materials?: TrainingMaterial[]
+  feedbacks?: TrainingFeedback[]
+}
+
+export interface TrainingAssignment {
+  id: number
+  training_id: number
+  employee_id: number
+  status: string
+  assigned_by: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface TrainingAttendance {
+  id: number
+  training_id: number
+  employee_id: number
+  attended: number
+  notes: string | null
+  marked_by: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface TrainingMaterial {
+  id: number
+  training_id: number
+  title: string
+  description: string | null
+  material_type: string
+  url: string | null
+  uploaded_by: string | null
+  created_at: string
+}
+
+export interface Certification {
+  id: number
+  employee_id: number
+  name: string
+  issuing_org: string | null
+  issue_date: string | null
+  expiry_date: string | null
+  credential_id: string | null
+  status: string
+  notes: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface SkillMatrix {
+  id: number
+  employee_id: number
+  skill_name: string
+  category: string
+  proficiency: string
+  last_assessed: string | null
+  assessed_by: string | null
+  notes: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface TrainingFeedback {
+  id: number
+  training_id: number
+  employee_id: number
+  rating: number | null
+  content_rating: number | null
+  trainer_rating: number | null
+  comments: string | null
+  suggestions: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+}
+
+export interface TrainingSummary {
+  total: number
+  scheduled: number
+  in_progress: number
+  completed: number
+  cancelled: number
+  total_assigned: number
+  total_attended: number
+  active_certs: number
+  unique_skills: number
+}
+
+// ---------- Separation / Exit Management ----------
+
+export interface Separation {
+  id: number
+  employee_id: number
+  separation_type: string
+  resignation_date: string
+  last_working_date: string | null
+  notice_period_days: number
+  notice_served_days: number
+  notice_buyout: number
+  reason: string | null
+  status: string
+  approved_by: string | null
+  approved_at: string | null
+  rejection_reason: string | null
+  created_at: string
+  updated_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+  designation?: string
+  department?: string
+  interview?: ExitInterview | null
+  clearance?: ClearanceItem[]
+  asset_returns?: AssetReturnItem[]
+  no_dues?: NoDuesItem[]
+  letters?: ExitLetter[]
+  settlement?: any
+}
+
+export interface ExitInterview {
+  id: number
+  separation_id: number
+  employee_id: number
+  reason_for_leaving: string | null
+  job_satisfaction: number | null
+  work_environment: number | null
+  management_rating: number | null
+  growth_opportunity: number | null
+  would_recommend: number | null
+  feedback_text: string | null
+  suggestions: string | null
+  conducted_by: string | null
+  conducted_at: string | null
+}
+
+export interface ClearanceItem {
+  id: number
+  separation_id: number
+  employee_id: number
+  item_name: string
+  item_category: string
+  is_cleared: number
+  cleared_by: string | null
+  cleared_at: string | null
+  remarks: string | null
+}
+
+export interface AssetReturnItem {
+  id: number
+  separation_id: number
+  employee_id: number
+  asset_id: number | null
+  asset_description: string
+  returned: number
+  returned_date: string | null
+  condition_notes: string | null
+  received_by: string | null
+  asset_code?: string
+  asset_type?: string
+  brand?: string
+}
+
+export interface NoDuesItem {
+  id: number
+  separation_id: number
+  employee_id: number
+  department: string
+  amount: number
+  is_cleared: number
+  remarks: string | null
+  cleared_by: string | null
+  cleared_at: string | null
+}
+
+export interface ExitLetter {
+  id: number
+  separation_id: number
+  employee_id: number
+  letter_type: string
+  letter_date: string
+  issued_by: string | null
+  letter_body: string | null
+}
+
+export interface SeparationSummary {
+  total: number
+  pending: number
+  approved: number
+  rejected: number
+  this_month: number
+}
+
+// ---------- HR Helpdesk ----------
+
+export interface HelpdeskRequest {
+  id: number
+  employee_id: number
+  subject: string
+  message: string | null
+  category: string
+  priority: string
+  status: string
+  assigned_to: string | null
+  manager_status: string
+  manager_by: string | null
+  manager_remarks: string | null
+  manager_at: string | null
+  hr_status: string
+  hr_by: string | null
+  hr_remarks: string | null
+  hr_at: string | null
+  reply: string | null
+  action_notes: string | null
+  action_by: string | null
+  action_at: string | null
+  resolved_by: string | null
+  resolved_at: string | null
+  created_at: string
+  updated_at: string
+  first_name?: string
+  last_name?: string
+  employee_code?: string
+  designation?: string
+  department?: string
+  comments?: HelpdeskComment[]
+}
+
+export interface HelpdeskComment {
+  id: number
+  request_id: number
+  employee_id: number | null
+  comment_by: string
+  comment: string
+  is_internal: number
+  created_at: string
+}
+
+export interface HelpdeskSummary {
+  total: number
+  open: number
+  in_progress: number
+  resolved: number
+  closed: number
+  urgent: number
+  this_week: number
+  by_category: { category: string; count: number }[]
 }

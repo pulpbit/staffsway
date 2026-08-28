@@ -168,8 +168,8 @@ export default function AttendancePage() {
                           disabled={locked} className="w-16 h-7 text-center text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink disabled:opacity-50" />
                       </td>
                       <td className="px-2 py-1.5 text-center">
-                        <Badge className={locked ? 'bg-success-soft text-success' : isModified ? 'bg-link-soft text-link' : 'bg-canvas-soft-2 text-mute'}>
-                          {locked ? 'Locked' : isModified ? 'Unsaved' : 'No Data'}
+                        <Badge className={locked ? 'bg-success-soft text-success' : isModified ? 'bg-link-soft text-link' : row.attendance_id ? 'bg-canvas-soft-2 text-body' : 'bg-canvas-soft-2 text-mute'}>
+                          {locked ? 'Locked' : isModified ? 'Unsaved' : row.attendance_id ? 'Draft' : 'No Data'}
                         </Badge>
                       </td>
                     </tr>

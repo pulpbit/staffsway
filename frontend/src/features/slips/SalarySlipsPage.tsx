@@ -91,7 +91,7 @@ export default function SalarySlipsPage() {
               <div><span className="text-mute">Bank:</span> <span className="text-ink">{detail.item?.bank_name || '—'}</span></div>
               <div><span className="text-mute">Account:</span> <span className="font-mono text-ink">{detail.item?.bank_account || '—'}</span></div>
               <div><span className="text-mute">IFSC:</span> <span className="font-mono text-ink">{detail.item?.bank_ifsc || '—'}</span></div>
-              <div><span className="text-mute">Site:</span> <span className="text-ink">{detail.item?.site_name || '—'} — {detail.item?.client_name || '—'}</span></div>
+              <div><span className="text-mute">DOJ:</span> <span className="text-ink">{detail.item?.joining_date ? dateShort(String(detail.item.joining_date)) : '—'}</span></div>
               <div><span className="text-mute">UAN:</span> <span className="font-mono text-ink">{detail.item?.uan || '—'}</span></div>
               <div><span className="text-mute">PAN:</span> <span className="font-mono text-ink">{detail.item?.pan || '—'}</span></div>
             </div>
@@ -128,6 +128,8 @@ export default function SalarySlipsPage() {
                   <div className="flex justify-between"><span className="text-body">Provident Fund (PF)</span><span>{money(detail.item?.pf || 0)}</span></div>
                   <div className="flex justify-between"><span className="text-body">ESIC</span><span>{money(detail.item?.esic || 0)}</span></div>
                   <div className="flex justify-between"><span className="text-body">Professional Tax</span><span>{money(detail.item?.professional_tax || 0)}</span></div>
+                  <div className="flex justify-between"><span className="text-body">LWF</span><span>{money(detail.item?.lwf || 0)}</span></div>
+                  <div className="flex justify-between"><span className="text-body">TDS</span><span>{money(detail.item?.tds || 0)}</span></div>
                   <div className="flex justify-between"><span className="text-body">Advance</span><span>{money(detail.item?.advance_deduction || 0)}</span></div>
                   <div className="flex justify-between"><span className="text-body">Other Deduction</span><span>{money(detail.item?.other_deduction || 0)}</span></div>
                   <div className="flex justify-between border-t border-hairline pt-1 font-semibold"><span className="text-ink">Total Deductions</span><span className="text-ink">{money(detail.item?.total_deductions || 0)}</span></div>

@@ -26,14 +26,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-canvas-soft px-4">
+    <div className="min-h-screen flex items-center justify-center bg-navy px-4 bg-gradient-to-br from-navy-deep via-navy-mid to-navy-deep">
       <div className="w-full max-w-sm">
-        <div className="bg-white card-shadow rounded-md p-6">
+        <div className="bg-white card-shadow-lg rounded-md p-6">
           <div className="flex items-center gap-2.5 mb-6">
-            <img src="/images/logo.png" alt="Logo" className="w-8 h-8 rounded-xs" />
+            <img src="/images/logo.png" alt="Logo" className="w-9 h-9 rounded-xs" />
             <div>
               <h1 className="text-[16px] font-semibold text-ink tracking-[-0.02em]">Staffsway</h1>
-              <p className="text-[11px] text-mute">Staffsway</p>
+              <p className="text-[11px] text-mute">Manpower Staffing &amp; HR Services</p>
             </div>
           </div>
 
@@ -68,14 +68,14 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full h-9 bg-ink text-white text-[13px] font-medium rounded-sm hover:bg-ink/90 transition-colors disabled:opacity-40"
+              className="w-full h-9 bg-gold text-navy text-[13px] font-semibold rounded-sm hover:bg-gold-bright transition-colors disabled:opacity-40"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
         </div>
-        <p className="text-center text-[11px] text-mute mt-4">
-          Demo credentials are pre-filled. Use <strong>admin@staffsway.in</strong> / <strong>Demo@123</strong>
+        <p className="text-center text-[11px] text-white/60 mt-4">
+          Demo credentials are pre-filled. Use <strong className="text-white/80">admin@staffsway.in</strong> / <strong className="text-white/80">Demo@123</strong>
         </p>
       </div>
     </div>

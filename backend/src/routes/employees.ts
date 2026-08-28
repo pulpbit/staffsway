@@ -3,10 +3,11 @@ import type { Context } from 'hono'
 import { z } from 'zod'
 import type { Env } from '../types'
 import { getDb } from '../utils/db'
+import { r2 } from '../utils/money'
 
 const listSchema = z.object({
   search: z.string().optional(),
-  status: z.enum(['active', 'inactive', '']).optional(),
+  status: z.enum(['active', 'inactive', 'resigned', 'terminated', '']).optional(),
   client_id: z.string().optional(),
   site_id: z.string().optional(),
   designation: z.string().optional(),
@@ -22,14 +23,18 @@ const listSchema = z.object({
 const employeeBase = {
   first_name: z.string().min(1).max(100),
   last_name: z.string().min(1).max(100),
+  father_name: z.string().max(100).optional().nullable(),
   gender: z.enum(['Male', 'Female', 'Other']).optional(),
   dob: z.string().optional(),
   mobile: z.string().max(20).optional(),
   email: z.string().email().max(191).optional().or(z.literal('')),
+  aadhaar: z.string().max(20).optional().nullable(),
   address: z.string().max(500).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(100).optional(),
   pincode: z.string().max(10).optional(),
+  emergency_contact_name: z.string().max(100).optional().nullable(),
+  emergency_contact_phone: z.string().max(20).optional().nullable(),
   bank_name: z.string().max(100).optional(),
   bank_account: z.string().max(30).optional(),
   bank_ifsc: z.string().max(20).optional(),
@@ -38,10 +43,13 @@ const employeeBase = {
   joining_date: z.string().optional(),
   designation: z.string().max(100).optional(),
   department: z.string().max(100).optional(),
+  grade: z.string().max(50).optional().nullable(),
+  reporting_manager: z.string().max(100).optional().nullable(),
+  previous_employment: z.string().max(1000).optional().nullable(),
   employee_type: z.enum(['permanent', 'contract', 'temporary', 'probation']).optional(),
   shift_type: z.string().max(50).optional(),
   site_id: z.number().int().positive().optional().nullable(),
-  status: z.enum(['active', 'inactive']).optional(),
+  status: z.enum(['active', 'inactive', 'resigned', 'terminated']).optional(),
   salary: z
     .object({
       basic: z.number().min(0),
@@ -51,13 +59,31 @@ const employeeBase = {
       overtime_rate: z.number().min(0).optional(),
       pf_applicable: z.boolean().optional(),
       esic_applicable: z.boolean().optional(),
-      other_deduction: z.number().min(0).optional(),
+       other_deduction: z.number().min(0).optional(),
+     })
+     .optional(),
+  statutory: z
+    .object({
+      pf_applicable: z.boolean().optional(),
+      esi_applicable: z.boolean().optional(),
+      lwf_applicable: z.boolean().optional(),
+      pt_applicable: z.boolean().optional(),
+      tds_applicable: z.boolean().optional(),
     })
     .optional(),
 }
 
 const createSchema = z.object(employeeBase)
 const updateSchema = z.object(employeeBase).partial()
+
+const statutorySchema = z.object({
+  pf_applicable: z.boolean(),
+  esi_applicable: z.boolean(),
+  lwf_applicable: z.boolean().optional(),
+  pt_applicable: z.boolean().optional(),
+  tds_applicable: z.boolean().optional(),
+  lwf_state: z.string().max(100).optional().nullable(),
+})
 
 export const employeeRoutes = new Hono<{ Bindings: Env }>()
 
@@ -92,6 +118,10 @@ async function buildWhere(c: Context<{ Bindings: Env }>) {
 }
 
 employeeRoutes.get('/', async (c) => {
+  const caller = c.get('user')
+  if (caller.role === 'employee') {
+    return c.json({ error: { code: 'forbidden', message: 'Employee logins can only view their own profile via My Space.' } }, 403)
+  }
   const w = await buildWhere(c)
   if (!w.ok) return c.json({ error: { code: 'validation_error', message: 'Invalid query parameters.' } }, 400)
   const { conditions, params, filters } = w
@@ -138,21 +168,116 @@ employeeRoutes.get('/filters', async (c) => {
 employeeRoutes.get('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (!Number.isInteger(id) || id <= 0) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+  const caller = c.get('user')
+  if (caller.role === 'employee' && Number(caller.employee_id) !== id) {
+    return c.json({ error: { code: 'forbidden', message: 'You can only view your own profile.' } }, 403)
+  }
   const db = getDb(c.env)
   const employee = await db.prepare(`${employeeSelect} WHERE e.id = ?`).bind(id).first()
   if (!employee) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
   const salary = await db.prepare('SELECT * FROM salary_structures WHERE employee_id = ? ORDER BY effective_from DESC LIMIT 1').bind(id).first()
+  const statutory = await db.prepare('SELECT pf_applicable, esi_applicable, lwf_applicable, pt_applicable, tds_applicable, lwf_state FROM employee_statutory WHERE employee_id = ?').bind(id).first()
   const documents = await db.prepare('SELECT * FROM employee_documents WHERE employee_id = ? ORDER BY id').bind(id).all()
   const site = employee.site_id
     ? await db.prepare('SELECT s.*, c.name AS client_name FROM sites s LEFT JOIN clients c ON c.id = s.client_id WHERE s.id = ?').bind(employee.site_id).first()
     : null
-  return c.json({ data: { ...(employee as object), salary: salary || null, documents: documents.results, site: site || null } })
+  return c.json({ data: { ...(employee as object), salary: salary || null, statutory: statutory || null, documents: documents.results, site: site || null } })
+})
+
+employeeRoutes.get('/:id/statutory', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+  const db = getDb(c.env)
+  const row = await db.prepare('SELECT * FROM employee_statutory WHERE employee_id = ?').bind(id).first()
+  if (!row) {
+    // Sensible defaults when never configured: PT on (threshold-gated), everything else off
+    return c.json({ data: { employee_id: id, pf_applicable: 0, esi_applicable: 0, lwf_applicable: 0, pt_applicable: 1, tds_applicable: 0, lwf_state: null } })
+  }
+  return c.json({ data: row })
+})
+
+employeeRoutes.put('/:id/statutory', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+  const body = await c.req.json().catch(() => null)
+  const parsed = statutorySchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.', fields: parsed.error.flatten().fieldErrors } }, 400)
+  const d = parsed.data
+  const db = getDb(c.env)
+  const existing = await db.prepare('SELECT id FROM employees WHERE id = ?').bind(id).first()
+  if (!existing) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+  const b = (v: boolean | undefined, fallback = false) => (v === undefined ? (fallback ? 1 : 0) : v ? 1 : 0)
+  await db
+    .prepare(
+      `INSERT INTO employee_statutory (employee_id, pf_applicable, esi_applicable, lwf_applicable, pt_applicable, tds_applicable, lwf_state)
+       VALUES (?,?,?,?,?,?,?)
+       ON CONFLICT(employee_id) DO UPDATE SET
+         pf_applicable = excluded.pf_applicable,
+         esi_applicable = excluded.esi_applicable,
+         lwf_applicable = excluded.lwf_applicable,
+         pt_applicable = excluded.pt_applicable,
+         tds_applicable = excluded.tds_applicable,
+         lwf_state = excluded.lwf_state,
+         updated_at = datetime('now')`
+    )
+    .bind(id, b(d.pf_applicable), b(d.esi_applicable), b(d.lwf_applicable), b(d.pt_applicable, true), b(d.tds_applicable), d.lwf_state ?? null)
+    .run()
+  const row = await db.prepare('SELECT pf_applicable, esi_applicable, lwf_applicable, pt_applicable, tds_applicable, lwf_state FROM employee_statutory WHERE employee_id = ?').bind(id).first()
+  return c.json({ data: row, message: 'Statutory settings saved.' })
 })
 
 async function nextEmployeeCode(db: D1Database): Promise<string> {
   const row = await db.prepare('SELECT MAX(id) AS m FROM employees').first()
-  return `PWS${String((Number(row?.m) || 0) + 1).padStart(4, '0')}`
+  return `SW${String((Number(row?.m) || 0) + 1).padStart(4, '0')}`
 }
+
+const documentCreateSchema = z.object({
+  document_type: z.string().min(1).max(100),
+  document_name: z.string().max(191).optional().nullable(),
+  document_number: z.string().max(100).optional().nullable(),
+})
+
+employeeRoutes.post('/:id/documents', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+  const body = await c.req.json().catch(() => null)
+  const parsed = documentCreateSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.', fields: parsed.error.flatten().fieldErrors } }, 400)
+  const d = parsed.data
+  const db = getDb(c.env)
+  const emp = await db.prepare('SELECT id FROM employees WHERE id = ?').bind(id).first()
+  if (!emp) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+  await db
+    .prepare('INSERT INTO employee_documents (employee_id, document_type, document_name, document_number) VALUES (?,?,?,?)')
+    .bind(id, d.document_type, d.document_name ?? null, d.document_number ?? null)
+    .run()
+  const documents = await db.prepare('SELECT * FROM employee_documents WHERE employee_id = ? ORDER BY id').bind(id).all()
+  return c.json({ data: documents.results, message: 'Document added.' })
+})
+
+employeeRoutes.patch('/:id/documents/:docId/verify', async (c) => {
+  const id = Number(c.req.param('id'))
+  const docId = Number(c.req.param('docId'))
+  const body = await c.req.json().catch(() => null)
+  const parsed = z.object({ verified: z.boolean() }).safeParse(body)
+  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Invalid input.' } }, 400)
+  const db = getDb(c.env)
+  const res = await db.prepare('UPDATE employee_documents SET verified = ? WHERE id = ? AND employee_id = ?').bind(parsed.data.verified ? 1 : 0, docId, id).run()
+  if (!res.meta.changes) return c.json({ error: { code: 'not_found', message: 'Document not found.' } }, 404)
+  const documents = await db.prepare('SELECT * FROM employee_documents WHERE employee_id = ? ORDER BY id').bind(id).all()
+  return c.json({ data: documents.results, message: parsed.data.verified ? 'Document verified.' : 'Verification removed.' })
+})
+
+employeeRoutes.delete('/:id/documents/:docId', async (c) => {
+  const id = Number(c.req.param('id'))
+  const docId = Number(c.req.param('docId'))
+  if (!Number.isInteger(id) || !Number.isInteger(docId)) return c.json({ error: { code: 'not_found', message: 'Document not found.' } }, 404)
+  const db = getDb(c.env)
+  const res = await db.prepare('DELETE FROM employee_documents WHERE id = ? AND employee_id = ?').bind(docId, id).run()
+  if (!res.meta.changes) return c.json({ error: { code: 'not_found', message: 'Document not found.' } }, 404)
+  const documents = await db.prepare('SELECT * FROM employee_documents WHERE employee_id = ? ORDER BY id').bind(id).all()
+  return c.json({ data: documents.results, message: 'Document removed.' })
+})
 
 employeeRoutes.post('/', async (c) => {
   const body = await c.req.json().catch(() => null)
@@ -173,14 +298,17 @@ employeeRoutes.post('/', async (c) => {
   const siteId = d.site_id ?? null
   const info = await db
     .prepare(
-      `INSERT INTO employees (employee_code, first_name, last_name, gender, dob, mobile, email, address, city, state, pincode, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, employee_type, shift_type, site_id, status)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    )
+      `INSERT INTO employees (employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, city, state, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(
-      code, d.first_name, d.last_name, d.gender ?? null, d.dob ?? null, d.mobile ?? null, d.email || null,
+      code, d.first_name, d.last_name, d.father_name ?? null, d.gender ?? null, d.dob ?? null, d.mobile ?? null, d.email || null,
+      d.aadhaar ?? null,
       d.address ?? null, d.city ?? null, d.state ?? null, d.pincode ?? null,
+      d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null,
       d.bank_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null,
-      d.joining_date ?? null, d.designation ?? null, d.department ?? null, d.employee_type ?? 'permanent',
+      d.joining_date ?? null, d.designation ?? null, d.department ?? null,
+      d.grade ?? null, d.reporting_manager ?? null, d.previous_employment ?? null,
+      d.employee_type ?? 'permanent',
       d.shift_type ?? null, siteId, d.status ?? 'active'
     )
     .run()
@@ -197,6 +325,24 @@ employeeRoutes.post('/', async (c) => {
       salary.basic || 0, salary.hra || 0, salary.conveyance || 0, salary.other_allowance || 0,
       salary.overtime_rate || 0, salary.pf_applicable === false ? 0 : 1, salary.esic_applicable === false ? 0 : 1,
       salary.other_deduction || 0
+    )
+    .run()
+
+  // Statutory applicability: per-employee, never assumed. Falls back to the
+  // salary-structure PF/ESI flags for backwards compatibility with the demo UI.
+  const st = d.statutory
+  await db
+    .prepare(
+      `INSERT INTO employee_statutory (employee_id, pf_applicable, esi_applicable, lwf_applicable, pt_applicable, tds_applicable)
+       VALUES (?,?,?,?,?,?)`
+    )
+    .bind(
+      employeeId,
+      st?.pf_applicable === undefined ? (salary.pf_applicable === false ? 0 : 1) : st.pf_applicable ? 1 : 0,
+      st?.esi_applicable === undefined ? (salary.esic_applicable === false ? 0 : 1) : st.esi_applicable ? 1 : 0,
+      st?.lwf_applicable ? 1 : 0,
+      st?.pt_applicable === false ? 0 : 1,
+      st?.tds_applicable ? 1 : 0
     )
     .run()
 
@@ -224,8 +370,10 @@ employeeRoutes.put('/:id', async (c) => {
   }
 
   const fields = [
-    'first_name', 'last_name', 'gender', 'dob', 'mobile', 'email', 'address', 'city', 'state', 'pincode',
+    'first_name', 'last_name', 'father_name', 'gender', 'dob', 'mobile', 'email', 'aadhaar',
+    'address', 'city', 'state', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
     'bank_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'joining_date', 'designation', 'department',
+    'grade', 'reporting_manager', 'previous_employment',
     'employee_type', 'shift_type', 'status',
   ] as const
   const sets: string[] = []
@@ -265,10 +413,85 @@ employeeRoutes.put('/:id', async (c) => {
   return c.json({ data: updated })
 })
 
-employeeRoutes.patch('/:id/status', async (c) => {
+// ---------- Salary revision / increment / promotion ----------
+const revisionSchema = z.object({
+  effective_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  reason: z.enum(['increment', 'promotion', 'revision', 'correction']),
+  basic: z.number().min(0),
+  hra: z.number().min(0).default(0),
+  conveyance: z.number().min(0).default(0),
+  other_allowance: z.number().min(0).default(0),
+  overtime_rate: z.number().min(0).default(0),
+  designation: z.string().max(100).optional(),
+  remarks: z.string().max(500).optional(),
+})
+
+employeeRoutes.get('/:id/revisions', async (c) => {
+  const id = Number(c.req.param('id'))
+  const db = getDb(c.env)
+  const rows = await db
+    .prepare(`SELECT * FROM salary_revisions WHERE employee_id = ? ORDER BY effective_from DESC, id DESC`)
+    .bind(id)
+    .all()
+  return c.json({ data: rows.results })
+})
+
+employeeRoutes.post('/:id/revision', async (c) => {
   const id = Number(c.req.param('id'))
   const body = await c.req.json().catch(() => null)
-  const parsed = z.object({ status: z.enum(['active', 'inactive']) }).safeParse(body)
+  const parsed = revisionSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.', fields: parsed.error.flatten().fieldErrors } }, 400)
+  const d = parsed.data
+  const db = getDb(c.env)
+  const emp = await db.prepare('SELECT id FROM employees WHERE id = ?').bind(id).first()
+  if (!emp) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+
+  const oldStruct: any = await db
+    .prepare(`SELECT * FROM salary_structures WHERE employee_id = ? ORDER BY effective_from DESC, id DESC LIMIT 1`)
+    .bind(id)
+    .first()
+  if (!oldStruct) return c.json({ error: { code: 'not_found', message: 'Employee has no salary structure yet.' } }, 404)
+
+  const oldGross = Number(oldStruct.basic || 0) + Number(oldStruct.hra || 0) + Number(oldStruct.conveyance || 0) + Number(oldStruct.other_allowance || 0)
+  const newGross = r2(d.basic + d.hra + d.conveyance + d.other_allowance)
+
+  const ops: D1PreparedStatement[] = [
+    db
+      .prepare(
+        `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, overtime_rate, pf_applicable, esic_applicable, other_deduction)
+         VALUES (?,?,?,?,?,?,?,?,?,?)`
+      )
+      .bind(id, d.effective_from, r2(d.basic), r2(d.hra), r2(d.conveyance), r2(d.other_allowance), r2(d.overtime_rate), Number(oldStruct.pf_applicable ?? 1), Number(oldStruct.esic_applicable ?? 1), Number(oldStruct.other_deduction || 0)),
+    db
+      .prepare(
+        `INSERT INTO salary_revisions (employee_id, effective_from, reason, old_basic, new_basic, old_gross, new_gross, designation, remarks, created_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?)`
+      )
+      .bind(
+        id,
+        d.effective_from,
+        d.reason,
+        Number(oldStruct.basic || 0),
+        r2(d.basic),
+        oldGross,
+        newGross,
+        d.designation ?? null,
+        d.remarks ?? null,
+        c.get('user')?.email ?? null
+      ),
+  ]
+  if (d.designation) {
+    ops.push(db.prepare(`UPDATE employees SET designation = ?, updated_at = datetime('now') WHERE id = ?`).bind(d.designation, id))
+  }
+  await db.batch(ops)
+
+  const updated = await db.prepare(`${employeeSelect} WHERE e.id = ?`).bind(id).first()
+  return c.json({ data: updated, message: `Salary revised (${d.reason}) from ${d.effective_from}.` }, 201)
+})
+
+employeeRoutes.patch('/:id/status', async (c) => {  const id = Number(c.req.param('id'))
+  const body = await c.req.json().catch(() => null)
+  const parsed = z.object({ status: z.enum(['active', 'inactive', 'resigned', 'terminated']) }).safeParse(body)
   if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Invalid status.' } }, 400)
   const db = getDb(c.env)
   const res = await db.prepare('UPDATE employees SET status = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(parsed.data.status, id).run()

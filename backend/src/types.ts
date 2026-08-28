@@ -1,5 +1,6 @@
 export interface Env {
   DB: D1Database
+  SESSION_SECRET?: string
   AUTH_SECRET?: string
 }
 
@@ -8,6 +9,7 @@ export interface AuthUser {
   name: string
   email: string
   role: string
+  employee_id?: number | null
 }
 
 export interface Settings {
@@ -104,4 +106,6 @@ export interface PayrollSettings {
   esic_eligibility: number
   professional_tax_amount: number
   professional_tax_min_gross: number
+  lwf_employee_amount: number
+  tds_percent: number
 }

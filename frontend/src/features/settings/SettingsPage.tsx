@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { settingsApi } from '@/services/api'
+import { settingsApi, employeeApi } from '@/services/api'
 import { Button, Input, Select } from '@/components/ui/fields'
 import { Tabs, Badge, Table } from '@/components/ui/data'
 import { PageHeader, LoadingState, PageError } from '@/components/ui/state'
 import { Modal } from '@/components/ui/overlay'
 import { toast } from 'sonner'
 import { Settings, IndianRupee, CalendarCheck, Shield, Users, Plus, Sun } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 
 const TABS = [
   { key: 'company', label: 'Company' },
@@ -18,16 +19,43 @@ const TABS = [
   { key: 'security', label: 'Password' },
 ]
 
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  hr: 'HR',
+  payroll: 'Payroll',
+  finance: 'Finance',
+  manager: 'Manager',
+  employee: 'Employee (Self Service)',
+}
+
 export default function SettingsPage() {
+  const { user, hasRole } = useAuth()
+  const isAdmin = hasRole('super_admin', 'admin')
+  const isSuper = user?.role === 'super_admin'
+  const roleOptions = Object.entries(ROLE_LABELS)
+    .filter(([key]) => key !== 'super_admin' || isSuper)
+    .map(([value, label]) => ({ value, label }))
   const [active, setActive] = useState('company')
   const [showAddUser, setShowAddUser] = useState(false)
   const [showAddLeave, setShowAddLeave] = useState(false)
   const [showAddShift, setShowAddShift] = useState(false)
-  const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'admin' })
+  const [resetTarget, setResetTarget] = useState<any>(null)
+  const [resetPwd, setResetPwd] = useState('')
+  const [userForm, setUserForm] = useState({ name: '', email: '', password: '', role: 'hr', employee_id: '' })
   const [leaveForm, setLeaveForm] = useState({ name: '', code: '', paid_default: true, max_days: '' })
   const [shiftForm, setShiftForm] = useState({ name: '', start_time: '', end_time: '' })
   const [pwForm, setPwForm] = useState({ current: '', newPwd: '' })
   const qc = useQueryClient()
+
+  const empListQ = useQuery({
+    queryKey: ['employees', 'options'],
+    queryFn: () => employeeApi.list({ status: 'active', page_size: '100', sort: 'name' }),
+    enabled: isAdmin,
+  })
+  const employeeOptions = (empListQ.data?.data || []).map((e: any) => ({ value: String(e.id), label: `${e.employee_code} — ${e.first_name} ${e.last_name}` }))
+
+  const visibleTabs = TABS.filter(t => t.key !== 'users' || isAdmin)
 
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['settings'], queryFn: () => settingsApi.get() })
   const s: any = data?.data || {}
@@ -40,8 +68,18 @@ export default function SettingsPage() {
 
   const userMut = useMutation({
     mutationFn: (d: any) => settingsApi.addUser(d),
-    onSuccess: () => { setShowAddUser(false); setUserForm({ name: '', email: '', password: '', role: 'admin' }); qc.invalidateQueries({ queryKey: ['settings'] }); toast.success('User added.') },
+    onSuccess: () => { setShowAddUser(false); setUserForm({ name: '', email: '', password: '', role: 'hr', employee_id: '' }); qc.invalidateQueries({ queryKey: ['settings'] }); toast.success('User added.') },
     onError: (e: any) => toast.error(e?.error?.message || 'Failed to add user.'),
+  })
+
+  const userUpdMut = useMutation({
+    mutationFn: ({ id, ...d }: any) => settingsApi.updateUser(id, d),
+    onSuccess: (_r: any, v: any) => {
+      qc.invalidateQueries({ queryKey: ['settings'] })
+      setResetTarget(null); setResetPwd('')
+      toast.success(v?.password ? 'Password reset.' : 'User updated.')
+    },
+    onError: (e: any) => toast.error(e?.error?.message || 'Failed to update user.'),
   })
 
   const leaveMut = useMutation({
@@ -70,7 +108,7 @@ export default function SettingsPage() {
   return (
     <div>
       <PageHeader title="Settings" subtitle="Configure your company and payroll settings" />
-      <Tabs tabs={TABS} active={active} onChange={setActive} />
+      <Tabs tabs={visibleTabs} active={active} onChange={setActive} />
 
       <div className="bg-white card-shadow rounded-md p-5 mt-3">
         {isLoading ? <LoadingState /> : error ? <PageError onRetry={() => refetch()} /> : (
@@ -110,7 +148,17 @@ export default function SettingsPage() {
                 <Input label="PT Amount (₹)" type="number" value={set.professional_tax_amount || 200} onChange={e => saveMut.mutate({ professional_tax_amount: Number(e.target.value) })} />
                 <Input label="PT Min Gross (₹)" type="number" value={set.professional_tax_min_gross || 10000} onChange={e => saveMut.mutate({ professional_tax_min_gross: Number(e.target.value) })} />
                 <div />
-                <p className="text-[11px] text-mute col-span-full mt-2">These values affect payroll calculations. Changes apply to future payroll generation only.</p>
+                <h3 className="mono-label col-span-full mt-4">LWF & TDS</h3>
+                <Input label="LWF Employee (₹/month, flat)" type="number" value={set.lwf_employee_amount || 0} onChange={e => saveMut.mutate({ lwf_employee_amount: Number(e.target.value) })} />
+                <Input label="LWF Employer (₹/month, flat)" type="number" value={set.lwf_employer_amount || 0} onChange={e => saveMut.mutate({ lwf_employer_amount: Number(e.target.value) })} />
+                <Input label="TDS (% of gross)" type="number" value={set.tds_percent || 0} onChange={e => saveMut.mutate({ tds_percent: Number(e.target.value) })} />
+                <div />
+                <h3 className="mono-label col-span-full mt-4">Statutory Compliance</h3>
+                <Input label="State (LWF / Min Wages)" value={set.state_name || 'Haryana'} onChange={e => saveMut.mutate({ state_name: e.target.value })} />
+                <Input label="Bonus % (statutory min)" type="number" value={set.bonus_percent ?? 8.33} onChange={e => saveMut.mutate({ bonus_percent: Number(e.target.value) })} />
+                <Input label="Bonus Wage Ceiling (₹/month)" type="number" value={set.bonus_wage_ceiling || 21000} onChange={e => saveMut.mutate({ bonus_wage_ceiling: Number(e.target.value) })} />
+                <div />
+                <p className="text-[11px] text-mute col-span-full mt-2">These values affect payroll calculations. LWF/TDS only apply to employees flagged as applicable. Changes apply to future payroll generation only.</p>
               </div>
             )}
 
@@ -190,10 +238,23 @@ export default function SettingsPage() {
                 </div>
                 <Table
                   columns={[
-                    { key: 'name', header: 'Name', render: (r: any) => <span className="text-[13px] font-medium text-ink">{r.name}</span> },
+                    { key: 'name', header: 'Name', render: (r: any) => <span className="text-[13px] font-medium text-ink">{r.name}{r.id === user?.id ? ' (you)' : ''}</span> },
                     { key: 'email', header: 'Email' },
-                    { key: 'role', header: 'Role', render: (r: any) => <Badge className={r.role === 'admin' ? 'bg-ink text-white' : 'bg-canvas-soft-2 text-body'}>{r.role}</Badge> },
+                    { key: 'role', header: 'Role', render: (r: any) => <Badge className={r.role === 'super_admin' || r.role === 'admin' ? 'bg-ink text-white' : 'bg-canvas-soft-2 text-body'}>{ROLE_LABELS[r.role] || r.role}</Badge> },
+                    { key: 'employee', header: 'Linked Employee', render: (r: any) => r.role === 'employee' ? (r.employee_name ? `${r.employee_name} (#${r.employee_id})` : <Badge className="bg-error-soft text-error">Not linked</Badge>) : <span className="text-mute">—</span> },
                     { key: 'status', header: 'Status', render: (r: any) => <Badge className={r.status === 'active' ? 'bg-success-soft text-success' : 'bg-error-soft text-error'}>{r.status}</Badge> },
+                    {
+                      key: 'actions',
+                      header: '',
+                      render: (r: any) => (
+                        <div className="flex justify-end gap-1.5">
+                          <Button variant="secondary" size="sm" disabled={r.id === user?.id} onClick={() => userUpdMut.mutate({ id: r.id, status: r.status === 'active' ? 'inactive' : 'active' })}>
+                            {r.status === 'active' ? 'Deactivate' : 'Activate'}
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => setResetTarget(r)}>Reset Password</Button>
+                        </div>
+                      ),
+                    },
                   ]}
                   data={users}
                   keyFn={(r) => String(r.id)}
@@ -202,9 +263,36 @@ export default function SettingsPage() {
                   <div className="space-y-3">
                     <Input label="Name" value={userForm.name} onChange={e => setUserForm(f => ({ ...f, name: e.target.value }))} />
                     <Input label="Email" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} />
-                    <Input label="Password" type="password" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} />
-                    <Select label="Role" options={[{ value: 'admin', label: 'Admin' }, { value: 'manager', label: 'Manager' }]} value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))} />
-                    <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setShowAddUser(false)}>Cancel</Button><Button onClick={() => userMut.mutate(userForm)}>Add</Button></div>
+                    <Input label="Password (min 8 chars)" type="password" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} />
+                    <Select label="Role" options={roleOptions} value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))} />
+                    {userForm.role === 'employee' && (
+                      <Select
+                        label="Link to Employee Profile"
+                        options={[{ value: '', label: '— Select employee —' }, ...employeeOptions]}
+                        value={userForm.employee_id}
+                        onChange={e => setUserForm(f => ({ ...f, employee_id: e.target.value }))}
+                      />
+                    )}
+                    <div className="flex justify-end gap-2">
+                      <Button variant="secondary" onClick={() => setShowAddUser(false)}>Cancel</Button>
+                      <Button
+                        loading={userMut.isPending}
+                        onClick={() => {
+                          if (userForm.role === 'employee' && !userForm.employee_id) { toast.error('Employee logins must be linked to an employee profile.'); return }
+                          userMut.mutate({ ...userForm, employee_id: userForm.employee_id ? Number(userForm.employee_id) : null })
+                        }}
+                      >Add</Button>
+                    </div>
+                  </div>
+                </Modal>
+                <Modal open={!!resetTarget} onClose={() => setResetTarget(null)} title={`Reset password — ${resetTarget?.name || ''}`} size="sm">
+                  <div className="space-y-3">
+                    <p className="text-[12px] text-mute">Set a temporary password for {resetTarget?.email}. Share it securely; they should change it after signing in.</p>
+                    <Input label="New Password (min 8 chars)" type="password" value={resetPwd} onChange={e => setResetPwd(e.target.value)} />
+                    <div className="flex justify-end gap-2">
+                      <Button variant="secondary" onClick={() => setResetTarget(null)}>Cancel</Button>
+                      <Button loading={userUpdMut.isPending} onClick={() => { if (resetPwd.length >= 8 && resetTarget) userUpdMut.mutate({ id: resetTarget.id, password: resetPwd }); else toast.error('Password must be at least 8 characters.') }}>Reset</Button>
+                    </div>
                   </div>
                 </Modal>
               </div>

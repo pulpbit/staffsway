@@ -6,8 +6,14 @@ export const slipRoutes = new Hono<{ Bindings: Env }>()
 
 slipRoutes.get('/', async (c) => {
   const q = c.req.query()
+  const caller = c.get('user')
   const where: string[] = []
   const params: (string | number)[] = []
+  if (caller.role === 'employee') {
+    if (!caller.employee_id) return c.json({ error: { code: 'forbidden', message: 'Your login is not linked to an employee profile.' } }, 403)
+    where.push('sp.employee_id = ?')
+    params.push(Number(caller.employee_id))
+  }
   if (q.month && q.year) { where.push('sp.month = ?'); params.push(Number(q.month)); where.push('sp.year = ?'); params.push(Number(q.year)) }
   if (q.employee_id && q.employee_id !== '') { where.push('sp.employee_id = ?'); params.push(Number(q.employee_id)) }
   if (q.search) {
@@ -36,6 +42,10 @@ slipRoutes.get('/:id', async (c) => {
   const db = getDb(c.env)
   const slip = await db.prepare('SELECT * FROM salary_slips WHERE id = ?').bind(id).first()
   if (!slip) return c.json({ error: { code: 'not_found', message: 'Salary slip not found.' } }, 404)
+  const caller = c.get('user')
+  if (caller.role === 'employee' && Number(slip.employee_id) !== Number(caller.employee_id)) {
+    return c.json({ error: { code: 'forbidden', message: 'You can only view your own salary slips.' } }, 403)
+  }
 
   const item = await db.prepare(
     `SELECT pi.*, e.employee_code, e.first_name, e.last_name, e.designation, e.department, e.gender, e.joining_date,

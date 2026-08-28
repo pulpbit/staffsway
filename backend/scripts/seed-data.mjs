@@ -26,6 +26,9 @@ export const SETTINGS = {
   professional_tax_amount: 200,
   professional_tax_min_gross: 10000,
   default_ot_rate: 80,
+  lwf_employee_amount: 100,
+  lwf_employer_amount: 100,
+  tds_percent: 2,
 }
 
 export const CLIENTS = [
@@ -72,12 +75,12 @@ const july = (a, i) => ({
 // salary helper: basic, hra, conveyance, otherAllowance, otRate, pf, esic, otherDed
 const S = (b, h, c, o, ot, pf, esic, od = 0) => ({ b, h, c, o, ot, pf, esic, od })
 
-const BASE = (id, first, last, gender, dob, mobile, city, state, pincode, joining, designation, department, empType, shift, siteId, status, bankIdx, sal, att) => {
+const BASE = (id, first, last, gender, dob, mobile, city, state, pincode, joining, designation, department, empType, shift, siteId, status, bankIdx, sal, att, st = null) => {
   const bank = BANKS[bankIdx]
   return {
     id, first, last, gender, dob, mobile, city, state, pincode, joining, designation, department,
     empType, shift, siteId, status, bank, ifsc: IFSC[bank], account: account(id), pan: pan(id), uan: uan(id),
-    aadhaar: aadhaar(id), sal, attendanceAug: att, attendanceJul: july(att, id),
+    aadhaar: aadhaar(id), sal, attendanceAug: att, attendanceJul: july(att, id), st,
   }
 }
 
@@ -85,7 +88,7 @@ export const EMPLOYEES = [
   // ---- ABC Facility Services — Corporate Park Chennai ----
   BASE(1, 'Rahul', 'Sharma', 'Male', '1988-04-12', '98100 10001', 'Chennai', 'Tamil Nadu', '600028', '2023-01-10', 'Security Supervisor', 'Security', 'permanent', 'General', 1, 'active', 0, S(12500, 5000, 1000, 1500, 95, 1, 0), A(24, 5, 1, 0, 12, 'OT for access control upgrade')),
   BASE(2, 'Amit', 'Verma', 'Male', '1992-07-23', '98100 10002', 'Chennai', 'Tamil Nadu', '600028', '2023-02-14', 'Security Guard', 'Security', 'permanent', 'General', 1, 'active', 1, S(9000, 3600, 800, 600, 75, 1, 1), A(25, 4, 0, 1, 8, '')),
-  BASE(3, 'Sanjay', 'Gupta', 'Male', '1990-11-05', '98100 10003', 'Chennai', 'Tamil Nadu', '600028', '2023-03-01', 'Security Guard', 'Security', 'contract', 'Night', 1, 'active', 2, S(8500, 3400, 800, 600, 75, 1, 1), A(26, 3, 0, 0, 24, 'Night shift OT')),
+  BASE(3, 'Sanjay', 'Gupta', 'Male', '1990-11-05', '98100 10003', 'Chennai', 'Tamil Nadu', '600028', '2023-03-01', 'Security Guard', 'Security', 'contract', 'Night', 1, 'active', 2, S(8500, 3400, 800, 600, 75, 1, 1), A(26, 3, 0, 0, 24, 'Night shift OT'), { lwf: true }),
   BASE(4, 'Vikas', 'Yadav', 'Male', '1987-02-17', '98100 10004', 'Chennai', 'Tamil Nadu', '600028', '2023-01-20', 'Electrician', 'Technical', 'permanent', 'General', 1, 'active', 3, S(11500, 4600, 800, 800, 90, 1, 1), A(23, 6, 0, 1, 15, 'Emergency electrical work')),
   BASE(5, 'Mohan', 'Das', 'Male', '1995-09-30', '98100 10005', 'Chennai', 'Tamil Nadu', '600028', '2024-04-05', 'Office Boy', 'Administration', 'permanent', 'General', 1, 'active', 4, S(7500, 3000, 600, 400, 65, 1, 1), A(25, 4, 1, 0, 0, '')),
   BASE(6, 'Suresh', 'Kumar', 'Male', '1985-05-08', '98100 10006', 'Chennai', 'Tamil Nadu', '600028', '2022-08-01', 'Facility Supervisor', 'Facilities', 'permanent', 'General', 1, 'active', 5, S(16000, 6400, 1000, 1600, 110, 1, 0), A(24, 5, 0, 0, 6, '')),
@@ -94,17 +97,17 @@ export const EMPLOYEES = [
   BASE(7, 'Ramesh', 'Kumar', 'Male', '1991-12-19', '98100 10007', 'Mumbai', 'Maharashtra', '400002', '2023-05-02', 'Security Guard', 'Security', 'permanent', 'Rotational', 2, 'active', 6, S(8800, 3520, 800, 500, 75, 1, 1), A(26, 3, 0, 0, 10, '')),
   BASE(8, 'Deepak', 'Singh', 'Male', '1993-03-25', '98100 10008', 'Mumbai', 'Maharashtra', '400002', '2023-06-12', 'Security Guard', 'Security', 'contract', 'Night', 2, 'active', 0, S(8600, 3440, 800, 600, 75, 1, 1), A(25, 4, 0, 1, 28, 'Night shift OT')),
   BASE(9, 'Manoj', 'Tiwari', 'Male', '1996-08-14', '98100 10009', 'Mumbai', 'Maharashtra', '400002', '2024-02-20', 'Cleaner', 'Housekeeping', 'permanent', 'Morning', 2, 'active', 1, S(7200, 2880, 600, 400, 60, 1, 1), A(24, 5, 1, 0, 0, '')),
-  BASE(10, 'Raju', 'Patel', 'Male', '1986-10-02', '98100 10010', 'Mumbai', 'Maharashtra', '400002', '2023-07-17', 'Plumber', 'Technical', 'contract', 'General', 2, 'active', 2, S(10500, 4200, 800, 800, 85, 1, 1), A(22, 7, 0, 1, 9, 'Plumbing maintenance OT')),
+  BASE(10, 'Raju', 'Patel', 'Male', '1986-10-02', '98100 10010', 'Mumbai', 'Maharashtra', '400002', '2023-07-17', 'Plumber', 'Technical', 'contract', 'General', 2, 'active', 2, S(10500, 4200, 800, 800, 85, 1, 1), A(22, 7, 0, 1, 9, 'Plumbing maintenance OT'), { tds: true }),
   BASE(11, 'Anil', 'Chauhan', 'Male', '1994-01-28', '98100 10011', 'Mumbai', 'Maharashtra', '400002', '2024-05-09', 'Housekeeping Staff', 'Housekeeping', 'permanent', 'Morning', 2, 'active', 3, S(7800, 3120, 700, 500, 65, 1, 1), A(25, 4, 0, 0, 4, '')),
 
   // ---- ABC Facility Services — Riverside Tech Hub Bengaluru ----
   BASE(12, 'Nitin', 'Shetty', 'Male', '1989-06-21', '98100 10012', 'Bengaluru', 'Karnataka', '560095', '2023-03-18', 'Security Supervisor', 'Security', 'permanent', 'General', 3, 'active', 4, S(12500, 5000, 1000, 1500, 95, 1, 0), A(25, 4, 0, 0, 10, '')),
   BASE(13, 'Karan', 'Malhotra', 'Male', '1992-09-11', '98100 10013', 'Bengaluru', 'Karnataka', '560095', '2023-04-02', 'Security Guard', 'Security', 'permanent', 'General', 3, 'active', 5, S(9200, 3680, 800, 600, 75, 1, 1), A(26, 3, 0, 0, 6, '')),
-  BASE(14, 'Arjun', 'Reddy', 'Male', '1988-11-27', '98100 10014', 'Bengaluru', 'Karnataka', '560095', '2023-01-15', 'Maintenance Technician', 'Technical', 'permanent', 'General', 3, 'active', 6, S(12000, 4800, 800, 1000, 90, 1, 1), A(24, 5, 1, 0, 18, 'Preventive maintenance OT')),
+  BASE(14, 'Arjun', 'Reddy', 'Male', '1988-11-27', '98100 10014', 'Bengaluru', 'Karnataka', '560095', '2023-01-15', 'Maintenance Technician', 'Technical', 'permanent', 'General', 3, 'active', 6, S(12000, 4800, 800, 1000, 90, 1, 1), A(24, 5, 1, 0, 18, 'Preventive maintenance OT'), { lwf: true, tds: true }),
   BASE(15, 'Pooja', 'Sharma', 'Female', '1996-05-16', '98100 10015', 'Bengaluru', 'Karnataka', '560095', '2024-08-01', 'Receptionist', 'Administration', 'permanent', 'General', 3, 'active', 0, S(9500, 3800, 800, 600, 70, 1, 1), A(25, 4, 1, 0, 0, '')),
 
   // ---- Metro Mall Management — City Centre Mall Pune ----
-  BASE(16, 'Sunil', 'Pawar', 'Male', '1987-03-06', '98100 10016', 'Pune', 'Maharashtra', '411004', '2023-02-01', 'Housekeeping Supervisor', 'Housekeeping', 'permanent', 'Morning', 4, 'active', 1, S(11000, 4400, 800, 800, 85, 1, 1), A(24, 5, 1, 0, 8, '')),
+  BASE(16, 'Sunil', 'Pawar', 'Male', '1987-03-06', '98100 10016', 'Pune', 'Maharashtra', '411004', '2023-02-01', 'Housekeeping Supervisor', 'Housekeeping', 'permanent', 'Morning', 4, 'active', 1, S(11000, 4400, 800, 800, 85, 1, 1), A(24, 5, 1, 0, 8, ''), { lwf: true }),
   BASE(17, 'Vijay', 'More', 'Male', '1995-07-19', '98100 10017', 'Pune', 'Maharashtra', '411004', '2024-01-10', 'Housekeeping Staff', 'Housekeeping', 'contract', 'Morning', 4, 'active', 2, S(7800, 3120, 700, 500, 65, 1, 1), A(26, 3, 0, 0, 5, '')),
   BASE(18, 'Sandeep', 'Kulkarni', 'Male', '1990-12-03', '98100 10018', 'Pune', 'Maharashtra', '411004', '2023-05-20', 'Security Guard', 'Security', 'permanent', 'Morning', 4, 'active', 3, S(8800, 3520, 800, 500, 75, 1, 1), A(25, 4, 0, 0, 7, '')),
   BASE(19, 'Mahesh', 'Joshi', 'Male', '1984-04-25', '98100 10019', 'Pune', 'Maharashtra', '411004', '2024-03-15', 'Gardener', 'Housekeeping', 'contract', 'Morning', 4, 'active', 4, S(7200, 2880, 600, 400, 60, 1, 1), A(23, 6, 0, 1, 0, '')),
