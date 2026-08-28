@@ -137,7 +137,7 @@ interface Tab {
 
 export function Tabs({ tabs, active, onChange }: { tabs: Tab[]; active: string; onChange: (key: string) => void }) {
   return (
-    <div className="flex gap-0.5 bg-canvas-soft-2 rounded-sm p-0.5 w-fit">
+    <div className="flex flex-wrap gap-0.5 bg-canvas-soft-2 rounded-sm p-0.5 w-full max-w-full">
       {tabs.map((t) => (
         <button
           key={t.key}

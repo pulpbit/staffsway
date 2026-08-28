@@ -88,10 +88,26 @@
 }
 
 @media print {
+  html, body { height: auto !important; overflow: visible !important; }
   body * { visibility: hidden; }
-  .print-slip, .print-slip * { visibility: visible; }
-  .print-slip { position: absolute; top: 0; left: 0; width: 100%; }
+  .print-slip, .print-slip *,
+  #ess-slip-print, #ess-slip-print * { visibility: visible; }
+  .print-slip, #ess-slip-print {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    box-shadow: none;
+  }
+  .print-slip *, .print-slip,
+  #ess-slip-print *, #ess-slip-print {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
   .print-letter, .print-letter * { visibility: visible; }
-  .print-letter { position: absolute; top: 0; left: 0; width: 100%; background: white; }
+  .print-letter { position: fixed; top: 0; left: 0; width: 100%; background: white; }
   @page { size: A4; margin: 16mm 12mm; }
 }

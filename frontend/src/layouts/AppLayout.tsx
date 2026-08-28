@@ -53,7 +53,7 @@ export default function AppLayout() {
         <img src="/images/logo.png" alt="Staffsway" className="w-7 h-7 rounded-xs object-contain" />
         <span className="text-[14px] font-semibold text-white tracking-[-0.02em]">Staffsway</span>
       </div>
-      <nav className="flex-1 px-2 py-3 space-y-0.5">
+      <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-0.5">
         {visibleNav(user?.role).map((item) => (
           <NavLink key={item.to} to={item.to} end={item.to === '/'} className={linkClass} onClick={() => setSidebarOpen(false)}>
             <item.icon className="w-4 h-4 shrink-0" />
@@ -87,7 +87,7 @@ export default function AppLayout() {
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="fixed inset-0 bg-black/30" onClick={() => setSidebarOpen(false)} />
           <aside className="fixed left-0 top-0 bottom-0 w-64 border-r border-white/10 z-50 shadow-modal flex flex-col">
-            <div className="flex items-center justify-between px-3 py-3 border-b border-white/10">
+            <div className="flex items-center justify-between px-3 py-3 border-b border-white/10 shrink-0">
               <div className="flex items-center gap-2">
                 <img src="/images/logo.png" alt="Staffsway" className="w-6 h-6 rounded-xs" />
                 <span className="text-[14px] font-semibold text-white">Staffsway</span>
@@ -96,7 +96,7 @@ export default function AppLayout() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0">
               <Sidebar />
             </div>
           </aside>

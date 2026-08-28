@@ -143,7 +143,7 @@ export default function SalarySlipsPage() {
               <span className="text-[18px] font-semibold tracking-[-0.03em]">{money(detail.item?.net_salary || 0)}</span>
             </div>
 
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end mt-4 print:hidden">
               <button onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 h-8 bg-ink text-white text-[13px] font-medium rounded-sm hover:bg-ink/90"><Printer className="w-3.5 h-3.5" /> Print Slip</button>
             </div>
           </div>
