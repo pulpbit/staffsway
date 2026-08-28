@@ -4,6 +4,7 @@ dist/
 *.log
 .env
 .env.*
+!.env.production
 .DS_Store
 Thumbs.db
 *.tsbuildinfo
