@@ -8,9 +8,10 @@ import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui
 import { ConfirmDialog, Modal } from '@/components/ui/overlay'
 import { fullName, statusColor, statusLabel, dateShort } from '@/utils/format'
 import { toast } from 'sonner'
-import { Plus, Search, UserPlus, Trash2, FileText, ClipboardCheck, TrendingUp } from 'lucide-react'
+import { Plus, Search, UserPlus, Trash2, FileText, ClipboardCheck, TrendingUp, Upload } from 'lucide-react'
 import EmployeeForm from './EmployeeForm'
 import SalaryRevisionModal from './SalaryRevisionModal'
+import BulkEmployeeImport from './BulkEmployeeImport'
 import type { Employee } from '@/types/api'
 
 const DOC_TYPES = ['Aadhaar Card', 'PAN Card', 'Bank Proof', 'Joining Form', 'Education Certificate', 'Address Proof', 'Other']
@@ -22,6 +23,7 @@ export default function EmployeesPage() {
   const [sort, setSort] = useState('name')
   const [order, setOrder] = useState<'asc' | 'desc'>('asc')
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [docsFor, setDocsFor] = useState<any>(null)
@@ -128,7 +130,10 @@ export default function EmployeesPage() {
       <PageHeader
         title="Employees"
         subtitle={`${meta.total} total`}
-        actions={<Button onClick={() => { setEditId(null); setShowForm(true) }}><UserPlus className="w-3.5 h-3.5" /> Add Employee</Button>}
+        actions={<div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => setShowImport(true)}><Upload className="w-3.5 h-3.5" /> Bulk Import</Button>
+          <Button onClick={() => { setEditId(null); setShowForm(true) }}><UserPlus className="w-3.5 h-3.5" /> Add Employee</Button>
+        </div>}
       />
 
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
@@ -186,6 +191,15 @@ export default function EmployeesPage() {
           />
         </Modal>
       )}
+
+      <Modal open={showImport} onClose={() => setShowImport(false)} title="Bulk Import Employees" size="lg">
+        {showImport && (
+          <BulkEmployeeImport
+            onClose={() => setShowImport(false)}
+            onImported={() => { queryClient.invalidateQueries({ queryKey: ['employees'] }); toast.success('Employee data imported.') }}
+          />
+        )}
+      </Modal>
 
       <Modal open={!!docsFor} onClose={() => setDocsFor(null)} title={`Documents — ${docsFor ? fullName(docsFor.first_name, docsFor.last_name) : ''}`} size="md">
         <div className="space-y-4">

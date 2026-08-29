@@ -53,6 +53,14 @@ export const dashboardApi = {
 }
 
 // Employees
+export interface EmployeeImportResult {
+  total: number
+  created: number
+  updated: number
+  skipped: number
+  errors: { row: number; message: string; fields?: Record<string, string[]> }[]
+}
+
 export const employeeApi = {
   list: (params: Record<string, string>) => {
     const q = new URLSearchParams(params).toString()
@@ -71,6 +79,7 @@ export const employeeApi = {
   createRevision: (id: number, data: { effective_from: string; reason: 'increment' | 'promotion' | 'revision' | 'correction'; basic: number; hra?: number; conveyance?: number; other_allowance?: number; overtime_rate?: number; designation?: string; remarks?: string }) =>
     api.post<import('@/types/api').Employee>(`/employees/${id}/revision`, data),
   delete: (id: number) => api.delete(`/employees/${id}`),
+  importEmployees: (rows: unknown[]) => api.post<EmployeeImportResult>('/employees/import', { rows }),
   filters: () => api.get<{ designations: string[]; departments: string[]; employee_types: string[]; shift_types: string[] }>('/employees/filters'),
 }
 

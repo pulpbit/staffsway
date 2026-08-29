@@ -350,6 +350,336 @@ employeeRoutes.post('/', async (c) => {
   return c.json({ data: created }, 201)
 })
 
+// ---------- Bulk import / upload (create or update employees from a file) ----------
+const importRowSchema = z.object({ ...employeeBase, employee_code: z.string().max(20).optional() })
+
+const importSchema = z.object({
+  rows: z.array(z.record(z.string(), z.unknown())).min(1).max(2000),
+})
+
+const strVal = (v: unknown): string | undefined => {
+  if (v === null || v === undefined) return undefined
+  const s = String(v).trim()
+  return s === '' ? undefined : s
+}
+const numVal = (v: unknown): number | undefined => {
+  const s = strVal(v)
+  if (s === undefined) return undefined
+  const n = Number(s)
+  return Number.isFinite(n) ? n : undefined
+}
+const boolVal = (v: unknown): boolean | undefined => {
+  if (v === null || v === undefined || v === '') return undefined
+  if (typeof v === 'boolean') return v
+  if (typeof v === 'number') return v === 1
+  const s = String(v).trim().toLowerCase()
+  if (['true', 'yes', 'y', '1'].includes(s)) return true
+  if (['false', 'no', 'n', '0'].includes(s)) return false
+  return undefined
+}
+const genderVal = (v: unknown): string | undefined => {
+  const s = strVal(v)
+  if (!s) return undefined
+  const g = s.toLowerCase()
+  if (g === 'male' || g === 'm') return 'Male'
+  if (g === 'female' || g === 'f') return 'Female'
+  if (g === 'other' || g === 'o') return 'Other'
+  return s
+}
+const optionVal = (v: unknown, allowed: string[]): string | undefined => {
+  const s = strVal(v)
+  if (!s) return undefined
+  return allowed.find((a) => a.toLowerCase() === s.toLowerCase()) ?? undefined
+}
+
+const IMPORT_STR_FIELDS = [
+  'first_name', 'last_name', 'employee_code', 'father_name', 'dob', 'mobile', 'email', 'aadhaar',
+  'address', 'city', 'state', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
+  'bank_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'joining_date', 'designation', 'department',
+  'grade', 'reporting_manager', 'previous_employment', 'shift_type',
+]
+const IMPORT_SALARY_KEYS = ['basic', 'hra', 'conveyance', 'other_allowance', 'overtime_rate', 'other_deduction'] as const
+
+function coerceImportRow(raw: Record<string, unknown>): Record<string, unknown> {
+  const r: Record<string, unknown> = {}
+  for (const k of IMPORT_STR_FIELDS) {
+    const v = strVal(raw[k])
+    if (v !== undefined) r[k] = v
+  }
+  const gender = genderVal(raw.gender)
+  if (gender !== undefined) r.gender = gender
+  const empType = optionVal(raw.employee_type, ['permanent', 'contract', 'temporary', 'probation'])
+  if (empType !== undefined) r.employee_type = empType
+  const status = optionVal(raw.status, ['active', 'inactive', 'resigned', 'terminated'])
+  if (status !== undefined) r.status = status
+  if ('site_id' in raw && raw.site_id !== null && raw.site_id !== undefined && raw.site_id !== '') {
+    const n = numVal(raw.site_id)
+    if (n !== undefined) r.site_id = n
+  }
+
+  const salarySrc = raw.salary && typeof raw.salary === 'object' ? (raw.salary as Record<string, unknown>) : raw
+  const pfFlat = boolVal(salarySrc.pf_applicable)
+  const esicFlat = boolVal(salarySrc.esic_applicable)
+  const hasSalary =
+    IMPORT_SALARY_KEYS.some((k) => numVal(salarySrc[k]) !== undefined) || pfFlat !== undefined || esicFlat !== undefined
+  if (hasSalary) {
+    r.salary = {
+      basic: numVal(salarySrc.basic) ?? 0,
+      hra: numVal(salarySrc.hra) ?? 0,
+      conveyance: numVal(salarySrc.conveyance) ?? 0,
+      other_allowance: numVal(salarySrc.other_allowance) ?? 0,
+      overtime_rate: numVal(salarySrc.overtime_rate) ?? 0,
+      pf_applicable: pfFlat,
+      esic_applicable: esicFlat,
+      other_deduction: numVal(salarySrc.other_deduction) ?? 0,
+    }
+  }
+
+  const stSrc = raw.statutory && typeof raw.statutory === 'object' ? (raw.statutory as Record<string, unknown>) : raw
+  const lwf = boolVal(stSrc.lwf_applicable)
+  const pt = boolVal(stSrc.pt_applicable)
+  const tds = boolVal(stSrc.tds_applicable)
+  const hasStat = pfFlat !== undefined || esicFlat !== undefined || lwf !== undefined || pt !== undefined || tds !== undefined
+  if (hasStat) {
+    r.statutory = {
+      pf_applicable: pfFlat,
+      esi_applicable: esicFlat,
+      lwf_applicable: lwf,
+      pt_applicable: pt,
+      tds_applicable: tds,
+    }
+  }
+  return r
+}
+
+employeeRoutes.post('/import', async (c) => {
+  const body = await c.req.json().catch(() => null)
+  const parsed = importSchema.safeParse(body)
+  if (!parsed.success) {
+    return c.json({ error: { code: 'validation_error', message: 'Upload must contain at least one employee row.' } }, 400)
+  }
+  const db = getDb(c.env)
+  const rowsIn = parsed.data.rows
+
+  const existing = await db.prepare('SELECT id, employee_code, email FROM employees').all()
+  const statutoryRows = await db
+    .prepare('SELECT employee_id, pf_applicable, esi_applicable, lwf_applicable, pt_applicable, tds_applicable, lwf_state FROM employee_statutory')
+    .all()
+
+  const codeIndex = new Map<string, { id: number }>()
+  const emailIndex = new Map<string, { id: number }>()
+  const takenCodes = new Set<string>()
+  for (const e of existing.results as any[]) {
+    if (e.employee_code) {
+      const code = String(e.employee_code).toUpperCase()
+      takenCodes.add(code)
+      codeIndex.set(code, { id: Number(e.id) })
+    }
+    if (e.email) emailIndex.set(String(e.email).toLowerCase(), { id: Number(e.id) })
+  }
+  const statMap = new Map<number, any>()
+  for (const s of statutoryRows.results as any[]) statMap.set(Number(s.employee_id), s)
+
+  const seenEmpIds = new Set<number>()
+  const seenCodes = new Set<string>()
+  const seenEmails = new Set<string>()
+  const errors: { row: number; message: string; fields?: Record<string, string[]> }[] = []
+  let created = 0
+  let updated = 0
+  let skipped = 0
+  let seq = Number((await db.prepare('SELECT MAX(id) AS m FROM employees').first())?.m || 0)
+
+  const ops: D1PreparedStatement[] = []
+  const MAX_BATCH = 60
+  const flush = async () => {
+    if (!ops.length) return
+    await db.batch(ops.splice(0, Math.min(MAX_BATCH, ops.length)))
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  for (let i = 0; i < rowsIn.length; i++) {
+    const rowNumber = i + 2
+    const parsedRow = importRowSchema.safeParse(coerceImportRow((rowsIn[i] ?? {}) as Record<string, unknown>))
+    if (!parsedRow.success) {
+      skipped++
+      errors.push({ row: rowNumber, message: 'Invalid data.', fields: parsedRow.error.flatten().fieldErrors })
+      continue
+    }
+    const d = parsedRow.data
+
+    const code = d.employee_code ? d.employee_code.toUpperCase() : undefined
+    const email = d.email ? d.email.toLowerCase() : undefined
+
+    if ((code && seenCodes.has(code)) || (email && seenEmails.has(email))) {
+      skipped++
+      errors.push({
+        row: rowNumber,
+        message: code && seenCodes.has(code) ? `Employee code "${code}" already used by an earlier row in the file.` : `Email "${d.email}" already used by an earlier row in the file.`,
+      })
+      continue
+    }
+
+    let target: { id: number } | undefined
+    if (code) target = codeIndex.get(code)
+    if (!target && email) target = emailIndex.get(email)
+
+    if (target && seenEmpIds.has(target.id)) {
+      skipped++
+      errors.push({ row: rowNumber, message: 'This employee is already updated by an earlier row in the file.' })
+      continue
+    }
+    if (target) seenEmpIds.add(target.id)
+    if (code) seenCodes.add(code)
+    if (email) seenEmails.add(email)
+
+    const siteId = d.site_id ?? null
+
+    if (!target) {
+      seq += 1
+      let newId = seq
+      let newCode = code
+      if (!newCode) {
+        do { newCode = `SW${String(newId).padStart(4, '0')}`; newId += 1 } while (takenCodes.has(newCode) || seenCodes.has(newCode))
+        seq = newId - 1
+      }
+      takenCodes.add(newCode)
+      seenCodes.add(newCode)
+
+      ops.push(
+        db
+          .prepare(
+            `INSERT INTO employees (id, employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, city, state, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+          )
+          .bind(
+            seq, newCode, d.first_name, d.last_name, d.father_name ?? null, d.gender ?? null, d.dob ?? null, d.mobile ?? null, d.email || null,
+            d.aadhaar ?? null,
+            d.address ?? null, d.city ?? null, d.state ?? null, d.pincode ?? null,
+            d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null,
+            d.bank_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null,
+            d.joining_date ?? null, d.designation ?? null, d.department ?? null,
+            d.grade ?? null, d.reporting_manager ?? null, d.previous_employment ?? null,
+            d.employee_type ?? 'permanent', d.shift_type ?? null, siteId, d.status ?? 'active'
+          )
+      )
+
+      const sal = d.salary || { basic: 0 }
+      ops.push(
+        db
+          .prepare(
+            `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, overtime_rate, pf_applicable, esic_applicable, other_deduction)
+             VALUES (?,?,?,?,?,?,?,?,?,?)`
+          )
+          .bind(
+            seq, d.joining_date || today,
+            sal.basic || 0, sal.hra || 0, sal.conveyance || 0, sal.other_allowance || 0,
+            sal.overtime_rate || 0, sal.pf_applicable === false ? 0 : 1, sal.esic_applicable === false ? 0 : 1,
+            sal.other_deduction || 0
+          )
+      )
+
+      const st = d.statutory
+      ops.push(
+        db
+          .prepare(
+            `INSERT INTO employee_statutory (employee_id, pf_applicable, esi_applicable, lwf_applicable, pt_applicable, tds_applicable)
+             VALUES (?,?,?,?,?,?)`
+          )
+          .bind(
+            seq,
+            st?.pf_applicable === undefined ? (sal.pf_applicable === false ? 0 : 1) : st.pf_applicable ? 1 : 0,
+            st?.esi_applicable === undefined ? (sal.esic_applicable === false ? 0 : 1) : st.esi_applicable ? 1 : 0,
+            st?.lwf_applicable ? 1 : 0,
+            st?.pt_applicable === false ? 0 : 1,
+            st?.tds_applicable ? 1 : 0
+          )
+      )
+      created++
+    } else {
+      const fields = [
+        'first_name', 'last_name', 'father_name', 'gender', 'dob', 'mobile', 'email', 'aadhaar',
+        'address', 'city', 'state', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
+        'bank_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'joining_date', 'designation', 'department',
+        'grade', 'reporting_manager', 'previous_employment', 'employee_type', 'shift_type', 'status',
+      ] as const
+      const sets: string[] = []
+      const params: (string | number | null)[] = []
+      for (const f of fields) {
+        if (f in d && d[f as keyof typeof d] !== undefined) {
+          sets.push(`${f} = ?`)
+          params.push(d[f as keyof typeof d] as string | number | null)
+        }
+      }
+      if ('site_id' in d && d.site_id !== undefined) {
+        sets.push('site_id = ?')
+        params.push(siteId)
+      }
+      if (sets.length) {
+        sets.push('updated_at = datetime(\'now\')')
+        params.push(target.id)
+        ops.push(db.prepare(`UPDATE employees SET ${sets.join(', ')} WHERE id = ?`).bind(...params))
+      }
+
+      if (d.salary) {
+        const s = d.salary
+        ops.push(
+          db
+            .prepare(
+              `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, overtime_rate, pf_applicable, esic_applicable, other_deduction)
+               VALUES (?,?,?,?,?,?,?,?,?,?)`
+            )
+            .bind(
+              target.id, d.joining_date || today,
+              s.basic || 0, s.hra || 0, s.conveyance || 0, s.other_allowance || 0,
+              s.overtime_rate || 0, s.pf_applicable === false ? 0 : 1, s.esic_applicable === false ? 0 : 1,
+              s.other_deduction || 0
+            )
+        )
+      }
+
+      if (d.statutory) {
+        const st = d.statutory
+        const cur = statMap.get(target.id)
+        const curV = (k: string, fallback: number) => (cur && cur[k] !== undefined && cur[k] !== null ? Number(cur[k]) : fallback)
+        ops.push(
+          db
+            .prepare(
+              `INSERT INTO employee_statutory (employee_id, pf_applicable, esi_applicable, lwf_applicable, pt_applicable, tds_applicable, lwf_state)
+               VALUES (?,?,?,?,?,?,?)
+               ON CONFLICT(employee_id) DO UPDATE SET
+                 pf_applicable = excluded.pf_applicable,
+                 esi_applicable = excluded.esi_applicable,
+                 lwf_applicable = excluded.lwf_applicable,
+                 pt_applicable = excluded.pt_applicable,
+                 tds_applicable = excluded.tds_applicable,
+                 updated_at = datetime('now')`
+            )
+            .bind(
+              target.id,
+              st.pf_applicable !== undefined ? (st.pf_applicable ? 1 : 0) : curV('pf_applicable', 0),
+              st.esi_applicable !== undefined ? (st.esi_applicable ? 1 : 0) : curV('esi_applicable', 0),
+              st.lwf_applicable !== undefined ? (st.lwf_applicable ? 1 : 0) : curV('lwf_applicable', 0),
+              st.pt_applicable !== undefined ? (st.pt_applicable ? 1 : 0) : curV('pt_applicable', 1),
+              st.tds_applicable !== undefined ? (st.tds_applicable ? 1 : 0) : curV('tds_applicable', 0),
+              cur?.lwf_state ?? null
+            )
+        )
+      }
+      updated++
+    }
+
+    if (ops.length >= MAX_BATCH) await flush()
+  }
+
+  await flush()
+
+  return c.json({
+    data: { total: rowsIn.length, created, updated, skipped, errors },
+    message: `Imported ${created} employee${created === 1 ? '' : 's'} and updated ${updated} record${updated === 1 ? '' : 's'}.`,
+  })
+})
+
 employeeRoutes.put('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (!Number.isInteger(id) || id <= 0) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
