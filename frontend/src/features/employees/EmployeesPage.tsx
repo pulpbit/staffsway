@@ -151,19 +151,19 @@ export default function EmployeesPage() {
           options={filterOptions}
           value={filters.status || ''}
           onChange={(e) => { setFilters(f => ({ ...f, status: e.target.value })); setPage(1) }}
-          className="w-full sm:w-28"
+          wrapperClassName="w-full sm:w-28 shrink-0"
         />
         <Select
           options={[{ value: '', label: 'All Clients' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]}
           value={filters.client_id || ''}
           onChange={(e) => { setFilters(f => ({ ...f, client_id: e.target.value, site_id: '' })); setPage(1) }}
-          className="w-full sm:w-36"
+          wrapperClassName="w-full sm:w-36 shrink-0"
         />
         <Select
           options={[{ value: '', label: 'All Sites' }, ...siteOptions.filter((s: any) => !filters.client_id || String(s.client_id) === filters.client_id).map((s: any) => ({ value: String(s.id), label: s.name }))]}
           value={filters.site_id || ''}
           onChange={(e) => { setFilters(f => ({ ...f, site_id: e.target.value })); setPage(1) }}
-          className="w-full sm:w-36"
+          wrapperClassName="w-full sm:w-36 shrink-0"
         />
       </div>
 

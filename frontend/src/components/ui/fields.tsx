@@ -73,18 +73,19 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
   error?: string
   options: { value: string; label: string }[]
+  wrapperClassName?: string
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, className = '', id, ...props }, ref) => {
+  ({ label, error, options, className = '', wrapperClassName = '', id, ...props }, ref) => {
     const selId = id || label?.toLowerCase().replace(/\s+/g, '_')
     return (
-      <div className="w-full">
+      <div className={`w-full ${wrapperClassName}`}>
         {label && <label htmlFor={selId} className="block text-[12px] font-medium text-body mb-1 tracking-[-0.01em]">{label}</label>}
         <select
           ref={ref}
           id={selId}
-          className={`w-full h-9 px-2.5 text-[13px] bg-white border rounded-sm outline-none transition-colors focus:border-ink ${error ? 'border-error' : 'border-hairline'} ${className}`}
+          className={`w-full h-9 px-2.5 text-[13px] bg-white border rounded-sm outline-none transition-colors focus:border-ink ${error ? 'border-error' : 'border-hairline'}`}
           {...props}
         >
           {options.map((o) => (
