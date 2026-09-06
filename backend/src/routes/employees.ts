@@ -4,6 +4,7 @@ import { z } from 'zod'
 import type { Env } from '../types'
 import { getDb } from '../utils/db'
 import { r2 } from '../utils/money'
+import { nextEmployeeCode, padCode } from '../utils/employeeCode'
 
 const listSchema = z.object({
   search: z.string().optional(),
@@ -31,6 +32,7 @@ const employeeBase = {
   address: z.string().max(500).optional().nullable(),
   city: z.string().max(100).optional().nullable(),
   state: z.string().max(100).optional().nullable(),
+  district: z.string().max(100).optional().nullable(),
   pincode: z.string().max(10).optional().nullable(),
   emergency_contact_name: z.string().max(100).optional().nullable(),
   emergency_contact_phone: z.string().max(20).optional().nullable(),
@@ -43,6 +45,7 @@ const employeeBase = {
   permanent_address: z.string().max(500).optional().nullable(),
   permanent_city: z.string().max(100).optional().nullable(),
   permanent_state: z.string().max(100).optional().nullable(),
+  permanent_district: z.string().max(100).optional().nullable(),
   permanent_pincode: z.string().max(10).optional().nullable(),
   working_days_week: z.number().int().min(1).max(7).optional(),
   notice_period_days: z.number().int().positive().optional().nullable(),
@@ -79,6 +82,7 @@ const employeeBase = {
       hra: z.number().min(0).optional(),
       conveyance: z.number().min(0).optional(),
       other_allowance: z.number().min(0).optional(),
+      other_allowance_label: z.string().max(100).optional().nullable(),
       overtime_rate: z.number().min(0).optional(),
       pf_applicable: z.boolean().optional(),
       esic_applicable: z.boolean().optional(),
@@ -202,7 +206,8 @@ employeeRoutes.get('/next-code', async (c) => {
     return c.json({ error: { code: 'forbidden', message: 'Forbidden.' } }, 403)
   }
   const db = getDb(c.env)
-  const code = await nextEmployeeCode(db)
+  const siteId = c.req.query('site_id')
+  const code = await nextEmployeeCode(db, siteId && /^\d+$/.test(siteId) ? Number(siteId) : null)
   return c.json({ data: { code } })
 })
 
@@ -276,11 +281,6 @@ employeeRoutes.put('/:id/statutory', async (c) => {
   return c.json({ data: row, message: 'Statutory settings saved.' })
 })
 
-async function nextEmployeeCode(db: D1Database): Promise<string> {
-  const row = await db.prepare('SELECT MAX(id) AS m FROM employees').first()
-  return `SW${String((Number(row?.m) || 0) + 1).padStart(4, '0')}`
-}
-
 const documentCreateSchema = z.object({
   document_type: z.string().min(1).max(100),
   document_name: z.string().max(191).optional().nullable(),
@@ -337,7 +337,8 @@ employeeRoutes.post('/', async (c) => {
   }
   const d = parsed.data
   const db = getDb(c.env)
-  const code = await nextEmployeeCode(db)
+  const siteId = d.site_id ?? null
+  const code = await nextEmployeeCode(db, siteId)
   const { first, last } = splitName(d.full_name)
 
   // Reject duplicate email
@@ -352,17 +353,16 @@ employeeRoutes.post('/', async (c) => {
     if (dup) return c.json({ error: { code: 'conflict', message: 'An employee with this Aadhaar already exists.' } }, 409)
   }
 
-  const siteId = d.site_id ?? null
   const info = await db
     .prepare(
-      `INSERT INTO employees (employee_code, first_name, last_name, father_name, spouse_name, gender, dob, marital_status, nationality, mobile, alternate_mobile, email, aadhaar, address, city, state, pincode, permanent_same_as_present, permanent_address, permanent_city, permanent_state, permanent_pincode, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, bank_name, bank_holder_name, bank_account, bank_ifsc, pan, uan, esi_number, ctc, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, working_days_week, notice_period_days, site_id, status)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      `INSERT INTO employees (employee_code, first_name, last_name, father_name, spouse_name, gender, dob, marital_status, nationality, mobile, alternate_mobile, email, aadhaar, address, city, state, district, pincode, permanent_same_as_present, permanent_address, permanent_city, permanent_state, permanent_district, permanent_pincode, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, bank_name, bank_holder_name, bank_account, bank_ifsc, pan, uan, esi_number, ctc, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, working_days_week, notice_period_days, site_id, status)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(
       code, first, last, d.father_name ?? null, d.spouse_name ?? null, d.gender ?? null, d.dob ?? null, d.marital_status ?? null, d.nationality ?? 'Indian',
       d.mobile ?? null, d.alternate_mobile ?? null, d.email || null,
       d.aadhaar ?? null,
-      d.address ?? null, d.city ?? null, d.state ?? null, d.pincode ?? null,
-      d.permanent_same_as_present ? 1 : 0, d.permanent_address ?? null, d.permanent_city ?? null, d.permanent_state ?? null, d.permanent_pincode ?? null,
+      d.address ?? null, d.city ?? null, d.state ?? null, d.district ?? null, d.pincode ?? null,
+      d.permanent_same_as_present ? 1 : 0, d.permanent_address ?? null, d.permanent_city ?? null, d.permanent_state ?? null, d.permanent_district ?? null, d.permanent_pincode ?? null,
       d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null, d.emergency_contact_relation ?? null,
       d.bank_name ?? null, d.bank_holder_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null, d.esi_number ?? null, d.ctc ?? null,
       d.joining_date ?? null, d.designation ?? null, d.department ?? null,
@@ -376,12 +376,13 @@ employeeRoutes.post('/', async (c) => {
   const salary = d.salary || { basic: 0 }
   await db
     .prepare(
-      `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, overtime_rate, pf_applicable, esic_applicable, other_deduction)
-       VALUES (?,?,?,?,?,?,?,?,?,?)`
+      `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, pf_applicable, esic_applicable, other_deduction)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`
     )
     .bind(
       employeeId, d.joining_date || new Date().toISOString().slice(0, 10),
       salary.basic || 0, salary.hra || 0, salary.conveyance || 0, salary.other_allowance || 0,
+      salary.other_allowance_label ?? null,
       salary.overtime_rate || 0, salary.pf_applicable === false ? 0 : 1, salary.esic_applicable === false ? 0 : 1,
       salary.other_deduction || 0
     )
@@ -461,12 +462,12 @@ const optionVal = (v: unknown, allowed: string[]): string | undefined => {
 
 const IMPORT_STR_FIELDS = [
   'full_name', 'first_name', 'last_name', 'employee_code', 'father_name', 'spouse_name', 'marital_status', 'nationality', 'dob', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
-  'address', 'city', 'state', 'pincode', 'permanent_address', 'permanent_city', 'permanent_state', 'permanent_pincode',
+  'address', 'city', 'state', 'district', 'pincode', 'permanent_address', 'permanent_city', 'permanent_state', 'permanent_district', 'permanent_pincode',
   'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
   'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'joining_date', 'designation', 'department',
   'grade', 'reporting_manager', 'previous_employment', 'shift_type',
 ]
-const IMPORT_SALARY_KEYS = ['basic', 'hra', 'conveyance', 'other_allowance', 'overtime_rate', 'other_deduction'] as const
+const IMPORT_SALARY_KEYS = ['basic', 'hra', 'conveyance', 'other_allowance', 'other_allowance_label', 'overtime_rate', 'other_deduction'] as const
 
 function coerceImportRow(raw: Record<string, unknown>): Record<string, unknown> {
   const r: Record<string, unknown> = {}
@@ -500,6 +501,7 @@ function coerceImportRow(raw: Record<string, unknown>): Record<string, unknown> 
       hra: numVal(salarySrc.hra) ?? 0,
       conveyance: numVal(salarySrc.conveyance) ?? 0,
       other_allowance: numVal(salarySrc.other_allowance) ?? 0,
+      other_allowance_label: strVal(salarySrc.other_allowance_label),
       overtime_rate: numVal(salarySrc.overtime_rate) ?? 0,
       pf_applicable: pfFlat,
       esic_applicable: esicFlat,
@@ -551,6 +553,21 @@ employeeRoutes.post('/import', async (c) => {
   }
   const statMap = new Map<number, any>()
   for (const s of statutoryRows.results as any[]) statMap.set(Number(s.employee_id), s)
+
+  // Per-client employee code bookkeeping: site -> client code, and the current
+  // per-client / SW-fallback sequence length so imported rows get sequential codes.
+  const siteClientMap = new Map<number, string>()
+  const siteRows = await db.prepare('SELECT s.id, c.client_code AS cc FROM sites s LEFT JOIN clients c ON c.id = s.client_id').all()
+  for (const s of siteRows.results as any[]) {
+    if (s.cc) siteClientMap.set(Number(s.id), String(s.cc))
+  }
+  const clientCounts = new Map<string, number>()
+  let swCount = 0
+  for (const e of existing.results as any[]) {
+    if (/^SW/i.test(String(e.employee_code || ''))) swCount += 1
+    const cc = siteClientMap.get(Number(e.site_id))
+    if (cc) clientCounts.set(cc, (clientCounts.get(cc) || 0) + 1)
+  }
 
   const seenEmpIds = new Set<number>()
   const seenCodes = new Set<string>()
@@ -610,11 +627,18 @@ employeeRoutes.post('/import', async (c) => {
 
     if (!target) {
       seq += 1
-      let newId = seq
       let newCode = code
       if (!newCode) {
-        do { newCode = `SW${String(newId).padStart(4, '0')}`; newId += 1 } while (takenCodes.has(newCode) || seenCodes.has(newCode))
-        seq = newId - 1
+        const cc = siteClientMap.get(Number(siteId))
+        if (cc) {
+          let n = (clientCounts.get(cc) || 0) + 1
+          do { newCode = `${cc}${padCode(n)}`; n += 1 } while (takenCodes.has(newCode) || seenCodes.has(newCode))
+          clientCounts.set(cc, n - 1)
+        } else {
+          let n = swCount + 1
+          do { newCode = `SW${padCode(n)}`; n += 1 } while (takenCodes.has(newCode) || seenCodes.has(newCode))
+          swCount = n - 1
+        }
       }
       takenCodes.add(newCode)
       seenCodes.add(newCode)
@@ -622,13 +646,13 @@ employeeRoutes.post('/import', async (c) => {
       ops.push(
         db
           .prepare(
-            `INSERT INTO employees (id, employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, city, state, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+            `INSERT INTO employees (id, employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, city, state, district, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
           )
           .bind(
             seq, newCode, first, last, d.father_name ?? null, d.gender ?? null, d.dob ?? null, d.mobile ?? null, d.email || null,
             d.aadhaar ?? null,
-            d.address ?? null, d.city ?? null, d.state ?? null, d.pincode ?? null,
+            d.address ?? null, d.city ?? null, d.state ?? null, d.district ?? null, d.pincode ?? null,
             d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null,
             d.bank_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null,
             d.joining_date ?? null, d.designation ?? null, d.department ?? null,
@@ -641,12 +665,13 @@ employeeRoutes.post('/import', async (c) => {
       ops.push(
         db
           .prepare(
-            `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, overtime_rate, pf_applicable, esic_applicable, other_deduction)
-             VALUES (?,?,?,?,?,?,?,?,?,?)`
+            `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, pf_applicable, esic_applicable, other_deduction)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)`
           )
           .bind(
             seq, d.joining_date || today,
             sal.basic || 0, sal.hra || 0, sal.conveyance || 0, sal.other_allowance || 0,
+            sal.other_allowance_label ?? null,
             sal.overtime_rate || 0, sal.pf_applicable === false ? 0 : 1, sal.esic_applicable === false ? 0 : 1,
             sal.other_deduction || 0
           )
@@ -672,7 +697,7 @@ employeeRoutes.post('/import', async (c) => {
     } else {
       const fields = [
         'father_name', 'gender', 'dob', 'mobile', 'email', 'aadhaar',
-        'address', 'city', 'state', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
+        'address', 'city', 'state', 'district', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
         'bank_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'joining_date', 'designation', 'department',
         'grade', 'reporting_manager', 'previous_employment', 'employee_type', 'shift_type', 'status',
       ] as const
@@ -701,12 +726,13 @@ employeeRoutes.post('/import', async (c) => {
         ops.push(
           db
             .prepare(
-              `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, overtime_rate, pf_applicable, esic_applicable, other_deduction)
-               VALUES (?,?,?,?,?,?,?,?,?,?)`
+              `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, pf_applicable, esic_applicable, other_deduction)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)`
             )
             .bind(
               target.id, d.joining_date || today,
               s.basic || 0, s.hra || 0, s.conveyance || 0, s.other_allowance || 0,
+              s.other_allowance_label ?? null,
               s.overtime_rate || 0, s.pf_applicable === false ? 0 : 1, s.esic_applicable === false ? 0 : 1,
               s.other_deduction || 0
             )
@@ -780,7 +806,7 @@ employeeRoutes.put('/:id', async (c) => {
 
   const fields = [
     'father_name', 'spouse_name', 'gender', 'dob', 'marital_status', 'nationality', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
-    'address', 'city', 'state', 'pincode', 'permanent_same_as_present', 'permanent_address', 'permanent_city', 'permanent_state', 'permanent_pincode',
+    'address', 'city', 'state', 'district', 'pincode', 'permanent_same_as_present', 'permanent_address', 'permanent_city', 'permanent_state', 'permanent_district', 'permanent_pincode',
     'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
     'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'ctc', 'joining_date', 'designation', 'department',
     'grade', 'reporting_manager', 'previous_employment',
@@ -814,12 +840,13 @@ employeeRoutes.put('/:id', async (c) => {
     const s = d.salary
     await db
       .prepare(
-        `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, overtime_rate, pf_applicable, esic_applicable, other_deduction)
-         VALUES (?,?,?,?,?,?,?,?,?,?)`
+        `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, pf_applicable, esic_applicable, other_deduction)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)`
       )
       .bind(
         id, d.joining_date || new Date().toISOString().slice(0, 10),
         s.basic || 0, s.hra || 0, s.conveyance || 0, s.other_allowance || 0,
+        s.other_allowance_label ?? null,
         s.overtime_rate || 0, s.pf_applicable === false ? 0 : 1, s.esic_applicable === false ? 0 : 1, s.other_deduction || 0
       )
       .run()
@@ -887,10 +914,10 @@ employeeRoutes.post('/:id/revision', async (c) => {
   const ops: D1PreparedStatement[] = [
     db
       .prepare(
-        `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, overtime_rate, pf_applicable, esic_applicable, other_deduction)
-         VALUES (?,?,?,?,?,?,?,?,?,?)`
+        `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, pf_applicable, esic_applicable, other_deduction)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)`
       )
-      .bind(id, d.effective_from, r2(d.basic), r2(d.hra), r2(d.conveyance), r2(d.other_allowance), r2(d.overtime_rate), Number(oldStruct.pf_applicable ?? 1), Number(oldStruct.esic_applicable ?? 1), Number(oldStruct.other_deduction || 0)),
+      .bind(id, d.effective_from, r2(d.basic), r2(d.hra), r2(d.conveyance), r2(d.other_allowance), oldStruct.other_allowance_label ?? null, r2(d.overtime_rate), Number(oldStruct.pf_applicable ?? 1), Number(oldStruct.esic_applicable ?? 1), Number(oldStruct.other_deduction || 0)),
     db
       .prepare(
         `INSERT INTO salary_revisions (employee_id, effective_from, reason, old_basic, new_basic, old_gross, new_gross, designation, remarks, created_by)

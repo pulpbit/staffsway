@@ -9,8 +9,7 @@ import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui
 import { statusColor, statusLabel } from '@/utils/format'
 import { STATE_OPTIONS } from '@/utils/indianStates'
 import { toast } from 'sonner'
-import { Plus, Building2, Search, Trash2, Eye, Building, Users, FileText, Wallet, Landmark } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Plus, Building2, Search, Trash2, Building, Users, FileText, Wallet, Landmark } from 'lucide-react'
 
 const emptyForm = {
   name: '',
@@ -63,7 +62,6 @@ export default function ClientsPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [codePreview, setCodePreview] = useState('')
-  const nav = useNavigate()
   const qc = useQueryClient()
   const { errors, validate, applyServerErrors, clear, clearAll, invalidLabels, popupOpen, closePopup } = useFormValidation()
 
@@ -171,7 +169,6 @@ export default function ClientsPage() {
     { key: 'status', header: 'Status', render: (r: any) => <Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge> },
     { key: 'actions', header: '', render: (r: any) => (
       <div className="flex items-center gap-1">
-        <button onClick={() => nav(`/clients/${r.id}`)} className="px-1.5 py-0.5 text-[11px] text-link hover:bg-link-soft rounded-xs"><Eye className="w-3 h-3 inline mr-0.5" />View</button>
         <button onClick={() => openEdit(r.id)} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs">Edit</button>
         <button onClick={() => setDeleteId(r.id)} className="px-1 py-0.5 text-[11px] text-error hover:bg-error-soft rounded-xs"><Trash2 className="w-3 h-3" /></button>
       </div>

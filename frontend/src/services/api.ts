@@ -69,7 +69,7 @@ export const employeeApi = {
   },
   get: (id: number) => api.get<import('@/types/api').Employee>(`/employees/${id}`),
   checkAadhaar: (aadhaar: string) => api.get<{ exists: boolean; employee: import('@/types/api').Employee | null }>(`/employees/check-aadhaar?aadhaar=${encodeURIComponent(aadhaar)}`),
-  nextCode: () => api.get<{ code: string }>('/employees/next-code'),
+  nextCode: (siteId?: number | string) => api.get<{ code: string }>(`/employees/next-code${siteId ? `?site_id=${siteId}` : ''}`),
   create: (data: unknown) => api.post<import('@/types/api').Employee>('/employees', data),
   update: (id: number, data: unknown) => api.put<import('@/types/api').Employee>(`/employees/${id}`, data),
   getStatutory: (id: number) => api.get<import('@/types/api').EmployeeStatutory>(`/employees/${id}/statutory`),

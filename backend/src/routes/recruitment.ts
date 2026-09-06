@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import type { Env } from '../types'
 import { getDb } from '../utils/db'
+import { nextEmployeeCode } from '../utils/employeeCode'
 
 const openingBase = {
   title: z.string().min(1).max(150),
@@ -241,11 +242,10 @@ recruitmentRoutes.post('/candidates/:id/join', async (c) => {
   if (!cand) return c.json({ error: { code: 'not_found', message: 'Candidate not found.' } }, 404)
   if (cand.status === 'joined' && cand.joined_employee_id) return c.json({ error: { code: 'conflict', message: 'Candidate already joined.' } }, 409)
 
-  const empRow = await db.prepare('SELECT MAX(id) AS m FROM employees').first()
-  const code = `SW${String((Number(empRow?.m) || 0) + 1).padStart(4, '0')}`
+  const opening: any = cand.opening_id ? await db.prepare('SELECT * FROM job_openings WHERE id = ?').bind(cand.opening_id).first() : null
+  const code = await nextEmployeeCode(db, opening?.site_id ?? null)
   const [firstName, ...rest] = cand.full_name.split(' ')
   const lastName = rest.join(' ') || '-'
-  const opening: any = cand.opening_id ? await db.prepare('SELECT * FROM job_openings WHERE id = ?').bind(cand.opening_id).first() : null
 
   const info = await db
     .prepare(`INSERT INTO employees (employee_code, first_name, last_name, mobile, email, joining_date, designation, department, employee_type, shift_type, site_id, status)

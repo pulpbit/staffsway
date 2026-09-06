@@ -47,8 +47,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   const [form, setForm] = useState<Record<string, any>>({
     employee_code: '', full_name: '', father_name: '', spouse_name: '', gender: 'Male', dob: '', marital_status: 'Single', nationality: 'Indian',
     mobile: '', alternate_mobile: '', email: '', aadhaar: '',
-    address: '', city: '', state: '', pincode: '',
-    permanent_same_as_present: false, permanent_address: '', permanent_city: '', permanent_state: '', permanent_pincode: '',
+    address: '', city: '', state: '', district: '', pincode: '',
+    permanent_same_as_present: false, permanent_address: '', permanent_city: '', permanent_state: '', permanent_district: '', permanent_pincode: '',
     emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_relation: '',
     bank_name: '', bank_holder_name: '', bank_account: '', bank_ifsc: '', pan: '', uan: '', esi_number: '',
     ctc: '',
@@ -56,11 +56,12 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
     reporting_manager: '', employee_type: 'permanent', shift_type: 'General', working_days_week: '6', notice_period_days: '',
     client_id: '', site_id: '',
     status: 'active', grade: '', previous_employment: '',
-    salary: { basic: 0, hra: 0, conveyance: 0, other_allowance: 0 },
+    salary: { basic: 0, hra: 0, conveyance: 0, other_allowance: 0, other_allowance_label: '' },
     statutory: { pf_applicable: true, esi_applicable: true, lwf_applicable: false, pt_applicable: true },
     nominee: { name: '', relation: '', share: 0, contact: '' },
   })
   const { errors, validate, applyServerErrors, clear, clearAll, invalidLabels, popupOpen, closePopup } = useFormValidation()
+  const [parentType, setParentType] = useState<'father' | 'spouse'>('father')
 
   const { data: emp, isLoading: empLoading } = useQuery({
     queryKey: ['employee', employeeId],
@@ -71,8 +72,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   const [nextCode, setNextCode] = useState('')
   useEffect(() => {
     if (isEdit) return
-    employeeApi.nextCode().then((r) => setNextCode(r.data.code)).catch(() => {})
-  }, [isEdit])
+    employeeApi.nextCode(form.site_id ? Number(form.site_id) : undefined).then((r) => setNextCode(r.data.code)).catch(() => {})
+  }, [isEdit, form.site_id])
 
   const { data: clients } = useQuery({ queryKey: ['clients-select'], queryFn: () => clientApi.list() })
   const { data: allSitesRes } = useQuery({ queryKey: ['sites-select'], queryFn: () => siteApi.list() })
@@ -91,8 +92,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         ...f,
         employee_code: e.employee_code || '', full_name: [e.first_name, e.last_name].filter(Boolean).join(' ').trim(), father_name: e.father_name || '', spouse_name: e.spouse_name || '', gender: e.gender || 'Male', dob: e.dob || '', marital_status: e.marital_status || 'Single', nationality: e.nationality || 'Indian',
         mobile: e.mobile || '', alternate_mobile: e.alternate_mobile || '', email: e.email || '', aadhaar: e.aadhaar || '',
-        address: e.address || '', city: e.city || '', state: e.state || '', pincode: e.pincode || '',
-        permanent_same_as_present: !!e.permanent_same_as_present, permanent_address: e.permanent_address || '', permanent_city: e.permanent_city || '', permanent_state: e.permanent_state || '', permanent_pincode: e.permanent_pincode || '',
+        address: e.address || '', city: e.city || '', state: e.state || '', district: e.district || '', pincode: e.pincode || '',
+        permanent_same_as_present: !!e.permanent_same_as_present, permanent_address: e.permanent_address || '', permanent_city: e.permanent_city || '', permanent_state: e.permanent_state || '', permanent_district: e.permanent_district || '', permanent_pincode: e.permanent_pincode || '',
         emergency_contact_name: e.emergency_contact_name || '', emergency_contact_phone: e.emergency_contact_phone || '', emergency_contact_relation: e.emergency_contact_relation || '',
         bank_name: e.bank_name || '', bank_holder_name: e.bank_holder_name || '', bank_account: e.bank_account || '', bank_ifsc: e.bank_ifsc || '', pan: e.pan || '', uan: e.uan || '', esi_number: e.esi_number || '',
         ctc: e.ctc !== null && e.ctc !== undefined ? String(e.ctc) : '',
@@ -100,7 +101,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         reporting_manager: e.reporting_manager || '', employee_type: e.employee_type || 'permanent', shift_type: e.shift_type || 'General', working_days_week: String(e.working_days_week ?? 6), notice_period_days: e.notice_period_days ? String(e.notice_period_days) : '',
         client_id: e.site?.client_id ? String(e.site.client_id) : '', site_id: e.site_id ? String(e.site_id) : '',
         status: e.status || 'active', grade: e.grade || '', previous_employment: e.previous_employment || '',
-        salary: { basic: Number(s.basic) || 0, hra: Number(s.hra) || 0, conveyance: Number(s.conveyance) || 0, other_allowance: Number(s.other_allowance) || 0 },
+        salary: { basic: Number(s.basic) || 0, hra: Number(s.hra) || 0, conveyance: Number(s.conveyance) || 0, other_allowance: Number(s.other_allowance) || 0, other_allowance_label: s.other_allowance_label || '' },
         statutory: {
           pf_applicable: e.statutory ? e.statutory.pf_applicable === 1 : s.pf_applicable !== 0,
           esi_applicable: e.statutory ? e.statutory.esi_applicable === 1 : s.esic_applicable !== 0,
@@ -111,6 +112,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
           ? { name: e.nominees[0].name || '', relation: e.nominees[0].relation || '', share: Number(e.nominees[0].share) || 0, contact: e.nominees[0].contact || '' }
           : { name: '', relation: '', share: 0, contact: '' },
       }))
+      setParentType(e.spouse_name && String(e.spouse_name).trim() ? 'spouse' : 'father')
     }
   }, [emp])
 
@@ -140,6 +142,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   const handleSubmit = async () => {
     if (!isEdit && !unlocked) { toast.error('Please run the Aadhaar check first.'); return }
     if (!validate(EMPLOYEE_RULES, form)) return
+    if (otherAllowanceOn && !String(form.salary.other_allowance_label || '').trim()) { toast.error('Enter the Other Allowance field name.'); return }
+    if (otherAllowanceOn && !(Number(form.salary.other_allowance) > 0)) { toast.error('Enter the Other Allowance amount.'); return }
     setLoading(true)
     try {
       const sum = (Number(form.salary.basic) || 0) + (Number(form.salary.hra) || 0) + (Number(form.salary.conveyance) || 0) + (Number(form.salary.other_allowance) || 0)
@@ -150,11 +154,12 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         father_name: form.father_name || null, spouse_name: form.spouse_name || null,
         gender: form.gender, dob: form.dob || null, marital_status: form.marital_status || null, nationality: form.nationality || 'Indian',
         mobile: form.mobile || null, alternate_mobile: form.alternate_mobile || null, email: form.email || null, aadhaar: form.aadhaar || null,
-        address: form.address || null, city: form.city || null, state: form.state || null, pincode: form.pincode || null,
+        address: form.address || null, city: form.city || null, state: form.state || null, district: form.district || null, pincode: form.pincode || null,
         permanent_same_as_present: permOn,
         permanent_address: permOn ? (form.address || null) : (form.permanent_address || null),
         permanent_city: permOn ? (form.city || null) : (form.permanent_city || null),
         permanent_state: permOn ? (form.state || null) : (form.permanent_state || null),
+        permanent_district: permOn ? (form.district || null) : (form.permanent_district || null),
         permanent_pincode: permOn ? (form.pincode || null) : (form.permanent_pincode || null),
         emergency_contact_name: form.emergency_contact_name || null, emergency_contact_phone: form.emergency_contact_phone || null, emergency_contact_relation: form.emergency_contact_relation || null,
         bank_name: form.bank_name || null, bank_holder_name: form.bank_holder_name || null, bank_account: form.bank_account || null, bank_ifsc: form.bank_ifsc || null,
@@ -170,6 +175,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         salary: {
           basic: Number(form.salary.basic) || 0, hra: Number(form.salary.hra) || 0, conveyance: Number(form.salary.conveyance) || 0,
           other_allowance: otherAllowanceOn ? (Number(form.salary.other_allowance) || 0) : 0,
+          other_allowance_label: otherAllowanceOn ? (form.salary.other_allowance_label || null) : null,
           overtime_rate: 0, pf_applicable: form.statutory.pf_applicable, esic_applicable: form.statutory.esi_applicable, other_deduction: 0,
         },
         statutory: {
@@ -257,16 +263,16 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             <div className="border-t border-hairline pt-2">
               <Toggle
                 label="Father Name"
-                checked={!form.spouse_name}
-                onChange={v => { if (v) { update('spouse_name', '') } else { update('father_name', '') } }}
+                checked={parentType === 'father'}
+                onChange={v => { setParentType(v ? 'father' : 'spouse'); if (v) update('spouse_name', ''); else update('father_name', '') }}
               />
-              {!form.spouse_name ? (
+              {parentType === 'father' ? (
                 <div className="mt-1">
-                  <Input label="" value={form.father_name} onChange={e => update('father_name', e.target.value)} />
+                  <Input label="Father Name" value={form.father_name} onChange={e => update('father_name', e.target.value)} />
                 </div>
               ) : (
                 <div className="mt-1">
-                  <Input label="" value={form.spouse_name} onChange={e => update('spouse_name', e.target.value)} />
+                  <Input label="Husband / Spouse Name" value={form.spouse_name} onChange={e => update('spouse_name', e.target.value)} />
                 </div>
               )}
             </div>
@@ -281,7 +287,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             <div>
               <Textarea label="Present Address" value={form.address} onChange={e => update('address', e.target.value)} />
             </div>
-            <div className={fieldClass}>
+            <div className="grid grid-cols-4 gap-3">
+              <Input label="District" value={form.district} onChange={e => update('district', e.target.value)} />
               <Input label="City" value={form.city} onChange={e => update('city', e.target.value)} />
               <Select label="State" options={[{ value: '', label: 'Select state' }, ...stateOptions.map(s => ({ value: s, label: s }))]} value={form.state} onChange={e => update('state', e.target.value)} />
               <Input label="Pincode" value={form.pincode} onChange={e => update('pincode', e.target.value)} />
@@ -294,7 +301,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
                 <div>
                   <Textarea label="Permanent Address" value={form.permanent_address} onChange={e => update('permanent_address', e.target.value)} />
                 </div>
-                <div className={fieldClass}>
+                <div className="grid grid-cols-4 gap-3">
+                  <Input label="District" value={form.permanent_district} onChange={e => update('permanent_district', e.target.value)} />
                   <Input label="City" value={form.permanent_city} onChange={e => update('permanent_city', e.target.value)} />
                   <Select label="State" options={[{ value: '', label: 'Select state' }, ...stateOptions.map(s => ({ value: s, label: s }))]} value={form.permanent_state} onChange={e => update('permanent_state', e.target.value)} />
                   <Input label="Pincode" value={form.permanent_pincode} onChange={e => update('permanent_pincode', e.target.value)} />
@@ -338,24 +346,22 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
           </Section>
 
           <Section icon={Wallet} title="Salary and Payroll">
-            <div className={fieldClass}>
+            <div className="fieldClass">
               <Input label="CTC / Gross Salary" type="number" min={0} value={form.ctc} onChange={e => update('ctc', e.target.value)} />
               <Input label="Basic Salary" type="number" min={0} value={form.salary.basic} onChange={e => updateSalary('basic', e.target.value)} />
               <Input label="HRA" type="number" min={0} value={form.salary.hra} onChange={e => updateSalary('hra', e.target.value)} />
             </div>
-            <div className={fieldClass}>
+            <div className="grid grid-cols-2 gap-3">
               <Input label="Conveyance" type="number" min={0} value={form.salary.conveyance} onChange={e => updateSalary('conveyance', e.target.value)} />
-              <div className="col-span-2 flex flex-col justify-end pb-1">
-                <p className="text-[11px] text-mute">
-                  Computed from components: ₹{(Number(form.salary.basic) || 0) + (Number(form.salary.hra) || 0) + (Number(form.salary.conveyance) || 0) + (Number(form.salary.other_allowance) || 0).toLocaleString('en-IN')}
-                </p>
-              </div>
             </div>
             <div className="border-t border-hairline pt-2">
-              <Toggle label="Other Allowance Applicable" checked={otherAllowanceOn} onChange={v => { if (!v) updateSalary('other_allowance', 0) }} />
+              <Toggle label="Other Allowance Applicable" checked={otherAllowanceOn} onChange={v => updateSalary('other_allowance', v ? (Number(form.salary.other_allowance) || 1) : 0)} />
             </div>
             {otherAllowanceOn && (
-              <Input label="Other Allowance" type="number" min={0} value={form.salary.other_allowance} onChange={e => updateSalary('other_allowance', e.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Other Allowance Field Name" value={form.salary.other_allowance_label} placeholder="e.g. Performance Allowance" onChange={e => updateSalary('other_allowance_label', e.target.value)} />
+                <Input label="Other Allowance (₹)" type="number" min={0} value={form.salary.other_allowance} onChange={e => updateSalary('other_allowance', e.target.value)} />
+              </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 border-t border-hairline pt-2">
               <Toggle label="PF Applicable" checked={form.statutory.pf_applicable} onChange={v => updateStatutory('pf_applicable', v)} />
