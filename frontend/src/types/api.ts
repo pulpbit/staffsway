@@ -20,6 +20,7 @@ export interface AuthUser {
   name: string
   email: string
   role: string
+  employee_id?: number | null
 }
 
 export interface Employee {

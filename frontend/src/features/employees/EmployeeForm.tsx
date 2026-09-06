@@ -32,10 +32,9 @@ const NOTICE_PERIODS = [
 const WEEKDAYS = ['5', '6', '7']
 
 const EMPLOYEE_RULES: FieldRule[] = [
-  { key: 'first_name', label: 'First Name', required: true },
-  { key: 'last_name', label: 'Last Name', required: true },
+  { key: 'full_name', label: 'Full Name', required: true },
   { key: 'mobile', label: 'Primary Contact No.', test: (v: any) => v && !/^[0-9+\-\s]{7,15}$/.test(v) ? 'Enter a valid phone number.' : null },
-  { key: 'email', label: 'Email (for My Space login)', test: (v: any) => v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Enter a valid email address.' : null },
+  { key: 'email', label: 'Email', test: (v: any) => v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Enter a valid email address.' : null },
 ]
 
 export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToEdit }: Props) {
@@ -46,7 +45,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   const [checkAadhaar, setCheckAadhaar] = useState('')
   const [match, setMatch] = useState<any>(null)
   const [form, setForm] = useState<Record<string, any>>({
-    first_name: '', last_name: '', father_name: '', spouse_name: '', gender: 'Male', dob: '', marital_status: 'Single', nationality: 'Indian',
+    employee_code: '', full_name: '', father_name: '', spouse_name: '', gender: 'Male', dob: '', marital_status: 'Single', nationality: 'Indian',
     mobile: '', alternate_mobile: '', email: '', aadhaar: '',
     address: '', city: '', state: '', pincode: '',
     permanent_same_as_present: false, permanent_address: '', permanent_city: '', permanent_state: '', permanent_pincode: '',
@@ -69,6 +68,12 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
     enabled: isEdit,
   })
 
+  const [nextCode, setNextCode] = useState('')
+  useEffect(() => {
+    if (isEdit) return
+    employeeApi.nextCode().then((r) => setNextCode(r.data.code)).catch(() => {})
+  }, [isEdit])
+
   const { data: clients } = useQuery({ queryKey: ['clients-select'], queryFn: () => clientApi.list() })
   const { data: allSitesRes } = useQuery({ queryKey: ['sites-select'], queryFn: () => siteApi.list() })
   const allSites = (allSitesRes?.data || []) as any[]
@@ -84,7 +89,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
       const s = e.salary || {}
       setForm(f => ({
         ...f,
-        first_name: e.first_name || '', last_name: e.last_name || '', father_name: e.father_name || '', spouse_name: e.spouse_name || '', gender: e.gender || 'Male', dob: e.dob || '', marital_status: e.marital_status || 'Single', nationality: e.nationality || 'Indian',
+        employee_code: e.employee_code || '', full_name: [e.first_name, e.last_name].filter(Boolean).join(' ').trim(), father_name: e.father_name || '', spouse_name: e.spouse_name || '', gender: e.gender || 'Male', dob: e.dob || '', marital_status: e.marital_status || 'Single', nationality: e.nationality || 'Indian',
         mobile: e.mobile || '', alternate_mobile: e.alternate_mobile || '', email: e.email || '', aadhaar: e.aadhaar || '',
         address: e.address || '', city: e.city || '', state: e.state || '', pincode: e.pincode || '',
         permanent_same_as_present: !!e.permanent_same_as_present, permanent_address: e.permanent_address || '', permanent_city: e.permanent_city || '', permanent_state: e.permanent_state || '', permanent_pincode: e.permanent_pincode || '',
@@ -141,7 +146,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
       const ctc = form.ctc !== '' && Number(form.ctc) > 0 ? Number(form.ctc) : sum
       const permOn = !!form.permanent_same_as_present
       const payload = {
-        first_name: form.first_name, last_name: form.last_name,
+        full_name: form.full_name,
         father_name: form.father_name || null, spouse_name: form.spouse_name || null,
         gender: form.gender, dob: form.dob || null, marital_status: form.marital_status || null, nationality: form.nationality || 'Indian',
         mobile: form.mobile || null, alternate_mobile: form.alternate_mobile || null, email: form.email || null, aadhaar: form.aadhaar || null,
@@ -237,12 +242,15 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         <>
           <Section icon={User} title="Basic Details">
             <div className={fieldClass}>
-              <Input label="First Name" value={form.first_name} onChange={e => update('first_name', e.target.value)} error={errors.first_name} />
-              <Input label="Last Name" value={form.last_name} onChange={e => update('last_name', e.target.value)} error={errors.last_name} />
+              <Input label="Full Name" value={form.full_name} onChange={e => update('full_name', e.target.value)} error={errors.full_name} />
               <Input label="Date of Birth" type="date" value={form.dob} onChange={e => update('dob', e.target.value)} />
+              <Select label="Gender" options={GENDERS.map(g => ({ value: g, label: g }))} value={form.gender} onChange={e => update('gender', e.target.value)} />
             </div>
             <div className={fieldClass}>
-              <Select label="Gender" options={GENDERS.map(g => ({ value: g, label: g }))} value={form.gender} onChange={e => update('gender', e.target.value)} />
+              <div>
+                <Input label="Username (for My Space login)" readOnly value={isEdit ? form.employee_code : (nextCode || 'Auto-assigned')} />
+                <p className="text-[11px] text-mute mt-1">Employee ID · My Space password = Date of Birth (DDMMYY).</p>
+              </div>
               <Select label="Marital Status" options={MARITAL_STATUSES.map(m => ({ value: m, label: m }))} value={form.marital_status} onChange={e => update('marital_status', e.target.value)} />
               <Input label="Nationality" value={form.nationality} onChange={e => update('nationality', e.target.value)} />
             </div>
@@ -268,7 +276,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             <div className={fieldClass}>
               <Input label="Primary Contact No." value={form.mobile} onChange={e => update('mobile', e.target.value)} error={errors.mobile} />
               <Input label="Alternate Contact No." value={form.alternate_mobile} onChange={e => update('alternate_mobile', e.target.value)} />
-              <Input label="Email (for My Space login)" type="email" value={form.email} onChange={e => update('email', e.target.value)} error={errors.email} />
+              <Input label="Email" type="email" value={form.email} onChange={e => update('email', e.target.value)} error={errors.email} />
             </div>
             <div>
               <Textarea label="Present Address" value={form.address} onChange={e => update('address', e.target.value)} />

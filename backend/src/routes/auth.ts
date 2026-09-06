@@ -11,6 +11,26 @@ const loginSchema = z.object({
   password: z.string().min(1).max(191),
 })
 
+const employeeLoginSchema = z.object({
+  username: z.string().min(1).max(30),
+  password: z.string().regex(/^\d{6}$/, 'Password must be your 6-digit date of birth (DDMMYY).'),
+})
+
+// Employee My Space password = date of birth in DDMMYY (e.g. 1996-06-20 -> 200696)
+function dobDdmmyy(dob: string | null): string {
+  if (!dob) return ''
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dob).trim())
+  if (iso) {
+    const [, y, m, d] = iso
+    return `${d}${m}${y.slice(2)}`
+  }
+  const t = new Date(String(dob))
+  if (!isNaN(t.getTime())) {
+    return `${String(t.getDate()).padStart(2, '0')}${String(t.getMonth() + 1).padStart(2, '0')}${String(t.getFullYear()).slice(2)}`
+  }
+  return ''
+}
+
 const WINDOW_MS = 5 * 60 * 1000
 const MAX_ATTEMPTS = 10
 
@@ -74,6 +94,44 @@ authRoutes.post('/login', async (c) => {
   }
 
   const sessionUser = { id: Number(user.id), name: String(user.name), email: String(user.email), role: String(user.role), employee_id: (user as any).employee_id ?? null }
+  const token = await signJwt(sessionUser, getSecret(c.env))
+  return c.json({ data: { token, user: sessionUser } })
+})
+
+authRoutes.post('/employee-login', async (c) => {
+  const body = await c.req.json().catch(() => null)
+  const parsed = employeeLoginSchema.safeParse(body)
+  if (!parsed.success) {
+    return c.json({ error: { code: 'validation_error', message: 'Enter your Employee ID and Date of Birth (DDMMYY).', fields: parsed.error.flatten().fieldErrors } }, 400)
+  }
+  const { username, password } = parsed.data
+  const ip = c.req.header('CF-Connecting-IP') || 'local'
+  const key = `${ip}:emp:${username.trim().toUpperCase()}`
+
+  const gate = throttle(key)
+  if (gate.blocked) {
+    return c.json({ error: { code: 'rate_limited', message: `Too many failed attempts. Try again in ${Math.ceil(gate.retryAfterSec / 60)} minute(s).` } }, 429)
+  }
+
+  const db = getDb(c.env)
+  const emp: any = await db.prepare('SELECT id, employee_code, first_name, last_name, dob, email, status FROM employees WHERE UPPER(employee_code) = ?').bind(username.trim().toUpperCase()).first()
+  if (!emp || dobDdmmyy(emp.dob) !== password) {
+    return c.json({ error: { code: 'invalid_credentials', message: 'Invalid Employee ID or Date of Birth.' } }, 401)
+  }
+  if (emp.status !== 'active') {
+    return c.json({ error: { code: 'inactive', message: 'This account is inactive. Contact HR.' } }, 403)
+  }
+  clearThrottle(key)
+
+  const empId = Number(emp.id)
+  const name = [String(emp.first_name || ''), String(emp.last_name || '')].filter((p) => p && p !== '-').join(' ')
+  const sessionUser = {
+    id: empId,
+    name,
+    email: emp.email || `${String(emp.employee_code).toLowerCase()}@staffsway.local`,
+    role: 'employee',
+    employee_id: empId,
+  }
   const token = await signJwt(sessionUser, getSecret(c.env))
   return c.json({ data: { token, user: sessionUser } })
 })

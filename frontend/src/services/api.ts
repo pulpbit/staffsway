@@ -42,8 +42,9 @@ export const api = {
 
 // Auth
 export const authApi = {
-  login: (email: string, password: string) => api.post<{ token: string; user: { id: number; name: string; email: string; role: string } }>('/auth/login', { email, password }),
-  me: () => api.get<{ user: { id: number; name: string; email: string; role: string } }>('/auth/me'),
+  login: (email: string, password: string) => api.post<{ token: string; user: import('@/types/api').AuthUser }>('/auth/login', { email, password }),
+  loginEmployee: (username: string, password: string) => api.post<{ token: string; user: import('@/types/api').AuthUser }>('/auth/employee-login', { username, password }),
+  me: () => api.get<{ user: import('@/types/api').AuthUser }>('/auth/me'),
 }
 
 // Dashboard
@@ -68,6 +69,7 @@ export const employeeApi = {
   },
   get: (id: number) => api.get<import('@/types/api').Employee>(`/employees/${id}`),
   checkAadhaar: (aadhaar: string) => api.get<{ exists: boolean; employee: import('@/types/api').Employee | null }>(`/employees/check-aadhaar?aadhaar=${encodeURIComponent(aadhaar)}`),
+  nextCode: () => api.get<{ code: string }>('/employees/next-code'),
   create: (data: unknown) => api.post<import('@/types/api').Employee>('/employees', data),
   update: (id: number, data: unknown) => api.put<import('@/types/api').Employee>(`/employees/${id}`, data),
   getStatutory: (id: number) => api.get<import('@/types/api').EmployeeStatutory>(`/employees/${id}/statutory`),

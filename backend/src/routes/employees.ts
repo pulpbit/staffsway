@@ -21,8 +21,7 @@ const listSchema = z.object({
 })
 
 const employeeBase = {
-  first_name: z.string().min(1).max(100),
-  last_name: z.string().min(1).max(100),
+  full_name: z.string().min(1).max(200),
   father_name: z.string().max(100).optional().nullable(),
   gender: z.enum(['Male', 'Female', 'Other']).optional(),
   dob: z.string().optional(),
@@ -99,6 +98,14 @@ const employeeBase = {
 
 const createSchema = z.object(employeeBase)
 const updateSchema = z.object(employeeBase).partial()
+
+function splitName(full: string): { first: string; last: string } {
+  const t = (full || '').trim()
+  const parts = t.split(/\s+/).filter(Boolean)
+  const first = parts[0] || ''
+  const last = parts.slice(1).join(' ')
+  return { first, last }
+}
 
 const statutorySchema = z.object({
   pf_applicable: z.boolean(),
@@ -187,6 +194,16 @@ employeeRoutes.get('/filters', async (c) => {
       shift_types: shiftTypes.results.map((r: any) => r.shift_type),
     },
   })
+})
+
+employeeRoutes.get('/next-code', async (c) => {
+  const caller = c.get('user')
+  if (caller.role === 'employee') {
+    return c.json({ error: { code: 'forbidden', message: 'Forbidden.' } }, 403)
+  }
+  const db = getDb(c.env)
+  const code = await nextEmployeeCode(db)
+  return c.json({ data: { code } })
 })
 
 employeeRoutes.get('/check-aadhaar', async (c) => {
@@ -321,6 +338,7 @@ employeeRoutes.post('/', async (c) => {
   const d = parsed.data
   const db = getDb(c.env)
   const code = await nextEmployeeCode(db)
+  const { first, last } = splitName(d.full_name)
 
   // Reject duplicate email
   if (d.email) {
@@ -340,7 +358,7 @@ employeeRoutes.post('/', async (c) => {
       `INSERT INTO employees (employee_code, first_name, last_name, father_name, spouse_name, gender, dob, marital_status, nationality, mobile, alternate_mobile, email, aadhaar, address, city, state, pincode, permanent_same_as_present, permanent_address, permanent_city, permanent_state, permanent_pincode, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, bank_name, bank_holder_name, bank_account, bank_ifsc, pan, uan, esi_number, ctc, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, working_days_week, notice_period_days, site_id, status)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(
-      code, d.first_name, d.last_name, d.father_name ?? null, d.spouse_name ?? null, d.gender ?? null, d.dob ?? null, d.marital_status ?? null, d.nationality ?? 'Indian',
+      code, first, last, d.father_name ?? null, d.spouse_name ?? null, d.gender ?? null, d.dob ?? null, d.marital_status ?? null, d.nationality ?? 'Indian',
       d.mobile ?? null, d.alternate_mobile ?? null, d.email || null,
       d.aadhaar ?? null,
       d.address ?? null, d.city ?? null, d.state ?? null, d.pincode ?? null,
@@ -442,7 +460,7 @@ const optionVal = (v: unknown, allowed: string[]): string | undefined => {
 }
 
 const IMPORT_STR_FIELDS = [
-  'first_name', 'last_name', 'employee_code', 'father_name', 'spouse_name', 'marital_status', 'nationality', 'dob', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
+  'full_name', 'first_name', 'last_name', 'employee_code', 'father_name', 'spouse_name', 'marital_status', 'nationality', 'dob', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
   'address', 'city', 'state', 'pincode', 'permanent_address', 'permanent_city', 'permanent_state', 'permanent_pincode',
   'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
   'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'joining_date', 'designation', 'department',
@@ -455,6 +473,10 @@ function coerceImportRow(raw: Record<string, unknown>): Record<string, unknown> 
   for (const k of IMPORT_STR_FIELDS) {
     const v = strVal(raw[k])
     if (v !== undefined) r[k] = v
+  }
+  if (!r.full_name) {
+    const joined = [strVal(raw.first_name), strVal(raw.last_name)].filter(Boolean).join(' ')
+    if (joined) r.full_name = joined
   }
   const gender = genderVal(raw.gender)
   if (gender !== undefined) r.gender = gender
@@ -557,6 +579,7 @@ employeeRoutes.post('/import', async (c) => {
       continue
     }
     const d = parsedRow.data
+    const { first, last } = splitName(d.full_name)
 
     const code = d.employee_code ? d.employee_code.toUpperCase() : undefined
     const email = d.email ? d.email.toLowerCase() : undefined
@@ -603,7 +626,7 @@ employeeRoutes.post('/import', async (c) => {
              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
           )
           .bind(
-            seq, newCode, d.first_name, d.last_name, d.father_name ?? null, d.gender ?? null, d.dob ?? null, d.mobile ?? null, d.email || null,
+            seq, newCode, first, last, d.father_name ?? null, d.gender ?? null, d.dob ?? null, d.mobile ?? null, d.email || null,
             d.aadhaar ?? null,
             d.address ?? null, d.city ?? null, d.state ?? null, d.pincode ?? null,
             d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null,
@@ -648,7 +671,7 @@ employeeRoutes.post('/import', async (c) => {
       created++
     } else {
       const fields = [
-        'first_name', 'last_name', 'father_name', 'gender', 'dob', 'mobile', 'email', 'aadhaar',
+        'father_name', 'gender', 'dob', 'mobile', 'email', 'aadhaar',
         'address', 'city', 'state', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
         'bank_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'joining_date', 'designation', 'department',
         'grade', 'reporting_manager', 'previous_employment', 'employee_type', 'shift_type', 'status',
@@ -661,6 +684,8 @@ employeeRoutes.post('/import', async (c) => {
           params.push(d[f as keyof typeof d] as string | number | null)
         }
       }
+      sets.push('first_name = ?', 'last_name = ?')
+      params.push(first, last)
       if ('site_id' in d && d.site_id !== undefined) {
         sets.push('site_id = ?')
         params.push(siteId)
@@ -754,7 +779,7 @@ employeeRoutes.put('/:id', async (c) => {
   }
 
   const fields = [
-    'first_name', 'last_name', 'father_name', 'spouse_name', 'gender', 'dob', 'marital_status', 'nationality', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
+    'father_name', 'spouse_name', 'gender', 'dob', 'marital_status', 'nationality', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
     'address', 'city', 'state', 'pincode', 'permanent_same_as_present', 'permanent_address', 'permanent_city', 'permanent_state', 'permanent_pincode',
     'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
     'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'ctc', 'joining_date', 'designation', 'department',
@@ -769,6 +794,11 @@ employeeRoutes.put('/:id', async (c) => {
       const v = d[f as keyof typeof d]
       params.push(f === 'permanent_same_as_present' ? (v ? 1 : 0) : (v as string | number | null))
     }
+  }
+  if (d.full_name && d.full_name.trim()) {
+    const { first, last } = splitName(d.full_name)
+    sets.push('first_name = ?', 'last_name = ?')
+    params.push(first, last)
   }
   if ('site_id' in d && d.site_id !== undefined) {
     sets.push('site_id = ?')

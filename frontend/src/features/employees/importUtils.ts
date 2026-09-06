@@ -26,8 +26,9 @@ export interface ParsedRow {
 }
 
 export const IMPORT_COLUMNS: ImportColumn[] = [
-  { key: 'first_name', label: 'first_name', type: 'text', required: true, hint: 'Required' },
-  { key: 'last_name', label: 'last_name', type: 'text', required: true, hint: 'Required' },
+  { key: 'full_name', label: 'full_name', type: 'text', required: true, hint: 'Required' },
+  { key: 'first_name', label: 'first_name', type: 'text', hint: 'Legacy: used only when full_name is left blank' },
+  { key: 'last_name', label: 'last_name', type: 'text', hint: 'Legacy: used only when full_name is left blank' },
   { key: 'employee_code', label: 'employee_code', type: 'text', hint: 'Leave blank to auto-generate. Provide an existing code to update that employee.' },
   { key: 'father_name', label: 'father_name', type: 'text', hint: 'Father / Husband name' },
   { key: 'gender', label: 'gender', type: 'enum', options: ['Male', 'Female', 'Other'] },
@@ -211,6 +212,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteRef[]): ParsedRow[] {
   const siteByName = new Map(sites.map((s) => [s.name.toLowerCase(), s.id]))
   const parsed: ParsedRow[] = []
+  const hasFullNameCol = rows.length > 0 && Object.prototype.hasOwnProperty.call(rows[0], 'full_name')
 
   rows.forEach((row, i) => {
     const rowNumber = i + 2
@@ -225,7 +227,7 @@ export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteR
       const raw = row[col.key]
       const s = toStr(raw)
       if (!s) {
-        if (col.required) errors.push(`${col.label} is required.`)
+        if (col.required && !(col.key === 'full_name' && !hasFullNameCol)) errors.push(`${col.label} is required.`)
         continue
       }
 
@@ -296,9 +298,14 @@ export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteR
     }
     if (siteId !== undefined) top.site_id = siteId
 
-    const firstName = toStr(top.first_name)
-    const lastName = toStr(top.last_name)
-    const name = [firstName, lastName].filter(Boolean).join(' ')
+    if (!toStr(top.full_name)) {
+      const legacyName = [toStr(top.first_name), toStr(top.last_name)].filter(Boolean).join(' ')
+      if (legacyName) top.full_name = legacyName
+    }
+    delete top.first_name
+    delete top.last_name
+
+    const name = toStr(top.full_name)
     if (errors.length) {
       parsed.push({ rowNumber, valid: false, name: name || `Row ${rowNumber}`, email, employeeCode: toStr(top.employee_code) || undefined, error: errors.join(' ') })
     } else {
@@ -311,8 +318,7 @@ export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteR
 
 function templateExampleRow(): Record<string, unknown> {
   return {
-    first_name: 'Ravi',
-    last_name: 'Kumar',
+    full_name: 'Ravi Kumar',
     employee_code: '',
     father_name: 'Suresh Kumar',
     gender: 'Male',

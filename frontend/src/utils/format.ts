@@ -21,7 +21,7 @@ export const dateShort = (d: string | null | undefined): string => {
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-export const fullName = (first: string, last: string): string => `${first} ${last}`
+export const fullName = (first: string, last: string): string => [first, last].filter(Boolean).join(' ')
 
 export const statusColor = (status: string): string => {
   switch (status) {
