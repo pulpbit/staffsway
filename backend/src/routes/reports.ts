@@ -134,7 +134,7 @@ reportRoutes.get('/salary', async (c) => {
 reportRoutes.get('/by-client', async (c) => {
   const rows = await getDb(c.env)
     .prepare(
-      `SELECT c.id, c.name AS client_name, c.contact_person, c.phone, c.status,
+      `SELECT c.id, c.name AS client_name, c.client_code, c.primary_contact_person, c.company_email, c.status,
         COUNT(e.id) AS employee_count,
         SUM(e.status = 'active') AS active_count,
         COUNT(DISTINCT s.id) AS site_count

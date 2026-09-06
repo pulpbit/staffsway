@@ -28,22 +28,35 @@ export interface Employee {
   first_name: string
   last_name: string
   father_name?: string | null
+  spouse_name?: string | null
   gender: string | null
   dob: string | null
+  marital_status?: string | null
+  nationality?: string | null
   mobile: string | null
+  alternate_mobile?: string | null
   email: string | null
   aadhaar?: string | null
   address: string | null
   city: string | null
   state: string | null
   pincode: string | null
+  permanent_same_as_present?: number | null
+  permanent_address?: string | null
+  permanent_city?: string | null
+  permanent_state?: string | null
+  permanent_pincode?: string | null
   emergency_contact_name?: string | null
   emergency_contact_phone?: string | null
+  emergency_contact_relation?: string | null
   bank_name: string | null
+  bank_holder_name?: string | null
   bank_account: string | null
   bank_ifsc: string | null
   pan: string | null
   uan: string | null
+  esi_number?: string | null
+  ctc?: number | null
   joining_date: string | null
   designation: string | null
   department: string | null
@@ -52,6 +65,8 @@ export interface Employee {
   previous_employment?: string | null
   employee_type: string
   shift_type: string | null
+  working_days_week?: number | null
+  notice_period_days?: number | null
   site_id: number | null
   status: string
   client_name?: string
@@ -59,7 +74,17 @@ export interface Employee {
   salary?: SalaryStructure | null
   statutory?: EmployeeStatutory | null
   documents?: EmployeeDocument[]
+  nominees?: EmployeeNominee[]
   site?: Site | null
+}
+
+export interface EmployeeNominee {
+  id: number
+  employee_id: number
+  name: string
+  relation?: string | null
+  share: number
+  contact?: string | null
 }
 
 export interface EmployeeStatutory {
@@ -95,13 +120,29 @@ export interface EmployeeDocument {
 
 export interface Client {
   id: number
+  client_code: string
   name: string
-  contact_person: string | null
-  phone: string | null
-  email: string | null
-  address: string | null
-  contract_start: string | null
-  contract_end: string | null
+  primary_contact_person: string | null
+  hr_contact_person: string | null
+  company_email: string | null
+  address_line1: string | null
+  address_line2: string | null
+  city: string | null
+  state: string | null
+  district: string | null
+  pincode: string | null
+  gst_no: string | null
+  company_pan: string | null
+  payroll_cycle: string | null
+  salary_calculation: string | null
+  overtime_enabled: boolean | number
+  leave_policy_enabled: boolean | number
+  arrears_enabled: boolean | number
+  advance_loan_enabled: boolean | number
+  bank_name: string | null
+  bank_account: string | null
+  bank_ifsc: string | null
+  bank_account_holder: string | null
   status: string
   site_count?: number
   active_employees?: number
@@ -114,10 +155,33 @@ export interface Site {
   id: number
   client_id: number
   name: string
-  location: string | null
-  supervisor_name: string | null
-  shift_type: string | null
   status: string
+  address_line1: string | null
+  address_line2: string | null
+  city: string | null
+  state: string | null
+  district: string | null
+  pincode: string | null
+  site_incharge: string | null
+  site_incharge_designation: string | null
+  site_incharge_contact: string | null
+  site_incharge_email: string | null
+  shift_type: string | null
+  overtime_enabled: boolean | number
+  payroll_applicable: boolean | number
+  leave_policy_enabled: boolean | number
+  arrears_enabled: boolean | number
+  pf_applicable: boolean | number
+  pf_percent: number
+  esic_applicable: boolean | number
+  esic_percent: number
+  lwf_applicable: boolean | number
+  lwf_percent: number
+  pt_applicable: boolean | number
+  pt_amount: number
+  tds_applicable: boolean | number
+  tds_percent: number
+  gratuity_applicable: boolean | number
   client_name?: string
   active_employees?: number
   total_employees?: number

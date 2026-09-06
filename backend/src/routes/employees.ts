@@ -35,6 +35,30 @@ const employeeBase = {
   pincode: z.string().max(10).optional(),
   emergency_contact_name: z.string().max(100).optional().nullable(),
   emergency_contact_phone: z.string().max(20).optional().nullable(),
+  emergency_contact_relation: z.string().max(50).optional().nullable(),
+  spouse_name: z.string().max(100).optional().nullable(),
+  marital_status: z.enum(['Single', 'Married', 'Divorced', 'Widowed']).optional().nullable(),
+  nationality: z.string().max(50).optional().nullable(),
+  alternate_mobile: z.string().max(20).optional().nullable(),
+  permanent_same_as_present: z.boolean().optional(),
+  permanent_address: z.string().max(500).optional().nullable(),
+  permanent_city: z.string().max(100).optional().nullable(),
+  permanent_state: z.string().max(100).optional().nullable(),
+  permanent_pincode: z.string().max(10).optional().nullable(),
+  working_days_week: z.number().int().min(1).max(7).optional(),
+  notice_period_days: z.number().int().positive().optional().nullable(),
+  ctc: z.number().min(0).optional().nullable(),
+  esi_number: z.string().max(20).optional().nullable(),
+  bank_holder_name: z.string().max(100).optional().nullable(),
+  nominee: z
+    .object({
+      name: z.string().min(1).max(100).optional(),
+      relation: z.string().max(50).optional().nullable(),
+      share: z.number().min(0).max(100).optional(),
+      contact: z.string().max(20).optional().nullable(),
+    })
+    .optional()
+    .nullable(),
   bank_name: z.string().max(100).optional(),
   bank_account: z.string().max(30).optional(),
   bank_ifsc: z.string().max(20).optional(),
@@ -46,7 +70,7 @@ const employeeBase = {
   grade: z.string().max(50).optional().nullable(),
   reporting_manager: z.string().max(100).optional().nullable(),
   previous_employment: z.string().max(1000).optional().nullable(),
-  employee_type: z.enum(['permanent', 'contract', 'temporary', 'probation']).optional(),
+  employee_type: z.enum(['permanent', 'contract', 'daily_wages']).optional(),
   shift_type: z.string().max(50).optional(),
   site_id: z.number().int().positive().optional().nullable(),
   status: z.enum(['active', 'inactive', 'resigned', 'terminated']).optional(),
@@ -165,6 +189,14 @@ employeeRoutes.get('/filters', async (c) => {
   })
 })
 
+employeeRoutes.get('/check-aadhaar', async (c) => {
+  const aadhaar = (c.req.query('aadhaar') || '').trim()
+  if (!aadhaar) return c.json({ error: { code: 'validation_error', message: 'Aadhaar number is required.' } }, 400)
+  const db = getDb(c.env)
+  const employee = await db.prepare(`${employeeSelect} WHERE e.aadhaar = ?`).bind(aadhaar).first()
+  return c.json({ data: { exists: !!employee, employee: employee || null } })
+})
+
 employeeRoutes.get('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (!Number.isInteger(id) || id <= 0) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
@@ -178,10 +210,11 @@ employeeRoutes.get('/:id', async (c) => {
   const salary = await db.prepare('SELECT * FROM salary_structures WHERE employee_id = ? ORDER BY effective_from DESC LIMIT 1').bind(id).first()
   const statutory = await db.prepare('SELECT pf_applicable, esi_applicable, lwf_applicable, pt_applicable, tds_applicable, lwf_state FROM employee_statutory WHERE employee_id = ?').bind(id).first()
   const documents = await db.prepare('SELECT * FROM employee_documents WHERE employee_id = ? ORDER BY id').bind(id).all()
+  const nominees = await db.prepare('SELECT * FROM employee_nominees WHERE employee_id = ? ORDER BY id').bind(id).all()
   const site = employee.site_id
     ? await db.prepare('SELECT s.*, c.name AS client_name FROM sites s LEFT JOIN clients c ON c.id = s.client_id WHERE s.id = ?').bind(employee.site_id).first()
     : null
-  return c.json({ data: { ...(employee as object), salary: salary || null, statutory: statutory || null, documents: documents.results, site: site || null } })
+  return c.json({ data: { ...(employee as object), salary: salary || null, statutory: statutory || null, documents: documents.results, nominees: nominees.results, site: site || null } })
 })
 
 employeeRoutes.get('/:id/statutory', async (c) => {
@@ -295,21 +328,29 @@ employeeRoutes.post('/', async (c) => {
     if (dup) return c.json({ error: { code: 'conflict', message: 'An employee with this email already exists.' } }, 409)
   }
 
+  // Reject duplicate Aadhaar
+  if (d.aadhaar) {
+    const dup = await db.prepare('SELECT id FROM employees WHERE aadhaar = ?').bind(d.aadhaar).first()
+    if (dup) return c.json({ error: { code: 'conflict', message: 'An employee with this Aadhaar already exists.' } }, 409)
+  }
+
   const siteId = d.site_id ?? null
   const info = await db
     .prepare(
-      `INSERT INTO employees (employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, city, state, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      `INSERT INTO employees (employee_code, first_name, last_name, father_name, spouse_name, gender, dob, marital_status, nationality, mobile, alternate_mobile, email, aadhaar, address, city, state, pincode, permanent_same_as_present, permanent_address, permanent_city, permanent_state, permanent_pincode, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, bank_name, bank_holder_name, bank_account, bank_ifsc, pan, uan, esi_number, ctc, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, working_days_week, notice_period_days, site_id, status)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(
-      code, d.first_name, d.last_name, d.father_name ?? null, d.gender ?? null, d.dob ?? null, d.mobile ?? null, d.email || null,
+      code, d.first_name, d.last_name, d.father_name ?? null, d.spouse_name ?? null, d.gender ?? null, d.dob ?? null, d.marital_status ?? null, d.nationality ?? 'Indian',
+      d.mobile ?? null, d.alternate_mobile ?? null, d.email || null,
       d.aadhaar ?? null,
       d.address ?? null, d.city ?? null, d.state ?? null, d.pincode ?? null,
-      d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null,
-      d.bank_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null,
+      d.permanent_same_as_present ? 1 : 0, d.permanent_address ?? null, d.permanent_city ?? null, d.permanent_state ?? null, d.permanent_pincode ?? null,
+      d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null, d.emergency_contact_relation ?? null,
+      d.bank_name ?? null, d.bank_holder_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null, d.esi_number ?? null, d.ctc ?? null,
       d.joining_date ?? null, d.designation ?? null, d.department ?? null,
       d.grade ?? null, d.reporting_manager ?? null, d.previous_employment ?? null,
       d.employee_type ?? 'permanent',
-      d.shift_type ?? null, siteId, d.status ?? 'active'
+      d.shift_type ?? null, d.working_days_week ?? 6, d.notice_period_days ?? null, siteId, d.status ?? 'active'
     )
     .run()
 
@@ -345,6 +386,14 @@ employeeRoutes.post('/', async (c) => {
       st?.tds_applicable ? 1 : 0
     )
     .run()
+
+  // Nominee (single record per spec)
+  if (d.nominee?.name) {
+    await db
+      .prepare('INSERT INTO employee_nominees (employee_id, name, relation, share, contact) VALUES (?,?,?,?,?)')
+      .bind(employeeId, d.nominee.name, d.nominee.relation ?? null, d.nominee.share ?? 0, d.nominee.contact ?? null)
+      .run()
+  }
 
   const created = await db.prepare(`${employeeSelect} WHERE e.id = ?`).bind(employeeId).first()
   return c.json({ data: created }, 201)
@@ -393,9 +442,10 @@ const optionVal = (v: unknown, allowed: string[]): string | undefined => {
 }
 
 const IMPORT_STR_FIELDS = [
-  'first_name', 'last_name', 'employee_code', 'father_name', 'dob', 'mobile', 'email', 'aadhaar',
-  'address', 'city', 'state', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
-  'bank_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'joining_date', 'designation', 'department',
+  'first_name', 'last_name', 'employee_code', 'father_name', 'spouse_name', 'marital_status', 'nationality', 'dob', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
+  'address', 'city', 'state', 'pincode', 'permanent_address', 'permanent_city', 'permanent_state', 'permanent_pincode',
+  'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
+  'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'joining_date', 'designation', 'department',
   'grade', 'reporting_manager', 'previous_employment', 'shift_type',
 ]
 const IMPORT_SALARY_KEYS = ['basic', 'hra', 'conveyance', 'other_allowance', 'overtime_rate', 'other_deduction'] as const
@@ -408,7 +458,7 @@ function coerceImportRow(raw: Record<string, unknown>): Record<string, unknown> 
   }
   const gender = genderVal(raw.gender)
   if (gender !== undefined) r.gender = gender
-  const empType = optionVal(raw.employee_type, ['permanent', 'contract', 'temporary', 'probation'])
+  const empType = optionVal(raw.employee_type, ['permanent', 'contract', 'daily_wages'])
   if (empType !== undefined) r.employee_type = empType
   const status = optionVal(raw.status, ['active', 'inactive', 'resigned', 'terminated'])
   if (status !== undefined) r.status = status
@@ -698,20 +748,26 @@ employeeRoutes.put('/:id', async (c) => {
     const dup = await db.prepare('SELECT id FROM employees WHERE email = ? AND id != ?').bind(d.email, id).first()
     if (dup) return c.json({ error: { code: 'conflict', message: 'An employee with this email already exists.' } }, 409)
   }
+  if (d.aadhaar) {
+    const dup = await db.prepare('SELECT id FROM employees WHERE aadhaar = ? AND id != ?').bind(d.aadhaar, id).first()
+    if (dup) return c.json({ error: { code: 'conflict', message: 'An employee with this Aadhaar already exists.' } }, 409)
+  }
 
   const fields = [
-    'first_name', 'last_name', 'father_name', 'gender', 'dob', 'mobile', 'email', 'aadhaar',
-    'address', 'city', 'state', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
-    'bank_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'joining_date', 'designation', 'department',
+    'first_name', 'last_name', 'father_name', 'spouse_name', 'gender', 'dob', 'marital_status', 'nationality', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
+    'address', 'city', 'state', 'pincode', 'permanent_same_as_present', 'permanent_address', 'permanent_city', 'permanent_state', 'permanent_pincode',
+    'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
+    'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'ctc', 'joining_date', 'designation', 'department',
     'grade', 'reporting_manager', 'previous_employment',
-    'employee_type', 'shift_type', 'status',
+    'employee_type', 'shift_type', 'working_days_week', 'notice_period_days', 'status',
   ] as const
   const sets: string[] = []
   const params: (string | number | null)[] = []
   for (const f of fields) {
     if (f in d && d[f as keyof typeof d] !== undefined) {
       sets.push(`${f} = ?`)
-      params.push(d[f as keyof typeof d] as string | number | null)
+      const v = d[f as keyof typeof d]
+      params.push(f === 'permanent_same_as_present' ? (v ? 1 : 0) : (v as string | number | null))
     }
   }
   if ('site_id' in d && d.site_id !== undefined) {
@@ -737,6 +793,19 @@ employeeRoutes.put('/:id', async (c) => {
         s.overtime_rate || 0, s.pf_applicable === false ? 0 : 1, s.esic_applicable === false ? 0 : 1, s.other_deduction || 0
       )
       .run()
+  }
+
+  // Nominee: replace single record when block provided
+  if ('nominee' in d) {
+    if (d.nominee?.name) {
+      await db.prepare('DELETE FROM employee_nominees WHERE employee_id = ?').bind(id).run()
+      await db
+        .prepare('INSERT INTO employee_nominees (employee_id, name, relation, share, contact) VALUES (?,?,?,?,?)')
+        .bind(id, d.nominee.name, d.nominee.relation ?? null, d.nominee.share ?? 0, d.nominee.contact ?? null)
+        .run()
+    } else {
+      await db.prepare('DELETE FROM employee_nominees WHERE employee_id = ?').bind(id).run()
+    }
   }
 
   const updated = await db.prepare(`${employeeSelect} WHERE e.id = ?`).bind(id).first()

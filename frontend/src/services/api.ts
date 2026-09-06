@@ -67,6 +67,7 @@ export const employeeApi = {
     return api.get<unknown[] & { meta: PaginationMeta }>(`/employees?${q}`)
   },
   get: (id: number) => api.get<import('@/types/api').Employee>(`/employees/${id}`),
+  checkAadhaar: (aadhaar: string) => api.get<{ exists: boolean; employee: import('@/types/api').Employee | null }>(`/employees/check-aadhaar?aadhaar=${encodeURIComponent(aadhaar)}`),
   create: (data: unknown) => api.post<import('@/types/api').Employee>('/employees', data),
   update: (id: number, data: unknown) => api.put<import('@/types/api').Employee>(`/employees/${id}`, data),
   getStatutory: (id: number) => api.get<import('@/types/api').EmployeeStatutory>(`/employees/${id}/statutory`),
@@ -93,6 +94,11 @@ export const clientApi = {
   create: (data: unknown) => api.post<import('@/types/api').Client>('/clients', data),
   update: (id: number, data: unknown) => api.put<import('@/types/api').Client>(`/clients/${id}`, data),
   delete: (id: number) => api.delete(`/clients/${id}`),
+  generateCode: (name: string, excludeId?: number) => {
+    const q = new URLSearchParams({ name })
+    if (excludeId) q.set('exclude_id', String(excludeId))
+    return api.get<{ code: string }>(`/clients/generate-code?${q.toString()}`)
+  },
 }
 
 // Sites

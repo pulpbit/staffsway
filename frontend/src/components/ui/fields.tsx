@@ -1,4 +1,4 @@
-import { type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, forwardRef } from 'react'
+import { type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes, forwardRef, type ReactNode } from 'react'
 
 type BtnVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
 type BtnSize = 'sm' | 'md'
@@ -121,3 +121,38 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   }
 )
 Textarea.displayName = 'Textarea'
+
+interface ToggleProps {
+  label: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}
+
+export function Toggle({ label, checked, onChange }: ToggleProps) {
+  return (
+    <label className="flex items-center justify-between gap-3 py-1.5 cursor-pointer select-none">
+      <span className="text-[12px] text-body">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative w-8 h-[18px] rounded-pill transition-colors shrink-0 ${checked ? 'bg-navy' : 'bg-canvas-soft-2 inset-shadow'}`}
+      >
+        <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-all ${checked ? 'left-[16px] bg-gold' : 'left-[2px]'}`} />
+      </button>
+    </label>
+  )
+}
+
+export function Section({ icon: Icon, title, children }: { icon?: React.ElementType; title: string; children: ReactNode }) {
+  return (
+    <div className="mb-5 last:mb-0">
+      <div className="flex items-center gap-1.5 mb-3">
+        {Icon && <Icon className="w-4 h-4 text-mute" />}
+        <h4 className="text-[12px] font-semibold text-ink uppercase tracking-[0.04em] font-mono">{title}</h4>
+      </div>
+      <div className="bg-canvas-soft/40 border border-hairline rounded-md p-4 space-y-3">{children}</div>
+    </div>
+  )
+}

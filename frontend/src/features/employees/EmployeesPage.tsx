@@ -188,6 +188,7 @@ export default function EmployeesPage() {
             employeeId={editId}
             onClose={() => setShowForm(false)}
             onSaved={() => { queryClient.invalidateQueries({ queryKey: ['employees'] }); setShowForm(false); toast.success(editId ? 'Employee updated.' : 'Employee added.') }}
+            onSwitchToEdit={(id) => setEditId(id)}
           />
         </Modal>
       )}
