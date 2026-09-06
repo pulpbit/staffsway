@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { employeeApi, clientApi, siteApi } from '@/services/api'
 import { Button, Input, Select, Textarea, Section, Toggle } from '@/components/ui/fields'
 import { LoadingState } from '@/components/ui/state'
+import { FieldErrorsDialog, useFormValidation, type FieldRule } from '@/components/ui/validation'
 import { toast } from 'sonner'
 import { IdCard, User, Phone, Briefcase, Wallet, Landmark, FileText, HeartHandshake, Siren, CheckCircle2, AlertTriangle } from 'lucide-react'
 
@@ -30,6 +31,13 @@ const NOTICE_PERIODS = [
 ]
 const WEEKDAYS = ['5', '6', '7']
 
+const EMPLOYEE_RULES: FieldRule[] = [
+  { key: 'first_name', label: 'First Name', required: true },
+  { key: 'last_name', label: 'Last Name', required: true },
+  { key: 'mobile', label: 'Primary Contact No.', test: (v: any) => v && !/^[0-9+\-\s]{7,15}$/.test(v) ? 'Enter a valid phone number.' : null },
+  { key: 'email', label: 'Email (for My Space login)', test: (v: any) => v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Enter a valid email address.' : null },
+]
+
 export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToEdit }: Props) {
   const isEdit = !!employeeId
   const [loading, setLoading] = useState(false)
@@ -53,6 +61,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
     statutory: { pf_applicable: true, esi_applicable: true, lwf_applicable: false, pt_applicable: true },
     nominee: { name: '', relation: '', share: 0, contact: '' },
   })
+  const { errors, validate, applyServerErrors, clear, clearAll, invalidLabels, popupOpen, closePopup } = useFormValidation()
 
   const { data: emp, isLoading: empLoading } = useQuery({
     queryKey: ['employee', employeeId],
@@ -64,7 +73,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   const { data: allSitesRes } = useQuery({ queryKey: ['sites-select'], queryFn: () => siteApi.list() })
   const allSites = (allSitesRes?.data || []) as any[]
 
-  const update = (key: string, value: any) => setForm(f => ({ ...f, [key]: value }))
+  const update = (key: string, value: any) => { setForm(f => ({ ...f, [key]: value })); clear(key) }
   const updateSalary = (key: string, value: any) => setForm(f => ({ ...f, salary: { ...f.salary, [key]: value } }))
   const updateStatutory = (key: string, value: any) => setForm(f => ({ ...f, statutory: { ...f.statutory, [key]: value } }))
   const updateNominee = (key: string, value: any) => setForm(f => ({ ...f, nominee: { ...f.nominee, [key]: value } }))
@@ -124,8 +133,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   }
 
   const handleSubmit = async () => {
-    if (!form.first_name || !form.last_name) { toast.error('First and last name are required.'); return }
     if (!isEdit && !unlocked) { toast.error('Please run the Aadhaar check first.'); return }
+    if (!validate(EMPLOYEE_RULES, form)) return
     setLoading(true)
     try {
       const sum = (Number(form.salary.basic) || 0) + (Number(form.salary.hra) || 0) + (Number(form.salary.conveyance) || 0) + (Number(form.salary.other_allowance) || 0)
@@ -169,9 +178,11 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
       } else {
         await employeeApi.create(payload)
       }
+      clearAll()
       onSaved()
     } catch (err: any) {
-      toast.error(err?.error?.message || 'Failed to save employee.')
+      if (err?.error?.fields) { applyServerErrors(err.error.fields); toast.error('Please correct the highlighted fields.') }
+      else toast.error(err?.error?.message || 'Failed to save employee.')
     } finally {
       setLoading(false)
     }
@@ -226,8 +237,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         <>
           <Section icon={User} title="Basic Details">
             <div className={fieldClass}>
-              <Input label="First Name" value={form.first_name} onChange={e => update('first_name', e.target.value)} />
-              <Input label="Last Name" value={form.last_name} onChange={e => update('last_name', e.target.value)} />
+              <Input label="First Name" value={form.first_name} onChange={e => update('first_name', e.target.value)} error={errors.first_name} />
+              <Input label="Last Name" value={form.last_name} onChange={e => update('last_name', e.target.value)} error={errors.last_name} />
               <Input label="Date of Birth" type="date" value={form.dob} onChange={e => update('dob', e.target.value)} />
             </div>
             <div className={fieldClass}>
@@ -255,9 +266,9 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
 
           <Section icon={Phone} title="Contact Details">
             <div className={fieldClass}>
-              <Input label="Primary Contact No." value={form.mobile} onChange={e => update('mobile', e.target.value)} />
+              <Input label="Primary Contact No." value={form.mobile} onChange={e => update('mobile', e.target.value)} error={errors.mobile} />
               <Input label="Alternate Contact No." value={form.alternate_mobile} onChange={e => update('alternate_mobile', e.target.value)} />
-              <Input label="Email (for My Space login)" type="email" value={form.email} onChange={e => update('email', e.target.value)} />
+              <Input label="Email (for My Space login)" type="email" value={form.email} onChange={e => update('email', e.target.value)} error={errors.email} />
             </div>
             <div>
               <Textarea label="Present Address" value={form.address} onChange={e => update('address', e.target.value)} />
@@ -401,6 +412,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
         </div>
       )}
+
+      <FieldErrorsDialog open={popupOpen} labels={invalidLabels(EMPLOYEE_RULES)} onClose={closePopup} />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { siteApi, clientApi } from '@/services/api'
 import { Button, Input, Select, Toggle, Section } from '@/components/ui/fields'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
+import { FieldErrorsDialog, useFormValidation, type FieldRule } from '@/components/ui/validation'
 import { Table, Badge } from '@/components/ui/data'
 import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { statusColor, statusLabel } from '@/utils/format'
@@ -46,6 +47,12 @@ const emptyForm = {
   gratuity_applicable: true,
 }
 
+const SITE_RULES: FieldRule[] = [
+  { key: 'client_id', label: 'Parent Client', required: true },
+  { key: 'name', label: 'Site Name', required: true },
+  { key: 'site_incharge_email', label: 'Incharge Email', test: (v: any) => v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Enter a valid email address.' : null },
+]
+
 export default function SitesPage() {
   const [search, setSearch] = useState('')
   const [clientFilter, setClientFilter] = useState('')
@@ -54,6 +61,7 @@ export default function SitesPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm)
   const qc = useQueryClient()
+  const { errors, validate, applyServerErrors, clear, clearAll, invalidLabels, popupOpen, closePopup } = useFormValidation()
 
   const params: Record<string, string> = {}
   if (search) params.search = search
@@ -66,8 +74,11 @@ export default function SitesPage() {
 
   const saveMut = useMutation({
     mutationFn: (d: any) => editId ? siteApi.update(editId, d) : siteApi.create(d),
-    onSuccess: () => { setShowForm(false); setEditId(null); setForm(emptyForm); qc.invalidateQueries({ queryKey: ['sites'] }); toast.success('Site saved.') },
-    onError: (e: any) => toast.error(e?.error?.message || 'Failed to save.'),
+    onSuccess: () => { setShowForm(false); setEditId(null); setForm(emptyForm); clearAll(); qc.invalidateQueries({ queryKey: ['sites'] }); toast.success('Site saved.') },
+    onError: (e: any) => {
+      if (e?.error?.fields) { applyServerErrors(e.error.fields); toast.error('Please correct the highlighted fields.') }
+      else toast.error(e?.error?.message || 'Failed to save.')
+    },
   })
 
   const deleteMut = useMutation({
@@ -75,7 +86,7 @@ export default function SitesPage() {
     onSuccess: () => { setDeleteId(null); qc.invalidateQueries({ queryKey: ['sites'] }); toast.success('Site deleted.') },
   })
 
-  const openCreate = () => { setEditId(null); setForm(emptyForm); setShowForm(true) }
+  const openCreate = () => { setEditId(null); setForm(emptyForm); clearAll(); setShowForm(true) }
 
   const openEdit = async (id: number) => {
     const r: any = (await siteApi.get(id)).data
@@ -105,10 +116,10 @@ export default function SitesPage() {
       tds_applicable: !!r.tds_applicable, tds_percent: String(r.tds_percent ?? 2),
       gratuity_applicable: !!r.gratuity_applicable,
     })
-    setEditId(id); setShowForm(true)
+    setEditId(id); setShowForm(true); clearAll()
   }
 
-  const update = (key: string, value: any) => setForm((f) => ({ ...f, [key]: value }))
+  const update = (key: string, value: any) => { setForm((f) => ({ ...f, [key]: value })); clear(key) }
 
   const statutoryRow = (label: string, onKey: string, valKey: string, suffix: string) => (
     <div className="flex items-end gap-3">
@@ -168,12 +179,12 @@ export default function SitesPage() {
         )}
       </div>
 
-      <Modal open={showForm} onClose={() => { setShowForm(false); setEditId(null); setForm(emptyForm) }} title={editId ? 'Edit Site' : 'Add Site'} size="lg">
+      <Modal open={showForm} onClose={() => { setShowForm(false); setEditId(null); setForm(emptyForm); clearAll() }} title={editId ? 'Edit Site' : 'Add Site'} size="lg">
         <div className="space-y-3">
           <Section icon={Building2} title="Basic Details">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-1"><Select label="Parent Client" options={clientOptions} value={form.client_id} onChange={e => update('client_id', e.target.value)} /></div>
-              <Input label="Site Name" value={form.name} onChange={e => update('name', e.target.value)} />
+              <div className="sm:col-span-1"><Select label="Parent Client" options={clientOptions} value={form.client_id} onChange={e => update('client_id', e.target.value)} error={errors.client_id} /></div>
+              <Input label="Site Name" value={form.name} onChange={e => update('name', e.target.value)} error={errors.name} />
               <Select label="Status" options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} value={form.status} onChange={e => update('status', e.target.value)} />
             </div>
           </Section>
@@ -194,7 +205,7 @@ export default function SitesPage() {
               <Input label="Site Incharge" value={form.site_incharge} onChange={e => update('site_incharge', e.target.value)} />
               <Input label="Designation" value={form.site_incharge_designation} onChange={e => update('site_incharge_designation', e.target.value)} />
               <Input label="Contact" value={form.site_incharge_contact} onChange={e => update('site_incharge_contact', e.target.value)} />
-              <Input label="Email" type="email" value={form.site_incharge_email} onChange={e => update('site_incharge_email', e.target.value)} />
+              <Input label="Email" type="email" value={form.site_incharge_email} onChange={e => update('site_incharge_email', e.target.value)} error={errors.site_incharge_email} />
             </div>
           </Section>
 
@@ -227,11 +238,13 @@ export default function SitesPage() {
           </Section>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => { setShowForm(false); setEditId(null); setForm(emptyForm) }}>Cancel</Button>
-            <Button onClick={() => saveMut.mutate({ ...form, client_id: Number(form.client_id), pf_percent: Number(form.pf_percent), esic_percent: Number(form.esic_percent), lwf_percent: Number(form.lwf_percent), pt_amount: Number(form.pt_amount), tds_percent: Number(form.tds_percent) })} loading={saveMut.isPending}>Save</Button>
+            <Button variant="secondary" onClick={() => { setShowForm(false); setEditId(null); setForm(emptyForm); clearAll() }}>Cancel</Button>
+            <Button onClick={() => { if (validate(SITE_RULES, form)) saveMut.mutate({ ...form, client_id: Number(form.client_id), pf_percent: Number(form.pf_percent), esic_percent: Number(form.esic_percent), lwf_percent: Number(form.lwf_percent), pt_amount: Number(form.pt_amount), tds_percent: Number(form.tds_percent) }) }} loading={saveMut.isPending}>Save</Button>
           </div>
         </div>
       </Modal>
+
+      <FieldErrorsDialog open={popupOpen} labels={invalidLabels(SITE_RULES)} onClose={closePopup} />
 
       <ConfirmDialog open={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={() => deleteId && deleteMut.mutate(deleteId)} title="Delete Site" message="This will remove all employee assignments. Are you sure?" danger loading={deleteMut.isPending} />
     </div>
