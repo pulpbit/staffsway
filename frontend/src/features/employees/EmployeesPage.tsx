@@ -6,7 +6,7 @@ import { Table, Pagination, Badge } from '@/components/ui/data'
 import type { Column } from '@/components/ui/data'
 import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { ConfirmDialog, Modal } from '@/components/ui/overlay'
-import { fullName, statusColor, statusLabel, dateShort } from '@/utils/format'
+import { fullName, dateShort, money, statusColor, statusLabel } from '@/utils/format'
 import { toast } from 'sonner'
 import { Plus, Search, UserPlus, Trash2, FileText, ClipboardCheck, TrendingUp, Upload } from 'lucide-react'
 import EmployeeForm from './EmployeeForm'
@@ -87,16 +87,21 @@ export default function EmployeesPage() {
 
   const columns: Column<any>[] = [
     { key: 'employee_code', header: 'Code', className: 'font-mono text-[11px] text-body' },
-    { key: 'name', header: 'Name', sortable: true, render: (r) => (
-      <div>
-        <p className="text-[13px] font-medium text-ink">{fullName(r.first_name, r.last_name)}</p>
-        <p className="text-[11px] text-mute">{r.designation}</p>
-      </div>
+    { key: 'name', header: 'Employee Name', sortable: true, render: (r) => (
+      <span className="text-[13px] font-medium text-ink">{fullName(r.first_name, r.last_name)}</span>
     ) },
     { key: 'client_name', header: 'Client', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.client_name || '—'}</span> },
     { key: 'site_name', header: 'Site', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.site_name || '—'}</span> },
-    { key: 'joining_date', header: 'Joined', sortable: true, hideSm: true, render: (r) => <span className="text-[12px] text-body">{dateShort(r.joining_date)}</span> },
-    { key: 'status', header: 'Status', sortable: true, render: (r) => <Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge> },
+    { key: 'gender', header: 'Gender', render: (r) => <span className="text-[12px] text-body">{r.gender || '—'}</span> },
+    { key: 'aadhaar', header: 'Aaddhar No.', render: (r) => <span className="text-[12px] text-body font-mono">{r.aadhaar || '—'}</span> },
+    { key: 'designation', header: 'Job Title', render: (r) => <span className="text-[12px] text-body">{r.designation || '—'}</span> },
+    { key: 'ctc', header: 'Salary', render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{r.ctc ? money(Number(r.ctc)) : '—'}</span> },
+    { key: 'joining', header: 'Hiring Date', sortable: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{dateShort(r.joining_date)}</span> },
+    { key: 'bank_account', header: 'A/C No.', render: (r) => <span className="text-[12px] text-body font-mono whitespace-nowrap">{r.bank_account || '—'}</span> },
+    { key: 'bank_ifsc', header: 'IFSC Code', render: (r) => <span className="text-[12px] text-body font-mono">{r.bank_ifsc || '—'}</span> },
+    { key: 'esi_number', header: 'ESIC No.', render: (r) => <span className="text-[12px] text-body font-mono">{r.esi_number || '—'}</span> },
+    { key: 'uan', header: 'UAN No.', render: (r) => <span className="text-[12px] text-body font-mono">{r.uan || '—'}</span> },
+    { key: 'status', header: 'Status', render: (r) => <Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge> },
     { key: 'actions', header: '', render: (r) => (
       <div className="flex items-center gap-1">
         <button onClick={() => { setEditId(r.id); setShowForm(true) }} className="px-1.5 py-0.5 text-[11px] text-link hover:bg-link-soft rounded-xs">Edit</button>
