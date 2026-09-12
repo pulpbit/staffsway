@@ -87,6 +87,8 @@
   }
 }
 
+.print-join { display: none; }
+
 @media print {
   html, body { height: auto !important; overflow: visible !important; }
   body * { visibility: hidden; }
@@ -111,7 +113,7 @@
   .print-letter { position: fixed; top: 0; left: 0; width: 100%; background: white; }
   .print-join, .print-join * { visibility: visible; }
   .print-join {
-    display: block;
+    display: block !important;
     position: absolute;
     top: 0; left: 0;
     width: 100%;
@@ -121,5 +123,3 @@
   }
   @page { size: A4; margin: 16mm 12mm; }
 }
-
-.print-join { display: none; }
