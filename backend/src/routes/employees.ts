@@ -15,7 +15,7 @@ const listSchema = z.object({
   department: z.string().optional(),
   employee_type: z.string().optional(),
   shift_type: z.string().optional(),
-  sort: z.enum(['name', 'code', 'joining', 'status']).optional(),
+  sort: z.enum(['name', 'code', 'employee_code', 'joining', 'status']).optional(),
   order: z.enum(['asc', 'desc']).optional(),
   page: z.string().regex(/^\d+$/).optional(),
   page_size: z.string().regex(/^\d+$/).optional(),
@@ -161,7 +161,7 @@ employeeRoutes.get('/', async (c) => {
   if (!w.ok) return c.json({ error: { code: 'validation_error', message: 'Invalid query parameters.' } }, 400)
   const { conditions, params, filters } = w
 
-  const sortCol = { name: 'e.first_name', code: 'e.employee_code', joining: 'e.joining_date', status: 'e.status' }[filters.sort || 'name']
+  const sortCol = { name: 'e.first_name', code: 'e.employee_code', employee_code: 'e.employee_code', joining: 'e.joining_date', status: 'e.status' }[filters.sort || 'name']
   const order = filters.order === 'desc' ? 'DESC' : 'ASC'
   const page = Math.max(1, Number(filters.page || 1))
   const pageSize = Math.min(100, Math.max(1, Number(filters.page_size || 10)))
@@ -949,8 +949,10 @@ employeeRoutes.patch('/:id/status', async (c) => {  const id = Number(c.req.para
   const body = await c.req.json().catch(() => null)
   const parsed = z.object({ status: z.enum(['active', 'inactive', 'resigned', 'terminated']) }).safeParse(body)
   if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Invalid status.' } }, 400)
+  const status = parsed.data.status
   const db = getDb(c.env)
-  const res = await db.prepare('UPDATE employees SET status = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(parsed.data.status, id).run()
+  const dateCol = status === 'active' ? 'reactivated_at' : 'deactivated_at'
+  const res = await db.prepare(`UPDATE employees SET status = ?, ${dateCol} = datetime('now'), updated_at = datetime('now') WHERE id = ?`).bind(status, id).run()
   if (!res.meta.changes) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
   const updated = await db.prepare(`${employeeSelect} WHERE e.id = ?`).bind(id).first()
   return c.json({ data: updated })

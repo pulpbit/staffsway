@@ -88,7 +88,7 @@ export default function EmployeesPage() {
   })
 
   const columns: Column<any>[] = [
-    { key: 'employee_code', header: 'Code', className: 'font-mono text-[11px] text-body' },
+    { key: 'employee_code', header: 'Code', sortable: true, className: 'font-mono text-[11px] text-body' },
     { key: 'name', header: 'Employee Name', sortable: true, render: (r) => (
       <span className="text-[13px] font-medium text-ink">{fullName(r.first_name, r.last_name)}</span>
     ) },
@@ -104,6 +104,8 @@ export default function EmployeesPage() {
     { key: 'esi_number', header: 'ESIC No.', render: (r) => <span className="text-[12px] text-body font-mono">{r.esi_number || '—'}</span> },
     { key: 'uan', header: 'UAN No.', render: (r) => <span className="text-[12px] text-body font-mono">{r.uan || '—'}</span> },
     { key: 'status', header: 'Status', render: (r) => <Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge> },
+    { key: 'deactivated_at', header: 'Deactivated On', hideSm: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{dateShort(r.deactivated_at)}</span> },
+    { key: 'reactivated_at', header: 'Reactivated On', hideSm: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{dateShort(r.reactivated_at)}</span> },
     { key: 'actions', header: '', render: (r) => (
       <div className="flex items-center gap-1">
         <button onClick={() => { setEditId(r.id); setShowForm(true) }} className="px-1.5 py-0.5 text-[11px] text-link hover:bg-link-soft rounded-xs">Edit</button>

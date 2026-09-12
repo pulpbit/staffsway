@@ -468,6 +468,18 @@ export default function PayrollPage() {
       </Modal>
 
       <ConfirmDialog
+        open={!!loanAction}
+        onClose={() => setLoanAction(null)}
+        onConfirm={() => loanAction && loanActionMut.mutate(loanAction)}
+        title={loanAction?.action === 'close' ? 'Close Loan' : 'Cancel Loan'}
+        message={loanAction?.action === 'close'
+          ? 'Close this loan? The remaining outstanding will be written off and no further EMIs will be deducted.'
+          : 'Cancel this loan? No further EMIs will be deducted from payroll.'}
+        danger={loanAction?.action === 'cancel'}
+        loading={loanActionMut.isPending}
+      />
+
+      <ConfirmDialog
         open={!!confirmAction}
         onClose={() => setConfirmAction(null)}
         onConfirm={handleConfirm}

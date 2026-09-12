@@ -72,6 +72,8 @@ export interface Employee {
   notice_period_days?: number | null
   site_id: number | null
   status: string
+  deactivated_at?: string | null
+  reactivated_at?: string | null
   client_name?: string
   site_name?: string
   salary?: SalaryStructure | null
