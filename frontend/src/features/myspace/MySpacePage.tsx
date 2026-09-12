@@ -363,7 +363,7 @@ function PayslipsTab() {
               <div className="flex justify-between items-start pb-3 border-b border-hairline">
                 <div>
                   <p className="text-[15px] font-semibold text-ink">{d.company.company_name}</p>
-                  <p className="text-[11px] text-mute">{d.company.address}, {d.company.city} — {d.company.pincode}</p>
+                  <p className="text-[11px] text-mute">{d.company.address}, {d.company.state} — {d.company.pincode}</p>
                 </div>
                 <div className="text-right text-[11px] text-mute">
                   <p className="font-medium text-body">{d.slip.slip_number}</p>

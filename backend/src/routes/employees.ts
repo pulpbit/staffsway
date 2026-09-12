@@ -30,7 +30,6 @@ const employeeBase = {
   email: z.string().email().max(191).optional().nullable().or(z.literal('')),
   aadhaar: z.string().max(20).optional().nullable(),
   address: z.string().max(500).optional().nullable(),
-  city: z.string().max(100).optional().nullable(),
   state: z.string().max(100).optional().nullable(),
   district: z.string().max(100).optional().nullable(),
   pincode: z.string().max(10).optional().nullable(),
@@ -376,14 +375,14 @@ employeeRoutes.post('/', async (c) => {
 
   const info = await db
     .prepare(
-      `INSERT INTO employees (employee_code, first_name, last_name, father_name, spouse_name, gender, dob, marital_status, nationality, mobile, alternate_mobile, email, aadhaar, address, city, state, district, pincode, permanent_same_as_present, permanent_address, permanent_city, permanent_state, permanent_district, permanent_pincode, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, bank_name, bank_holder_name, bank_account, bank_ifsc, pan, uan, esi_number, ctc, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, working_days_week, notice_period_days, site_id, status)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      `INSERT INTO employees (employee_code, first_name, last_name, father_name, spouse_name, gender, dob, marital_status, nationality, mobile, alternate_mobile, email, aadhaar, address, state, district, pincode, permanent_same_as_present, permanent_address, permanent_state, permanent_district, permanent_pincode, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, bank_name, bank_holder_name, bank_account, bank_ifsc, pan, uan, esi_number, ctc, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, working_days_week, notice_period_days, site_id, status)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .bind(
       code, first, last, d.father_name ?? null, d.spouse_name ?? null, d.gender ?? null, d.dob ?? null, d.marital_status ?? null, d.nationality ?? 'Indian',
       d.mobile ?? null, d.alternate_mobile ?? null, d.email || null,
       d.aadhaar ?? null,
-      d.address ?? null, d.city ?? null, d.state ?? null, d.district ?? null, d.pincode ?? null,
-      d.permanent_same_as_present ? 1 : 0, d.permanent_address ?? null, d.permanent_city ?? null, d.permanent_state ?? null, d.permanent_district ?? null, d.permanent_pincode ?? null,
+      d.address ?? null, d.state ?? null, d.district ?? null, d.pincode ?? null,
+      d.permanent_same_as_present ? 1 : 0, d.permanent_address ?? null, d.permanent_state ?? null, d.permanent_district ?? null, d.permanent_pincode ?? null,
       d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null, d.emergency_contact_relation ?? null,
       d.bank_name ?? null, d.bank_holder_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null, d.esi_number ?? null, d.ctc ?? null,
       d.joining_date ?? null, d.designation ?? null, d.department ?? null,
@@ -485,7 +484,7 @@ const optionVal = (v: unknown, allowed: string[]): string | undefined => {
 
 const IMPORT_STR_FIELDS = [
   'full_name', 'first_name', 'last_name', 'employee_code', 'father_name', 'spouse_name', 'marital_status', 'nationality', 'dob', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
-  'address', 'city', 'state', 'district', 'pincode', 'permanent_address', 'permanent_city', 'permanent_state', 'permanent_district', 'permanent_pincode',
+  'address', 'state', 'district', 'pincode', 'permanent_address', 'permanent_state', 'permanent_district', 'permanent_pincode',
   'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
   'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'joining_date', 'designation', 'department',
   'grade', 'reporting_manager', 'previous_employment', 'shift_type',
@@ -669,13 +668,13 @@ employeeRoutes.post('/import', async (c) => {
       ops.push(
         db
           .prepare(
-            `INSERT INTO employees (id, employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, city, state, district, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+`INSERT INTO employees (id, employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, state, district, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
           )
           .bind(
             seq, newCode, first, last, d.father_name ?? null, d.gender ?? null, d.dob ?? null, d.mobile ?? null, d.email || null,
             d.aadhaar ?? null,
-            d.address ?? null, d.city ?? null, d.state ?? null, d.district ?? null, d.pincode ?? null,
+            d.address ?? null, d.state ?? null, d.district ?? null, d.pincode ?? null,
             d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null,
             d.bank_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null,
             d.joining_date ?? null, d.designation ?? null, d.department ?? null,
@@ -720,7 +719,7 @@ employeeRoutes.post('/import', async (c) => {
     } else {
       const fields = [
         'father_name', 'gender', 'dob', 'mobile', 'email', 'aadhaar',
-        'address', 'city', 'state', 'district', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
+        'address', 'state', 'district', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
         'bank_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'joining_date', 'designation', 'department',
         'grade', 'reporting_manager', 'previous_employment', 'employee_type', 'shift_type', 'status',
       ] as const
@@ -829,7 +828,7 @@ employeeRoutes.put('/:id', async (c) => {
 
   const fields = [
     'father_name', 'spouse_name', 'gender', 'dob', 'marital_status', 'nationality', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
-    'address', 'city', 'state', 'district', 'pincode', 'permanent_same_as_present', 'permanent_address', 'permanent_city', 'permanent_state', 'permanent_district', 'permanent_pincode',
+    'address', 'state', 'district', 'pincode', 'permanent_same_as_present', 'permanent_address', 'permanent_state', 'permanent_district', 'permanent_pincode',
     'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
     'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'ctc', 'joining_date', 'designation', 'department',
     'grade', 'reporting_manager', 'previous_employment',

@@ -9,7 +9,6 @@ const settingsPatch = z.object({
   company_name: z.string().min(1).max(191).optional(),
   company_tagline: z.string().max(191).optional(),
   address: z.string().max(500).optional(),
-  city: z.string().max(100).optional(),
   state: z.string().max(100).optional(),
   pincode: z.string().max(10).optional(),
   phone: z.string().max(30).optional(),

@@ -106,12 +106,12 @@ function JoiningFormBody({ employee: e, settings }: { employee: Employee; settin
   const yesNo = (v?: number | boolean | null) => (v ? 'Yes' : 'No')
   const nominee = e.nominees && e.nominees.length ? e.nominees[0] : null
 
-  const presentAddr = [e.address, e.city, e.district, e.state, e.pincode].filter(Boolean).join(', ') || '—'
+  const presentAddr = [e.address, e.district, e.state, e.pincode].filter(Boolean).join(', ') || '—'
   const permAddr = e.permanent_same_as_present
     ? 'Same as Present Address'
-    : [e.permanent_address, e.permanent_city, e.permanent_district, e.permanent_state, e.permanent_pincode].filter(Boolean).join(', ') || '—'
+    : [e.permanent_address, e.permanent_district, e.permanent_state, e.permanent_pincode].filter(Boolean).join(', ') || '—'
 
-  const companyLine1 = [settings.address, [settings.city, settings.state, settings.pincode].filter(Boolean).join(' ')].filter(Boolean).join(', ')
+  const companyLine1 = [settings.address, [settings.state, settings.pincode].filter(Boolean).join(' ')].filter(Boolean).join(', ')
   const companyLine2 = [settings.phone && `Ph: ${settings.phone}`, settings.email, settings.website].filter(Boolean).join('  ·  ')
   const companyLine3 = [settings.gstin && `GSTIN: ${settings.gstin}`, settings.pan && `PAN: ${settings.pan}`, settings.cin && `CIN: ${settings.cin}`].filter(Boolean).join('   |   ')
 

@@ -39,13 +39,11 @@ export interface Employee {
   email: string | null
   aadhaar?: string | null
   address: string | null
-  city: string | null
   state: string | null
   district?: string | null
   pincode: string | null
   permanent_same_as_present?: number | null
   permanent_address?: string | null
-  permanent_city?: string | null
   permanent_state?: string | null
   permanent_district?: string | null
   permanent_pincode?: string | null
@@ -133,7 +131,6 @@ export interface Client {
   company_email: string | null
   address_line1: string | null
   address_line2: string | null
-  city: string | null
   state: string | null
   district: string | null
   pincode: string | null
@@ -164,7 +161,6 @@ export interface Site {
   status: string
   address_line1: string | null
   address_line2: string | null
-  city: string | null
   state: string | null
   district: string | null
   pincode: string | null
@@ -336,7 +332,6 @@ export interface Settings {
   company_name: string
   company_tagline: string
   address: string | null
-  city: string | null
   state: string | null
   pincode: string | null
   phone: string | null

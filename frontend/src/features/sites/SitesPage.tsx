@@ -26,7 +26,6 @@ const emptyForm = {
   status: 'active',
   address_line1: '',
   address_line2: '',
-  city: '',
   state: '',
   district: '',
   pincode: '',
@@ -96,7 +95,6 @@ export default function SitesPage() {
       status: r.status || 'active',
       address_line1: r.address_line1 || '',
       address_line2: r.address_line2 || '',
-      city: r.city || '',
       state: r.state || '',
       district: r.district || '',
       pincode: r.pincode || '',
@@ -146,7 +144,7 @@ export default function SitesPage() {
         <p className="text-[11px] text-body">{r.client_name}</p>
       </div>
     ) },
-    { key: 'location', header: 'Location', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{[r.city, r.state].filter(Boolean).join(', ') || '—'}</span> },
+    { key: 'location', header: 'Location', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{[r.state, r.district].filter(Boolean).join(', ') || '—'}</span> },
     { key: 'incharge', header: 'Incharge', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{r.site_incharge || '—'}</span> },
     { key: 'shift', header: 'Shift', hideSm: true, render: (r: any) => <Badge className="bg-canvas-soft-2 text-body">{r.shift_type || 'General'}</Badge> },
     { key: 'statutory', header: 'Statutory', hideSm: true, render: (r: any) => {
@@ -193,7 +191,6 @@ export default function SitesPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Registered Address — Line 1" value={form.address_line1} onChange={e => update('address_line1', e.target.value)} />
               <Input label="Registered Address — Line 2" value={form.address_line2} onChange={e => update('address_line2', e.target.value)} />
-              <Input label="City" value={form.city} onChange={e => update('city', e.target.value)} />
               <Select label="State" options={STATE_OPTIONS} value={form.state} onChange={e => update('state', e.target.value)} />
               <Input label="District" value={form.district} onChange={e => update('district', e.target.value)} />
               <Input label="Pin Code" value={form.pincode} onChange={e => update('pincode', e.target.value)} />

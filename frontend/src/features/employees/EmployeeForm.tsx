@@ -48,8 +48,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   const [form, setForm] = useState<Record<string, any>>({
     employee_code: '', full_name: '', father_name: '', spouse_name: '', gender: 'Male', dob: '', marital_status: 'Single', nationality: 'Indian',
     mobile: '', alternate_mobile: '', email: '', aadhaar: '',
-    address: '', city: '', state: '', district: '', pincode: '',
-    permanent_same_as_present: false, permanent_address: '', permanent_city: '', permanent_state: '', permanent_district: '', permanent_pincode: '',
+    address: '', state: '', district: '', pincode: '',
+    permanent_same_as_present: false, permanent_address: '', permanent_state: '', permanent_district: '', permanent_pincode: '',
     emergency_contact_name: '', emergency_contact_phone: '', emergency_contact_relation: '',
     bank_name: '', bank_holder_name: '', bank_account: '', bank_ifsc: '', pan: '', uan: '', esi_number: '',
     ctc: '',
@@ -114,8 +114,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         ...f,
         employee_code: e.employee_code || '', full_name: [e.first_name, e.last_name].filter(Boolean).join(' ').trim(), father_name: e.father_name || '', spouse_name: e.spouse_name || '', gender: e.gender || 'Male', dob: e.dob || '', marital_status: e.marital_status || 'Single', nationality: e.nationality || 'Indian',
         mobile: e.mobile || '', alternate_mobile: e.alternate_mobile || '', email: e.email || '', aadhaar: e.aadhaar || '',
-        address: e.address || '', city: e.city || '', state: e.state || '', district: e.district || '', pincode: e.pincode || '',
-        permanent_same_as_present: !!e.permanent_same_as_present, permanent_address: e.permanent_address || '', permanent_city: e.permanent_city || '', permanent_state: e.permanent_state || '', permanent_district: e.permanent_district || '', permanent_pincode: e.permanent_pincode || '',
+        address: e.address || '', state: e.state || '', district: e.district || '', pincode: e.pincode || '',
+        permanent_same_as_present: !!e.permanent_same_as_present, permanent_address: e.permanent_address || '', permanent_state: e.permanent_state || '', permanent_district: e.permanent_district || '', permanent_pincode: e.permanent_pincode || '',
         emergency_contact_name: e.emergency_contact_name || '', emergency_contact_phone: e.emergency_contact_phone || '', emergency_contact_relation: e.emergency_contact_relation || '',
         bank_name: e.bank_name || '', bank_holder_name: e.bank_holder_name || '', bank_account: e.bank_account || '', bank_ifsc: e.bank_ifsc || '', pan: e.pan || '', uan: e.uan || '', esi_number: e.esi_number || '',
         ctc: e.ctc !== null && e.ctc !== undefined ? String(e.ctc) : '',
@@ -176,10 +176,9 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         father_name: form.father_name || null, spouse_name: form.spouse_name || null,
         gender: form.gender, dob: form.dob || null, marital_status: form.marital_status || null, nationality: form.nationality || 'Indian',
         mobile: form.mobile || null, alternate_mobile: form.alternate_mobile || null, email: form.email || null, aadhaar: form.aadhaar || null,
-        address: form.address || null, city: form.city || null, state: form.state || null, district: form.district || null, pincode: form.pincode || null,
+        address: form.address || null, state: form.state || null, district: form.district || null, pincode: form.pincode || null,
         permanent_same_as_present: permOn,
         permanent_address: permOn ? (form.address || null) : (form.permanent_address || null),
-        permanent_city: permOn ? (form.city || null) : (form.permanent_city || null),
         permanent_state: permOn ? (form.state || null) : (form.permanent_state || null),
         permanent_district: permOn ? (form.district || null) : (form.permanent_district || null),
         permanent_pincode: permOn ? (form.pincode || null) : (form.permanent_pincode || null),
@@ -313,9 +312,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             <div>
               <Textarea label="Present Address" value={form.address} onChange={e => update('address', e.target.value)} />
             </div>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Input label="District" value={form.district} onChange={e => update('district', e.target.value)} />
-              <Input label="City" value={form.city} onChange={e => update('city', e.target.value)} />
               <Select label="State" options={[{ value: '', label: 'Select state' }, ...stateOptions.map(s => ({ value: s, label: s }))]} value={form.state} onChange={e => update('state', e.target.value)} />
               <Input label="Pincode" value={form.pincode} onChange={e => update('pincode', e.target.value)} />
             </div>
@@ -327,9 +325,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
                 <div>
                   <Textarea label="Permanent Address" value={form.permanent_address} onChange={e => update('permanent_address', e.target.value)} />
                 </div>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <Input label="District" value={form.permanent_district} onChange={e => update('permanent_district', e.target.value)} />
-                  <Input label="City" value={form.permanent_city} onChange={e => update('permanent_city', e.target.value)} />
                   <Select label="State" options={[{ value: '', label: 'Select state' }, ...stateOptions.map(s => ({ value: s, label: s }))]} value={form.permanent_state} onChange={e => update('permanent_state', e.target.value)} />
                   <Input label="Pincode" value={form.permanent_pincode} onChange={e => update('permanent_pincode', e.target.value)} />
                 </div>

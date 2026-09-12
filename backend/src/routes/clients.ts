@@ -12,7 +12,6 @@ const clientSchema = z.object({
   company_email: z.string().email().max(191).optional().or(z.literal('')),
   address_line1: z.string().max(191).optional().or(z.literal('')),
   address_line2: z.string().max(191).optional().or(z.literal('')),
-  city: z.string().max(100).optional().or(z.literal('')),
   state: z.string().max(100).optional().or(z.literal('')),
   district: z.string().max(100).optional().or(z.literal('')),
   pincode: z.string().max(10).optional().or(z.literal('')),
@@ -32,7 +31,7 @@ const clientSchema = z.object({
 })
 
 const CLIENT_COLUMNS = `id, client_code, name, primary_contact_person, hr_contact_person,
-  company_email, address_line1, address_line2, city, state, district, pincode,
+  company_email, address_line1, address_line2, state, district, pincode,
   gst_no, company_pan, payroll_cycle, salary_calculation,
   overtime_enabled, leave_policy_enabled, arrears_enabled, advance_loan_enabled,
   bank_name, bank_account, bank_ifsc, bank_account_holder, status, created_at, updated_at`
@@ -112,11 +111,11 @@ clientRoutes.post('/', async (c) => {
       info = await db
         .prepare(
           `INSERT INTO clients (client_code, name, primary_contact_person, hr_contact_person, company_email,
-             address_line1, address_line2, city, state, district, pincode,
+             address_line1, address_line2, state, district, pincode,
              gst_no, company_pan, payroll_cycle, salary_calculation,
              overtime_enabled, leave_policy_enabled, arrears_enabled, advance_loan_enabled,
              bank_name, bank_account, bank_ifsc, bank_account_holder, status)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
         )
         .bind(
           clientCode,
@@ -126,7 +125,6 @@ clientRoutes.post('/', async (c) => {
           d.company_email || null,
           d.address_line1 || null,
           d.address_line2 || null,
-          d.city || null,
           d.state || null,
           d.district || null,
           d.pincode || null,

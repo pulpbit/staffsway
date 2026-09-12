@@ -9,7 +9,6 @@ const siteSchema = z.object({
   status: z.enum(['active', 'inactive']).optional(),
   address_line1: z.string().max(191).optional().or(z.literal('')),
   address_line2: z.string().max(191).optional().or(z.literal('')),
-  city: z.string().max(100).optional().or(z.literal('')),
   state: z.string().max(100).optional().or(z.literal('')),
   district: z.string().max(100).optional().or(z.literal('')),
   pincode: z.string().max(10).optional().or(z.literal('')),
@@ -36,7 +35,7 @@ const siteSchema = z.object({
 })
 
 const SITE_COLUMNS = `s.id, s.client_id, s.name, s.status,
-  s.address_line1, s.address_line2, s.city, s.state, s.district, s.pincode,
+  s.address_line1, s.address_line2, s.state, s.district, s.pincode,
   s.site_incharge, s.site_incharge_designation, s.site_incharge_contact, s.site_incharge_email,
   s.shift_type, s.overtime_enabled,
   s.payroll_applicable, s.leave_policy_enabled, s.arrears_enabled,
@@ -53,7 +52,7 @@ siteRoutes.get('/', async (c) => {
   const where: string[] = []
   const params: (string | number)[] = []
   if (clientId && clientId !== '') { where.push('s.client_id = ?'); params.push(Number(clientId)) }
-  if (search) { where.push('(s.name LIKE ? OR s.city LIKE ? OR s.site_incharge LIKE ?)'); const t = `%${search}%`; params.push(t, t, t) }
+  if (search) { where.push('(s.name LIKE ? OR s.site_incharge LIKE ?)'); const t = `%${search}%`; params.push(t, t) }
   const whereSql = where.length ? ` WHERE ${where.join(' AND ')}` : ''
   const db = getDb(c.env)
   const rows = await db
@@ -81,13 +80,13 @@ siteRoutes.get('/:id', async (c) => {
 })
 
 const INSERT_COLUMNS = `client_id, name, status,
-  address_line1, address_line2, city, state, district, pincode,
+  address_line1, address_line2, state, district, pincode,
   site_incharge, site_incharge_designation, site_incharge_contact, site_incharge_email,
   shift_type, overtime_enabled, payroll_applicable, leave_policy_enabled, arrears_enabled,
   pf_applicable, pf_percent, esic_applicable, esic_percent, lwf_applicable, lwf_percent,
   pt_applicable, pt_amount, tds_applicable, tds_percent, gratuity_applicable`
 
-const VALUE_FIELDS = ['address_line1', 'address_line2', 'city', 'state', 'district', 'pincode',
+const VALUE_FIELDS = ['address_line1', 'address_line2', 'state', 'district', 'pincode',
   'site_incharge', 'site_incharge_designation', 'site_incharge_contact', 'site_incharge_email',
   'shift_type'] as const
 const BOOL_FIELDS = ['overtime_enabled', 'payroll_applicable', 'leave_policy_enabled', 'arrears_enabled',
@@ -106,11 +105,11 @@ siteRoutes.post('/', async (c) => {
   const info = await db
     .prepare(
       `INSERT INTO sites (${INSERT_COLUMNS.replaceAll(', ', ',')})
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .bind(
       d.client_id, d.name, d.status ?? 'active',
-      d.address_line1 || null, d.address_line2 || null, d.city || null, d.state || null,
+      d.address_line1 || null, d.address_line2 || null, d.state || null,
       d.district || null, d.pincode || null,
       d.site_incharge || null, d.site_incharge_designation || null,
       d.site_incharge_contact || null, d.site_incharge_email || null,

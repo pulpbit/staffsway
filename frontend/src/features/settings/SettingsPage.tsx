@@ -118,7 +118,6 @@ export default function SettingsPage() {
                 <Input label="Company Name" value={set.company_name || ''} onChange={e => saveMut.mutate({ company_name: e.target.value })} />
                 <Input label="Tagline" value={set.company_tagline || ''} onChange={e => saveMut.mutate({ company_tagline: e.target.value })} />
                 <Input label="Address" value={set.address || ''} onChange={e => saveMut.mutate({ address: e.target.value })} />
-                <Input label="City" value={set.city || ''} onChange={e => saveMut.mutate({ city: e.target.value })} />
                 <Input label="State" value={set.state || ''} onChange={e => saveMut.mutate({ state: e.target.value })} />
                 <Input label="Pincode" value={set.pincode || ''} onChange={e => saveMut.mutate({ pincode: e.target.value })} />
                 <Input label="Phone" value={set.phone || ''} onChange={e => saveMut.mutate({ phone: e.target.value })} />

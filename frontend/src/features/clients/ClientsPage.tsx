@@ -19,7 +19,6 @@ const emptyForm = {
   company_email: '',
   address_line1: '',
   address_line2: '',
-  city: '',
   state: '',
   district: '',
   pincode: '',
@@ -81,7 +80,6 @@ export default function ClientsPage() {
         company_email: c.company_email || '',
         address_line1: c.address_line1 || '',
         address_line2: c.address_line2 || '',
-        city: c.city || '',
         state: c.state || '',
         district: c.district || '',
         pincode: c.pincode || '',
@@ -163,7 +161,7 @@ export default function ClientsPage() {
       </div>
     ) },
     { key: 'company_email', header: 'Email', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{r.company_email || '—'}</span> },
-    { key: 'location', header: 'Location', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{[r.city, r.state].filter(Boolean).join(', ') || '—'}</span> },
+    { key: 'location', header: 'Location', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{[r.state, r.district].filter(Boolean).join(', ') || '—'}</span> },
     { key: 'sites', header: 'Sites / Emp', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{r.site_count || 0} / {r.active_employees || 0} active</span> },
     { key: 'payroll_cycle', header: 'Payroll', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{r.payroll_cycle ? PAYROLL_CYCLE_OPTIONS.find(o => o.value === r.payroll_cycle)?.label || r.payroll_cycle : '—'}</span> },
     { key: 'status', header: 'Status', render: (r: any) => <Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge> },
@@ -214,7 +212,6 @@ export default function ClientsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input label="Registered Address — Line 1" value={form.address_line1} onChange={e => update('address_line1', e.target.value)} />
                 <Input label="Registered Address — Line 2" value={form.address_line2} onChange={e => update('address_line2', e.target.value)} />
-                <Input label="City" value={form.city} onChange={e => update('city', e.target.value)} />
                 <Select label="State" options={STATE_OPTIONS} value={form.state} onChange={e => update('state', e.target.value)} />
                 <Input label="District" value={form.district} onChange={e => update('district', e.target.value)} />
                 <Input label="Pin Code" value={form.pincode} onChange={e => update('pincode', e.target.value)} />

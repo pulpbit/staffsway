@@ -31,7 +31,7 @@ reportRoutes.get('/employees', async (c) => {
   const rows = await getDb(c.env)
     .prepare(
       `SELECT e.id, e.employee_code, e.first_name, e.last_name, e.gender, e.mobile, e.email, e.designation, e.department,
-        e.employee_type, e.shift_type, e.joining_date, e.status, e.city, e.state,
+        e.employee_type, e.shift_type, e.joining_date, e.status, e.state,
         s.name AS site_name, c.name AS client_name,
         st.basic, st.hra, st.conveyance, st.other_allowance, st.overtime_rate, st.other_deduction
        FROM employees e
@@ -247,7 +247,7 @@ reportRoutes.get('/employee-master', async (c) => {
   const where = s.where.length ? ` WHERE ${s.where.join(' AND ')}` : ''
   const rows = await getDb(c.env)
     .prepare(
-      `SELECT e.id, e.employee_code, e.first_name, e.last_name, e.gender, e.dob, e.mobile, e.email, e.address, e.city, e.state,
+      `SELECT e.id, e.employee_code, e.first_name, e.last_name, e.gender, e.dob, e.mobile, e.email, e.address, e.state,
         e.pincode, e.pan, e.uan, e.bank_name, e.bank_account, e.bank_ifsc, e.designation, e.department, e.employee_type,
         e.shift_type, e.joining_date, e.status, e.grade, e.reporting_manager, e.previous_employment,
         s.name AS site_name, c.name AS client_name, st.basic

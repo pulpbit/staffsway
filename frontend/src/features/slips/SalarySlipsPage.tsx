@@ -72,7 +72,7 @@ export default function SalarySlipsPage() {
                 <img src="/images/logo.png" alt="Logo" className="w-12 h-12 mb-1" />
                 <h2 className="text-[16px] font-semibold text-ink">{detail.company?.company_name}</h2>
                 <p className="text-[11px] text-mute">{detail.company?.company_tagline}</p>
-                <p className="text-[11px] text-mute">{detail.company?.address}, {detail.company?.city}, {detail.company?.state} {detail.company?.pincode}</p>
+                <p className="text-[11px] text-mute">{detail.company?.address}, {detail.company?.state} {detail.company?.pincode}</p>
               </div>
               <div className="text-right">
                 <h3 className="text-[14px] font-semibold text-ink">Salary Slip</h3>

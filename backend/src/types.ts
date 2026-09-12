@@ -17,7 +17,6 @@ export interface Settings {
   company_name: string
   company_tagline: string
   address: string | null
-  city: string | null
   state: string | null
   pincode: string | null
   phone: string | null
@@ -50,7 +49,6 @@ export interface EmployeeRow {
   mobile: string | null
   email: string | null
   address: string | null
-  city: string | null
   state: string | null
   pincode: string | null
   bank_name: string | null
