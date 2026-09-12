@@ -327,7 +327,7 @@ export default function AppLayout() {
         <div className={`px-3 h-13 border-b border-white/10 flex items-center ${collapsed ? 'justify-center' : 'justify-between'} gap-2 shrink-0`}>
           {!collapsed && (
             <div className="flex items-center gap-2.5 min-w-0">
-              <img src="/images/logo.png" alt="Staffsway" className="w-10 h-10 rounded-xs object-contain shrink-0" />
+              <img src="/images/logo.png" alt="Staffsway" className="h-12 w-auto max-w-[210px] object-contain shrink-0" />
             </div>
           )}
           {collapsed && <img src="/images/logo.png" alt="Staffsway" className="w-9 h-9 rounded-xs object-contain" />}
@@ -351,7 +351,7 @@ export default function AppLayout() {
           <aside className="fixed left-0 top-0 bottom-0 w-72 bg-navy border-r border-white/10 z-50 shadow-modal flex flex-col">
             <div className="flex items-center justify-between px-3 h-13 border-b border-white/10 shrink-0">
               <div className="flex items-center gap-2">
-                <img src="/images/logo.png" alt="Staffsway" className="w-9 h-9 rounded-xs" />
+                <img src="/images/logo.png" alt="Staffsway" className="h-11 w-auto object-contain" />
               </div>
               <button onClick={() => setMobileOpen(false)} className="p-1 rounded-sm hover:bg-white/10 text-white/70" aria-label="Close navigation">
                 <X className="w-4 h-4" />

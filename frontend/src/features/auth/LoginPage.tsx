@@ -41,7 +41,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="bg-white card-shadow-lg rounded-md p-6">
           <div className="flex items-center gap-2.5 mb-5">
-            <img src="/images/logo.png" alt="Logo" className="w-9 h-9 rounded-xs" />
+            <img src="/images/logo.png" alt="Logo" className="h-12 w-auto object-contain" />
             <div>
               <h1 className="text-[16px] font-semibold text-ink tracking-[-0.02em]">Staffsway</h1>
               <p className="text-[11px] text-mute">Manpower Staffing &amp; HR Services</p>
