@@ -8,7 +8,7 @@ import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui
 import { ConfirmDialog, Modal } from '@/components/ui/overlay'
 import { fullName, dateShort, money, statusColor, statusLabel } from '@/utils/format'
 import { toast } from 'sonner'
-import { Plus, Search, UserPlus, Trash2, FileText, ClipboardCheck, TrendingUp, Upload } from 'lucide-react'
+import { Plus, Search, UserPlus, Trash2, FileText, ClipboardCheck, TrendingUp, Upload, Printer } from 'lucide-react'
 import EmployeeForm from './EmployeeForm'
 import JoiningFormModal from './JoiningFormModal'
 import SalaryRevisionModal from './SalaryRevisionModal'
@@ -110,6 +110,7 @@ export default function EmployeesPage() {
         <button onClick={() => setRevFor(r)} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs"><TrendingUp className="w-3 h-3 inline mr-0.5" />Revise</button>
         <button onClick={() => { setDocForm({ document_type: DOC_TYPES[0], document_name: '', document_number: '' }); setDocsFor(r) }} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs">Docs</button>
         <button onClick={() => setOnbFor(r)} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs"><ClipboardCheck className="w-3 h-3 inline mr-0.5" />Onboarding</button>
+        <button onClick={() => setJoiningFor(r.id)} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs"><Printer className="w-3 h-3 inline mr-0.5" />Joining Form</button>
         <button onClick={() => statusMut.mutate({ id: r.id, status: r.status === 'active' ? 'inactive' : 'active' })} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs">
           {r.status === 'active' ? 'Deactivate' : 'Activate'}
         </button>
