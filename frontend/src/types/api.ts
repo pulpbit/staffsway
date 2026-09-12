@@ -391,6 +391,15 @@ export interface DashboardData {
   charts: Record<string, unknown[]>
 }
 
+export interface PendingInfoRow {
+  id: number
+  employee_code: string
+  first_name: string | null
+  last_name: string | null
+  designation: string | null
+  missing: string[]
+}
+
 export interface ManagementDashboard {
   month: number
   year: number
@@ -408,6 +417,7 @@ export interface ManagementDashboard {
   department_manpower: { name: string; value: number }[]
   attendance_trend: { month: number; year: number; present: number; absent: number; ot: number; paid_leave: number }[]
   salary_cost_trend: { month: number; year: number; net_total: number }[]
+  pending_info: PendingInfoRow[]
 }
 
 export interface PayrollPreview {

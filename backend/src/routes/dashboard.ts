@@ -13,7 +13,7 @@ dashboardRoutes.get('/management', async (c) => {
   const year = Number(c.req.query('year') || now.getFullYear())
   const mm = String(month).padStart(2, '0')
 
-  const [empToday, onLeaveToday, joiningsMonth, exitsMonth, deptManpower, attTrend, salaryTrend, monthAtt, prevYearEmp] = await Promise.all([
+  const [empToday, onLeaveToday, joiningsMonth, exitsMonth, deptManpower, attTrend, salaryTrend, monthAtt, prevYearEmp, pendingInfo] = await Promise.all([
     db.prepare(`SELECT COUNT(*) as total FROM employees WHERE status = 'active'`).first(),
     db.prepare(`
       SELECT COUNT(*) as on_leave FROM leave_requests
@@ -54,6 +54,16 @@ dashboardRoutes.get('/management', async (c) => {
       FROM attendance_monthly a WHERE a.month = ? AND a.year = ?
     `).bind(month, year).first(),
     db.prepare(`SELECT COUNT(*) as prev_active FROM employees WHERE status = 'active' AND joining_date < ?`).bind(`${year}-01-01`).first(),
+    db.prepare(`
+      SELECT id, employee_code, first_name, last_name, designation, dob, father_name, uan, esi_number, bank_account, bank_ifsc
+      FROM employees
+      WHERE status = 'active' AND (
+        (dob IS NULL OR dob = '') OR (father_name IS NULL OR father_name = '') OR
+        (uan IS NULL OR uan = '') OR (esi_number IS NULL OR esi_number = '') OR
+        (bank_account IS NULL OR bank_account = '') OR (bank_ifsc IS NULL OR bank_ifsc = '')
+      )
+      ORDER BY id DESC LIMIT 20
+    `).all(),
   ])
 
   const n = (v: unknown): number => Number(v || 0)
@@ -102,6 +112,14 @@ dashboardRoutes.get('/management', async (c) => {
       department_manpower: deptData,
       attendance_trend: attTrend.results,
       salary_cost_trend: salaryTrend.results,
+      pending_info: (pendingInfo.results || []).map((r: any) => ({
+        id: r.id,
+        employee_code: r.employee_code,
+        first_name: r.first_name,
+        last_name: r.last_name,
+        designation: r.designation,
+        missing: (['dob', 'father_name', 'uan', 'esi_number', 'bank_account', 'bank_ifsc'] as const).filter((k) => !String(r[k] ?? '').trim()),
+      })),
     },
   })
 })

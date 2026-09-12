@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { dashboardApi } from '@/services/api'
 import { LoadingState, PageError } from '@/components/ui/state'
-import { Users, UserCheck, UserX, CalendarDays, UserPlus, UserMinus, IndianRupee, Clock, TrendingDown, AlarmClock } from 'lucide-react'
+import { Users, UserCheck, UserX, CalendarDays, UserPlus, UserMinus, IndianRupee, Clock, TrendingDown, AlarmClock, AlertTriangle } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { monthYear } from '@/utils/format'
+import { monthYear, fullName } from '@/utils/format'
+import { PENDING_LABELS } from '@/utils/pending'
 
 const COLORS = ['#011b3f', '#0a2f66', '#1c56a8', '#7fa3d8', '#fcbd03', '#d99e00', '#16a34a', '#e2e8f2']
 
@@ -12,6 +14,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const monthLabel = (m: number, y: number) => `${MONTHS[m - 1] || m} ${y}`
 
 export default function ManagementDashboardPage() {
+  const navigate = useNavigate()
   const now = new Date()
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear] = useState(now.getFullYear())
@@ -91,6 +94,56 @@ export default function ManagementDashboardPage() {
             <p className="text-[18px] font-semibold text-ink">{d.attrition_rate}%</p>
           </div>
         </div>
+      </div>
+
+      {/* Pending Information */}
+      <div className="bg-white card-shadow rounded-md p-4 mb-6 border-l-2 border-l-error">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="flex items-center gap-1.5 text-[13px] font-semibold text-ink"><AlertTriangle className="w-4 h-4 text-error" /> Pending Information</h3>
+          {(d.pending_info || []).length > 0 && <span className="text-[11px] text-error font-medium">{(d.pending_info || []).length} employee(s)</span>}
+        </div>
+        {(d.pending_info || []).length === 0 ? (
+          <p className="text-[12px] text-mute">No pending information — all employee records complete.</p>
+        ) : (
+          <div className="max-h-[260px] overflow-y-auto">
+            <table className="w-full text-[12px]">
+              <thead className="sticky top-0 bg-white">
+                <tr className="text-left text-mute border-b border-hairline">
+                  <th className="py-2 font-medium">Employee</th>
+                  <th className="py-2 font-medium">Missing</th>
+                  <th className="py-2 font-medium text-right" />
+                </tr>
+              </thead>
+              <tbody>
+                {d.pending_info.map((row: any) => (
+                  <tr key={row.id} className="border-b border-hairline last:border-0">
+                    <td className="py-2">
+                      <span className="font-medium text-ink">{fullName(row.first_name, row.last_name)}</span>
+                      <span className="text-[11px] text-mute block">{row.employee_code}{row.designation ? ` · ${row.designation}` : ''}</span>
+                    </td>
+                    <td className="py-2">
+                      <div className="flex flex-wrap gap-1">
+                        {(row.missing || []).map((k: string) => (
+                          <button
+                            key={k}
+                            onClick={() => navigate(`/employees?focus=${row.id}&field=${k}`)}
+                            title="Click to update"
+                            className="px-1.5 py-0.5 text-[11px] rounded-sm bg-error-soft text-error font-medium hover:underline cursor-pointer"
+                          >
+                            {PENDING_LABELS[k] || k}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="py-2 text-right">
+                      <button onClick={() => navigate(`/employees?focus=${row.id}`)} className="text-[11px] text-link hover:underline cursor-pointer">Update →</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Charts Row 1 */}

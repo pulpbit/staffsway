@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { employeeApi, clientApi, siteApi, recruitmentApi } from '@/services/api'
 import { Button, Input, Select } from '@/components/ui/fields'
 import { Table, Pagination, Badge } from '@/components/ui/data'
@@ -9,6 +10,7 @@ import { ConfirmDialog, Modal } from '@/components/ui/overlay'
 import { fullName, dateShort, money, statusColor, statusLabel } from '@/utils/format'
 import { toast } from 'sonner'
 import { Plus, Search, UserPlus, Trash2, FileText, ClipboardCheck, TrendingUp, Upload, Printer } from 'lucide-react'
+import { isPending } from '@/utils/pending'
 import EmployeeForm from './EmployeeForm'
 import JoiningFormModal from './JoiningFormModal'
 import SalaryRevisionModal from './SalaryRevisionModal'
@@ -26,6 +28,8 @@ export default function EmployeesPage() {
   const [showForm, setShowForm] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
+  const [focusField, setFocusField] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [docsFor, setDocsFor] = useState<any>(null)
   const [docForm, setDocForm] = useState({ document_type: DOC_TYPES[0], document_name: '', document_number: '' })
@@ -33,6 +37,27 @@ export default function EmployeesPage() {
   const [revFor, setRevFor] = useState<any>(null)
   const [joiningFor, setJoiningFor] = useState<number | null>(null)
   const queryClient = useQueryClient()
+
+  const openEdit = (id: number, field?: string) => {
+    setEditId(id)
+    setFocusField(field || null)
+    setShowForm(true)
+  }
+
+  const openAdd = () => {
+    setEditId(null)
+    setFocusField(null)
+    setShowForm(true)
+  }
+
+  useEffect(() => {
+    const focusId = searchParams.get('focus')
+    if (focusId) {
+      openEdit(Number(focusId), searchParams.get('field') || undefined)
+      setSearchParams({}, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const params = { search, page: String(page), page_size: '10', sort, order, ...filters }
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['employees', params], queryFn: () => employeeApi.list(params) })
@@ -95,20 +120,22 @@ export default function EmployeesPage() {
     { key: 'client_name', header: 'Client', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.client_name || '—'}</span> },
     { key: 'site_name', header: 'Site', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.site_name || '—'}</span> },
     { key: 'gender', header: 'Gender', render: (r) => <span className="text-[12px] text-body">{r.gender || '—'}</span> },
+    { key: 'dob', header: 'DOB', hideSm: true, render: (r) => <PendingValue value={r.dob} mono onUpdate={() => openEdit(r.id, 'dob')} /> },
+    { key: 'father_name', header: "Father's Name", hideSm: true, render: (r) => <PendingValue value={r.father_name} onUpdate={() => openEdit(r.id, 'father_name')} /> },
     { key: 'aadhaar', header: 'Aaddhar No.', render: (r) => <span className="text-[12px] text-body font-mono">{r.aadhaar || '—'}</span> },
     { key: 'designation', header: 'Job Title', render: (r) => <span className="text-[12px] text-body">{r.designation || '—'}</span> },
     { key: 'ctc', header: 'Salary', render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{r.ctc ? money(Number(r.ctc)) : '—'}</span> },
     { key: 'joining', header: 'Hiring Date', sortable: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{dateShort(r.joining_date)}</span> },
-    { key: 'bank_account', header: 'A/C No.', render: (r) => <span className="text-[12px] text-body font-mono whitespace-nowrap">{r.bank_account || '—'}</span> },
-    { key: 'bank_ifsc', header: 'IFSC Code', render: (r) => <span className="text-[12px] text-body font-mono">{r.bank_ifsc || '—'}</span> },
-    { key: 'esi_number', header: 'ESIC No.', render: (r) => <span className="text-[12px] text-body font-mono">{r.esi_number || '—'}</span> },
-    { key: 'uan', header: 'UAN No.', render: (r) => <span className="text-[12px] text-body font-mono">{r.uan || '—'}</span> },
+    { key: 'bank_account', header: 'A/C No.', render: (r) => <PendingValue value={r.bank_account} mono onUpdate={() => openEdit(r.id, 'bank_account')} /> },
+    { key: 'bank_ifsc', header: 'IFSC Code', render: (r) => <PendingValue value={r.bank_ifsc} mono onUpdate={() => openEdit(r.id, 'bank_ifsc')} /> },
+    { key: 'esi_number', header: 'ESIC No.', render: (r) => <PendingValue value={r.esi_number} mono onUpdate={() => openEdit(r.id, 'esi_number')} /> },
+    { key: 'uan', header: 'UAN No.', render: (r) => <PendingValue value={r.uan} mono onUpdate={() => openEdit(r.id, 'uan')} /> },
     { key: 'status', header: 'Status', render: (r) => <Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge> },
     { key: 'deactivated_at', header: 'Deactivated On', hideSm: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{dateShort(r.deactivated_at)}</span> },
     { key: 'reactivated_at', header: 'Reactivated On', hideSm: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{dateShort(r.reactivated_at)}</span> },
     { key: 'actions', header: '', render: (r) => (
       <div className="flex items-center gap-1">
-        <button onClick={() => { setEditId(r.id); setShowForm(true) }} className="px-1.5 py-0.5 text-[11px] text-link hover:bg-link-soft rounded-xs">Edit</button>
+        <button onClick={() => openEdit(r.id)} className="px-1.5 py-0.5 text-[11px] text-link hover:bg-link-soft rounded-xs">Edit</button>
         <button onClick={() => setRevFor(r)} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs"><TrendingUp className="w-3 h-3 inline mr-0.5" />Revise</button>
         <button onClick={() => { setDocForm({ document_type: DOC_TYPES[0], document_name: '', document_number: '' }); setDocsFor(r) }} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs">Docs</button>
         <button onClick={() => setOnbFor(r)} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs"><ClipboardCheck className="w-3 h-3 inline mr-0.5" />Onboarding</button>
@@ -142,7 +169,7 @@ export default function EmployeesPage() {
         subtitle={`${meta.total} total`}
         actions={<div className="flex items-center gap-2">
           <Button variant="secondary" onClick={() => setShowImport(true)}><Upload className="w-3.5 h-3.5" /> Bulk Import</Button>
-          <Button onClick={() => { setEditId(null); setShowForm(true) }}><UserPlus className="w-3.5 h-3.5" /> Add Employee</Button>
+          <Button onClick={openAdd}><UserPlus className="w-3.5 h-3.5" /> Add Employee</Button>
         </div>}
       />
 
@@ -181,7 +208,7 @@ export default function EmployeesPage() {
         {isLoading ? <LoadingState /> :
          error ? <PageError onRetry={() => refetch()} /> :
          employees.length === 0 && !search && !filters.status ? (
-           <EmptyState title="No employees yet" description="Add your first employee to get started." action={<Button onClick={() => { setEditId(null); setShowForm(true) }}><Plus className="w-3.5 h-3.5" /> Add Employee</Button>} />
+           <EmptyState title="No employees yet" description="Add your first employee to get started." action={<Button onClick={openAdd}><Plus className="w-3.5 h-3.5" /> Add Employee</Button>} />
          ) : (
            <>
              <Table columns={columns} data={employees} keyFn={(r) => String(r.id)} sortKey={sort} sortDir={order} onSort={handleSort} emptyMessage="No employees match your search." />
@@ -191,11 +218,12 @@ export default function EmployeesPage() {
       </div>
 
       {showForm && (
-        <Modal open={showForm} onClose={() => setShowForm(false)} title={editId ? 'Edit Employee' : 'Add Employee'} size="lg">
+        <Modal open={showForm} onClose={() => { setShowForm(false); setFocusField(null) }} title={editId ? 'Edit Employee' : 'Add Employee'} size="lg">
           <EmployeeForm
             employeeId={editId}
-            onClose={() => setShowForm(false)}
-            onSaved={(createdId) => { queryClient.invalidateQueries({ queryKey: ['employees'] }); setShowForm(false); toast.success(editId ? 'Employee updated.' : 'Employee added.'); if (createdId) setJoiningFor(createdId) }}
+            focusField={focusField}
+            onClose={() => { setShowForm(false); setFocusField(null) }}
+            onSaved={(createdId) => { queryClient.invalidateQueries({ queryKey: ['employees'] }); setShowForm(false); setFocusField(null); toast.success(editId ? 'Employee updated.' : 'Employee added.'); if (createdId) setJoiningFor(createdId) }}
             onSwitchToEdit={(id) => setEditId(id)}
           />
         </Modal>
@@ -300,4 +328,13 @@ export default function EmployeesPage() {
       />
     </div>
   )
+}
+
+function PendingValue({ value, mono, onUpdate }: { value: any; mono?: boolean; onUpdate: () => void }) {
+  if (isPending(value)) {
+    return (
+      <button onClick={onUpdate} title="Click to update" className="text-[12px] text-error font-medium hover:underline cursor-pointer">Pending</button>
+    )
+  }
+  return <span className={`text-[12px] text-body ${mono ? 'font-mono whitespace-nowrap' : ''}`}>{value}</span>
 }

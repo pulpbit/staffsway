@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { employeeApi, clientApi, siteApi } from '@/services/api'
 import { Button, Input, Select, Textarea, Section, Toggle } from '@/components/ui/fields'
@@ -12,6 +12,7 @@ interface Props {
   onClose: () => void
   onSaved?: (createdId?: number) => void
   onSwitchToEdit?: (id: number) => void
+  focusField?: string | null
 }
 
 const GENDERS = ['Male', 'Female', 'Other']
@@ -37,7 +38,7 @@ const EMPLOYEE_RULES: FieldRule[] = [
   { key: 'email', label: 'Email', test: (v: any) => v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Enter a valid email address.' : null },
 ]
 
-export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToEdit }: Props) {
+export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToEdit, focusField }: Props) {
   const isEdit = !!employeeId
   const [loading, setLoading] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
@@ -62,6 +63,27 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   })
   const { errors, validate, applyServerErrors, clear, clearAll, invalidLabels, popupOpen, closePopup } = useFormValidation()
   const [parentType, setParentType] = useState<'father' | 'spouse'>('father')
+
+  const fieldRefs = {
+    dob: useRef<HTMLInputElement>(null),
+    father_name: useRef<HTMLInputElement>(null),
+    uan: useRef<HTMLInputElement>(null),
+    esi_number: useRef<HTMLInputElement>(null),
+    bank_account: useRef<HTMLInputElement>(null),
+    bank_ifsc: useRef<HTMLInputElement>(null),
+  }
+  const focusedOnce = useRef(false)
+  useEffect(() => {
+    if (!focusField || focusedOnce.current) return
+    if (focusField === 'father_name') setParentType('father')
+    const target = focusField as keyof typeof fieldRefs
+    const el = fieldRefs[target]?.current
+    if (el) {
+      focusedOnce.current = true
+      el.focus()
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }
+  }, [focusField, form.dob, form.father_name, form.uan, form.esi_number, form.bank_account, form.bank_ifsc, parentType])
 
   const { data: emp, isLoading: empLoading } = useQuery({
     queryKey: ['employee', employeeId],
@@ -251,7 +273,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
           <Section icon={User} title="Basic Details">
             <div className={fieldClass}>
               <Input label="Full Name" value={form.full_name} onChange={e => update('full_name', e.target.value)} error={errors.full_name} />
-              <Input label="Date of Birth" type="date" value={form.dob} onChange={e => update('dob', e.target.value)} />
+              <Input label="Date of Birth" type="date" value={form.dob} onChange={e => update('dob', e.target.value)} ref={fieldRefs.dob} />
               <Select label="Gender" options={GENDERS.map(g => ({ value: g, label: g }))} value={form.gender} onChange={e => update('gender', e.target.value)} />
             </div>
             <div className={fieldClass}>
@@ -270,7 +292,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
               />
               {parentType === 'father' ? (
                 <div className="mt-1">
-                  <Input label="Father Name" value={form.father_name} onChange={e => update('father_name', e.target.value)} />
+                  <Input label="Father Name" value={form.father_name} onChange={e => update('father_name', e.target.value)} ref={fieldRefs.father_name} />
                 </div>
               ) : (
                 <div className="mt-1">
@@ -368,11 +390,11 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 border-t border-hairline pt-2">
               <Toggle label="PF Applicable" checked={form.statutory.pf_applicable} onChange={v => updateStatutory('pf_applicable', v)} />
               {form.statutory.pf_applicable && (
-                <Input label="UAN No." value={form.uan} onChange={e => update('uan', e.target.value)} />
+                <Input label="UAN No." value={form.uan} onChange={e => update('uan', e.target.value)} ref={fieldRefs.uan} />
               )}
               <Toggle label="ESIC Applicable" checked={form.statutory.esi_applicable} onChange={v => updateStatutory('esi_applicable', v)} />
               {form.statutory.esi_applicable && (
-                <Input label="ESI No." value={form.esi_number} onChange={e => update('esi_number', e.target.value)} />
+                <Input label="ESI No." value={form.esi_number} onChange={e => update('esi_number', e.target.value)} ref={fieldRefs.esi_number} />
               )}
               <Toggle label="LWF (Labour Welfare Fund) Applicable" checked={form.statutory.lwf_applicable} onChange={v => updateStatutory('lwf_applicable', v)} />
               <Toggle label="Professional Tax Applicable" checked={form.statutory.pt_applicable} onChange={v => updateStatutory('pt_applicable', v)} />
@@ -383,8 +405,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
           <Section icon={Landmark} title="Bank Details">
             <div className={fieldClass}>
               <Input label="Bank Name" value={form.bank_name} onChange={e => update('bank_name', e.target.value)} />
-              <Input label="A/C No." value={form.bank_account} onChange={e => update('bank_account', e.target.value)} />
-              <Input label="IFSC" value={form.bank_ifsc} onChange={e => update('bank_ifsc', e.target.value)} />
+              <Input label="A/C No." value={form.bank_account} onChange={e => update('bank_account', e.target.value)} ref={fieldRefs.bank_account} />
+              <Input label="IFSC" value={form.bank_ifsc} onChange={e => update('bank_ifsc', e.target.value)} ref={fieldRefs.bank_ifsc} />
             </div>
             <div className={fieldClass}>
               <Input label="A/C Holder Name" value={form.bank_holder_name} onChange={e => update('bank_holder_name', e.target.value)} />
