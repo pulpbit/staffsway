@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type ChangeEvent, type ClipboardEvent, type KeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { employeeApi, clientApi, siteApi } from '@/services/api'
-import { Button, Input, Select, Textarea, Section, Toggle } from '@/components/ui/fields'
+import { Button, Input, Select, Textarea, FormSection, FormGrid, FormDivider, Toggle } from '@/components/ui/fields'
 import { LoadingState } from '@/components/ui/state'
 import { FieldErrorsDialog, useFormValidation, type FieldRule } from '@/components/ui/validation'
 import { toast } from 'sonner'
@@ -36,6 +36,12 @@ const EMPLOYEE_RULES: FieldRule[] = [
   { key: 'full_name', label: 'Full Name', required: true },
   { key: 'mobile', label: 'Primary Contact No.', test: (v: any) => v && !/^[0-9+\-\s]{7,15}$/.test(v) ? 'Enter a valid phone number.' : null },
   { key: 'email', label: 'Email', test: (v: any) => v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Enter a valid email address.' : null },
+]
+
+const STATE_OPTIONS = [
+  'Andhra Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Odisha', 'Punjab', 'Rajasthan', 'Tamil Nadu', 'Telangana', 'Uttar Pradesh',
+  'Uttarakhand', 'West Bengal',
 ]
 
 export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToEdit, focusField }: Props) {
@@ -224,118 +230,105 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
 
   if (isEdit && empLoading) return <LoadingState />
 
-  const fieldClass = 'grid grid-cols-3 gap-3'
-  const stateOptions = [
-    'Andhra Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Delhi', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
-    'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Odisha', 'Punjab', 'Rajasthan', 'Tamil Nadu', 'Telangana', 'Uttar Pradesh',
-    'Uttarakhand', 'West Bengal',
-  ]
+  const stateOptions = [{ value: '', label: 'Select state' }, ...STATE_OPTIONS.map(s => ({ value: s, label: s }))]
 
   const checkPanel = !isEdit && !unlocked && (
-    <Section icon={IdCard} title="Aadhaar Check">
-      <p className="text-[12px] text-mute">Verify the employee&apos;s Aadhaar number before registration.</p>
+    <FormSection icon={IdCard} title="Aadhaar Verification" subtitle="A 12-digit Aadhaar must be verified before a new employee is registered.">
       {!match ? (
-        <div className="flex items-end gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1">
-            <label className="block text-[12px] font-medium text-body mb-1 tracking-[-0.01em]">Aadhaar Number</label>
+            <p className="block text-[12px] font-medium text-body mb-1 tracking-[-0.01em]">Aadhaar Number</p>
             <AadhaarBoxes value={checkAadhaar} onChange={setCheckAadhaar} />
-            <p className="text-[11px] text-mute mt-1">Enter 12 digits spread across the boxes — cursor moves automatically.</p>
+            <p className="text-[11px] text-mute mt-1.5">Enter 12 digits across the boxes — the cursor moves automatically.</p>
           </div>
-          <Button onClick={handleCheck} loading={checking}>Check</Button>
+          <Button onClick={handleCheck} loading={checking} className="sm:mb-0">Check Aadhaar</Button>
         </div>
       ) : (
-        <div className="border border-warning/40 bg-warning/5 rounded-sm p-3">
-          <p className="flex items-center gap-1.5 text-[13px] font-medium text-warning"><AlertTriangle className="w-4 h-4" /> Employee already exists</p>
+        <div className="border border-warning/40 bg-warning/5 rounded-sm p-3.5">
+          <p className="flex items-center gap-1.5 text-[13px] font-medium text-warning-deep"><AlertTriangle className="w-4 h-4" /> Employee already exists</p>
           <p className="text-[12px] text-body mt-1">{match.first_name} {match.last_name} · {match.employee_code}{match.site_name ? ` · ${match.client_name || ''} — ${match.site_name}` : ''}</p>
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex flex-wrap items-center gap-2 mt-3">
             <Button size="sm" onClick={() => onSwitchToEdit?.(match.id)}>Open Existing</Button>
             <Button size="sm" variant="secondary" onClick={() => { setMatch(null); setUnlocked(true) }}>Continue New Registration</Button>
             <Button size="sm" variant="ghost" onClick={() => { setMatch(null); setCheckAadhaar('') }}>Cancel</Button>
           </div>
         </div>
       )}
-    </Section>
+    </FormSection>
   )
 
   const checkedBanner = !isEdit && unlocked && (
-    <div className="flex items-center justify-between border border-success/40 bg-success/5 rounded-sm px-3 py-2 mb-4">
-      <p className="flex items-center gap-1.5 text-[12px] text-success"><CheckCircle2 className="w-4 h-4" /> Aadhaar {form.aadhaar} verified — new employee</p>
-      <button type="button" className="text-[11px] text-link underline" onClick={() => onClose()}>Restart</button>
+    <div className="flex items-center justify-between gap-2 rounded-md border border-success/40 bg-success/5 px-3.5 py-2.5">
+      <p className="flex items-center gap-1.5 text-[12px] text-success font-medium"><CheckCircle2 className="w-4 h-4" /> Aadhaar {form.aadhaar} verified — continuing as a new employee.</p>
+      <button type="button" className="text-[11px] text-link underline hover:text-link-deep cursor-pointer" onClick={() => onClose()}>Restart</button>
     </div>
   )
 
   return (
-    <div className="max-h-[65vh] overflow-y-auto space-y-5">
+    <div>
       {checkPanel}
       {checkedBanner}
 
       {unlocked || isEdit ? (
         <>
-          <Section icon={User} title="Basic Details">
-            <div className={fieldClass}>
+          <FormSection icon={User} title="Basic Details" subtitle="Personal information as per identity documents" className="mb-4">
+            <FormGrid cols={3}>
               <Input label="Full Name" value={form.full_name} onChange={e => update('full_name', e.target.value)} error={errors.full_name} />
               <Input label="Date of Birth" type="date" value={form.dob} onChange={e => update('dob', e.target.value)} ref={fieldRefs.dob} />
               <Select label="Gender" options={GENDERS.map(g => ({ value: g, label: g }))} value={form.gender} onChange={e => update('gender', e.target.value)} />
-            </div>
-            <div className={fieldClass}>
+            </FormGrid>
+            <FormGrid cols={3}>
               <div>
                 <Input label="Username (for My Space login)" readOnly value={isEdit ? form.employee_code : (nextCode || 'Auto-assigned')} />
                 <p className="text-[11px] text-mute mt-1">Employee ID · My Space password = Date of Birth (DDMMYY).</p>
               </div>
               <Select label="Marital Status" options={MARITAL_STATUSES.map(m => ({ value: m, label: m }))} value={form.marital_status} onChange={e => update('marital_status', e.target.value)} />
               <Input label="Nationality" value={form.nationality} onChange={e => update('nationality', e.target.value)} />
-            </div>
-            <div className="border-t border-hairline pt-2">
-              <Toggle
-                label="Father Name"
-                checked={parentType === 'father'}
-                onChange={v => { setParentType(v ? 'father' : 'spouse'); if (v) update('spouse_name', ''); else update('father_name', '') }}
-              />
+            </FormGrid>
+            <FormDivider label="Father / Spouse" />
+            <Toggle
+              label="Record as Father's name"
+              hint={parentType === 'father' ? "Showing Father's name" : 'Toggled to spouse'}
+              checked={parentType === 'father'}
+              onChange={v => { setParentType(v ? 'father' : 'spouse'); if (v) update('spouse_name', ''); else update('father_name', '') }}
+            />
+            <div className="md:max-w-sm">
               {parentType === 'father' ? (
-                <div className="mt-1">
-                  <Input label="Father Name" value={form.father_name} onChange={e => update('father_name', e.target.value)} ref={fieldRefs.father_name} />
-                </div>
+                <Input label="Father's Name" value={form.father_name} onChange={e => update('father_name', e.target.value)} ref={fieldRefs.father_name} />
               ) : (
-                <div className="mt-1">
-                  <Input label="Husband / Spouse Name" value={form.spouse_name} onChange={e => update('spouse_name', e.target.value)} />
-                </div>
+                <Input label="Husband / Spouse Name" value={form.spouse_name} onChange={e => update('spouse_name', e.target.value)} />
               )}
             </div>
-          </Section>
+          </FormSection>
 
-          <Section icon={Phone} title="Contact Details">
-            <div className={fieldClass}>
+          <FormSection icon={Phone} title="Contact Details" subtitle="Communication and address information" className="mb-4">
+            <FormGrid cols={3}>
               <Input label="Primary Contact No." value={form.mobile} onChange={e => update('mobile', e.target.value)} error={errors.mobile} />
               <Input label="Alternate Contact No." value={form.alternate_mobile} onChange={e => update('alternate_mobile', e.target.value)} />
               <Input label="Email" type="email" value={form.email} onChange={e => update('email', e.target.value)} error={errors.email} />
-            </div>
-            <div>
-              <Textarea label="Present Address" value={form.address} onChange={e => update('address', e.target.value)} />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
+            </FormGrid>
+            <Textarea label="Present Address" value={form.address} onChange={e => update('address', e.target.value)} />
+            <FormGrid cols={3}>
               <Input label="District" value={form.district} onChange={e => update('district', e.target.value)} />
-              <Select label="State" options={[{ value: '', label: 'Select state' }, ...stateOptions.map(s => ({ value: s, label: s }))]} value={form.state} onChange={e => update('state', e.target.value)} />
+              <Select label="State" options={stateOptions} value={form.state} onChange={e => update('state', e.target.value)} />
               <Input label="Pincode" value={form.pincode} onChange={e => update('pincode', e.target.value)} />
-            </div>
-            <div className="border-t border-hairline pt-2">
-              <Toggle label="Permanent address same as present" checked={form.permanent_same_as_present} onChange={v => update('permanent_same_as_present', v)} />
-            </div>
+            </FormGrid>
+            <FormDivider label="Permanent Address" />
+            <Toggle label="Permanent address is same as present" checked={form.permanent_same_as_present} onChange={v => update('permanent_same_as_present', v)} />
             {!form.permanent_same_as_present && (
               <>
-                <div>
-                  <Textarea label="Permanent Address" value={form.permanent_address} onChange={e => update('permanent_address', e.target.value)} />
-                </div>
-                <div className="grid grid-cols-3 gap-3">
+                <Textarea label="Permanent Address" value={form.permanent_address} onChange={e => update('permanent_address', e.target.value)} />
+                <FormGrid cols={3}>
                   <Input label="District" value={form.permanent_district} onChange={e => update('permanent_district', e.target.value)} />
-                  <Select label="State" options={[{ value: '', label: 'Select state' }, ...stateOptions.map(s => ({ value: s, label: s }))]} value={form.permanent_state} onChange={e => update('permanent_state', e.target.value)} />
+                  <Select label="State" options={stateOptions} value={form.permanent_state} onChange={e => update('permanent_state', e.target.value)} />
                   <Input label="Pincode" value={form.permanent_pincode} onChange={e => update('permanent_pincode', e.target.value)} />
-                </div>
+                </FormGrid>
               </>
             )}
-          </Section>
+          </FormSection>
 
-          <Section icon={Briefcase} title="Official Information">
-            <div className={fieldClass}>
+          <FormSection icon={Briefcase} title="Official Information" subtitle="Placement, employment terms and reporting" className="mb-4">
+            <FormGrid cols={3}>
               <Select
                 label="Client"
                 options={[{ value: '', label: 'None' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]}
@@ -349,103 +342,106 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
                 onChange={e => update('site_id', e.target.value)}
               />
               <Input label="Reporting Manager" value={form.reporting_manager} onChange={e => update('reporting_manager', e.target.value)} />
-            </div>
-            <div className={fieldClass}>
+            </FormGrid>
+            <FormGrid cols={3}>
               <Input label="Department" value={form.department} onChange={e => update('department', e.target.value)} />
               <Input label="Designation" value={form.designation} onChange={e => update('designation', e.target.value)} />
               <Input label="Date of Joining" type="date" value={form.joining_date} onChange={e => update('joining_date', e.target.value)} />
-            </div>
-            <div className={fieldClass}>
+            </FormGrid>
+            <FormGrid cols={3}>
               <Select label="Employment Type" options={EMP_TYPES} value={form.employee_type} onChange={e => update('employee_type', e.target.value)} />
               <Select label="Shift" options={SHIFTS.map(s => ({ value: s, label: s }))} value={form.shift_type} onChange={e => update('shift_type', e.target.value)} />
               <Select label="Working Days in a Week" options={WEEKDAYS.map(d => ({ value: d, label: `${d} days` }))} value={form.working_days_week} onChange={e => update('working_days_week', e.target.value)} />
-            </div>
-            <div className={fieldClass}>
+            </FormGrid>
+            <FormGrid cols={3}>
               <Select label="Notice Period" options={[{ value: '', label: 'Not applicable' }, ...NOTICE_PERIODS]} value={form.notice_period_days} onChange={e => update('notice_period_days', e.target.value)} />
               {isEdit && (
                 <Select label="Status" options={['active', 'inactive', 'resigned', 'terminated'].map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))} value={form.status} onChange={e => update('status', e.target.value)} />
               )}
-            </div>
-          </Section>
+            </FormGrid>
+          </FormSection>
 
-          <Section icon={Wallet} title="Salary and Payroll">
-            <div className="fieldClass">
+          <FormSection icon={Wallet} title="Salary & Statutory" subtitle="Compensation structure and PF / ESIC / LWF / PT applicability" className="mb-4">
+            <FormGrid cols={3}>
               <Input label="CTC / Gross Salary" type="number" min={0} value={form.ctc} onChange={e => update('ctc', e.target.value)} />
               <Input label="Basic Salary" type="number" min={0} value={form.salary.basic} onChange={e => updateSalary('basic', e.target.value)} />
               <Input label="HRA" type="number" min={0} value={form.salary.hra} onChange={e => updateSalary('hra', e.target.value)} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+            </FormGrid>
+            <FormGrid cols={3}>
               <Input label="Conveyance" type="number" min={0} value={form.salary.conveyance} onChange={e => updateSalary('conveyance', e.target.value)} />
-            </div>
-            <div className="border-t border-hairline pt-2">
-              <Toggle label="Other Allowance Applicable" checked={otherAllowanceOn} onChange={v => updateSalary('other_allowance', v ? (Number(form.salary.other_allowance) || 1) : 0)} />
-            </div>
+            </FormGrid>
+            <FormDivider label="Other Allowances" />
+            <Toggle label="Other allowance applicable" checked={otherAllowanceOn} onChange={v => updateSalary('other_allowance', v ? (Number(form.salary.other_allowance) || 1) : 0)} />
             {otherAllowanceOn && (
-              <div className="grid grid-cols-2 gap-3">
+              <FormGrid cols={2}>
                 <Input label="Other Allowance Field Name" value={form.salary.other_allowance_label} placeholder="e.g. Performance Allowance" onChange={e => updateSalary('other_allowance_label', e.target.value)} />
                 <Input label="Other Allowance (₹)" type="number" min={0} value={form.salary.other_allowance} onChange={e => updateSalary('other_allowance', e.target.value)} />
-              </div>
+              </FormGrid>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 border-t border-hairline pt-2">
-              <Toggle label="PF Applicable" checked={form.statutory.pf_applicable} onChange={v => updateStatutory('pf_applicable', v)} />
-              {form.statutory.pf_applicable && (
-                <Input label="UAN No." value={form.uan} onChange={e => update('uan', e.target.value)} ref={fieldRefs.uan} />
-              )}
-              <Toggle label="ESIC Applicable" checked={form.statutory.esi_applicable} onChange={v => updateStatutory('esi_applicable', v)} />
-              {form.statutory.esi_applicable && (
-                <Input label="ESI No." value={form.esi_number} onChange={e => update('esi_number', e.target.value)} ref={fieldRefs.esi_number} />
-              )}
-              <Toggle label="LWF (Labour Welfare Fund) Applicable" checked={form.statutory.lwf_applicable} onChange={v => updateStatutory('lwf_applicable', v)} />
-              <Toggle label="Professional Tax Applicable" checked={form.statutory.pt_applicable} onChange={v => updateStatutory('pt_applicable', v)} />
+            <FormDivider label="Statutory Applicability" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+              <Toggle label="PF applicable" checked={form.statutory.pf_applicable} onChange={v => updateStatutory('pf_applicable', v)} />
+              <Toggle label="ESIC applicable" checked={form.statutory.esi_applicable} onChange={v => updateStatutory('esi_applicable', v)} />
+              <Toggle label="LWF (Labour Welfare Fund) applicable" checked={form.statutory.lwf_applicable} onChange={v => updateStatutory('lwf_applicable', v)} />
+              <Toggle label="Professional Tax applicable" checked={form.statutory.pt_applicable} onChange={v => updateStatutory('pt_applicable', v)} />
             </div>
+            {form.statutory.pf_applicable && (
+              <FormGrid cols={2}>
+                <Input label="UAN No." value={form.uan} onChange={e => update('uan', e.target.value)} ref={fieldRefs.uan} />
+              </FormGrid>
+            )}
+            {form.statutory.esi_applicable && (
+              <FormGrid cols={2}>
+                <Input label="ESI No." value={form.esi_number} onChange={e => update('esi_number', e.target.value)} ref={fieldRefs.esi_number} />
+              </FormGrid>
+            )}
             <p className="text-[11px] text-mute">Other deductions and OT rate are managed via payroll salary revisions.</p>
-          </Section>
+          </FormSection>
 
-          <Section icon={Landmark} title="Bank Details">
-            <div className={fieldClass}>
+          <FormSection icon={Landmark} title="Bank Details" subtitle="Salary disbursement account (masked elsewhere in the app)" className="mb-4">
+            <FormGrid cols={3}>
               <Input label="Bank Name" value={form.bank_name} onChange={e => update('bank_name', e.target.value)} />
               <Input label="A/C No." value={form.bank_account} onChange={e => update('bank_account', e.target.value)} ref={fieldRefs.bank_account} />
               <Input label="IFSC" value={form.bank_ifsc} onChange={e => update('bank_ifsc', e.target.value)} ref={fieldRefs.bank_ifsc} />
-            </div>
-            <div className={fieldClass}>
+            </FormGrid>
+            <FormGrid cols={3}>
               <Input label="A/C Holder Name" value={form.bank_holder_name} onChange={e => update('bank_holder_name', e.target.value)} />
-            </div>
-          </Section>
+            </FormGrid>
+          </FormSection>
 
-          <Section icon={FileText} title="Documents">
-            <div className={fieldClass}>
+          <FormSection icon={FileText} title="Identity Documents" subtitle="Government-issued IDs — stored as text records" className="mb-4">
+            <FormGrid cols={3}>
               <Input label="Aadhaar No." value={form.aadhaar} maxLength={12} onChange={e => update('aadhaar', e.target.value.replace(/\D/g, ''))} />
               <Input label="PAN" value={form.pan} onChange={e => update('pan', e.target.value.toUpperCase())} />
-            </div>
-          </Section>
+            </FormGrid>
+          </FormSection>
 
-          <Section icon={HeartHandshake} title="Nominee Details">
-            <div className="text-[12px] text-mute -mt-1">Single nominee per employee.</div>
-            <div className={fieldClass}>
+          <FormSection icon={HeartHandshake} title="Nominee Details" subtitle="Single nominee per employee — used for EDLI / gratuity" className="mb-4">
+            <FormGrid cols={3}>
               <Input label="Name" value={form.nominee.name} onChange={e => updateNominee('name', e.target.value)} />
               <Input label="Relation" value={form.nominee.relation} onChange={e => updateNominee('relation', e.target.value)} />
               <Input label="Share (%)" type="number" min={0} max={100} value={form.nominee.share} onChange={e => updateNominee('share', e.target.value)} />
-            </div>
-            <div className={fieldClass}>
+            </FormGrid>
+            <FormGrid cols={3}>
               <Input label="Contact No." value={form.nominee.contact} onChange={e => updateNominee('contact', e.target.value)} />
-            </div>
-          </Section>
+            </FormGrid>
+          </FormSection>
 
-          <Section icon={Siren} title="Emergency Contact">
-            <div className={fieldClass}>
+          <FormSection icon={Siren} title="Emergency Contact" subtitle="Someone to reach in case of emergency" className="mb-4">
+            <FormGrid cols={3}>
               <Input label="Contact Person Name" value={form.emergency_contact_name} onChange={e => update('emergency_contact_name', e.target.value)} />
               <Input label="Relation" value={form.emergency_contact_relation} onChange={e => update('emergency_contact_relation', e.target.value)} />
               <Input label="Contact No." value={form.emergency_contact_phone} onChange={e => update('emergency_contact_phone', e.target.value)} />
-            </div>
-          </Section>
+            </FormGrid>
+          </FormSection>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-hairline sticky bottom-0 bg-white py-3">
+          <div className="flex justify-end gap-2 pt-3 border-t border-hairline sticky bottom-[-20px] -mx-5 px-5 bg-white py-4">
             <Button variant="secondary" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSubmit} loading={loading}>{isEdit ? 'Update Employee' : 'Add Employee'}</Button>
           </div>
         </>
       ) : (
-        <div className="flex justify-end gap-2 pt-2 border-t border-hairline">
+        <div className="flex justify-end gap-2 pt-2 mt-3 border-t border-hairline">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
         </div>
       )}
@@ -502,7 +498,7 @@ function AadhaarBoxes({ value, onChange }: { value: string; onChange: (digits: s
           maxLength={4}
           placeholder="____"
           aria-label={`Aadhaar digits ${i + 1} of 3`}
-          className="w-[74px] h-10 px-2 text-center text-[15px] tracking-[0.25em] font-mono bg-white border border-hairline rounded-sm outline-none transition-colors placeholder:text-mute focus:border-ink"
+          className="w-[74px] h-10 px-2 text-center text-[15px] tracking-[0.25em] font-mono bg-white border border-hairline rounded-sm outline-none transition-colors placeholder:text-mute focus:border-navy-mid"
         />
       ))}
     </div>

@@ -2,14 +2,18 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { employeeApi, clientApi, siteApi, recruitmentApi } from '@/services/api'
-import { Button, Input, Select } from '@/components/ui/fields'
-import { Table, Pagination, Badge } from '@/components/ui/data'
+import { Button } from '@/components/ui/fields'
+import { Table, Pagination } from '@/components/ui/data'
 import type { Column } from '@/components/ui/data'
-import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui/state'
-import { ConfirmDialog, Modal } from '@/components/ui/overlay'
-import { fullName, dateShort, money, statusColor, statusLabel } from '@/utils/format'
+import { PageHeader } from '@/components/ui/layout'
+import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
+import { StatusBadge } from '@/components/ui/status'
+import { FilterBar, SearchInput, SelectFilter, Avatar, ActionMenu } from '@/components/ui/actions'
+import { Modal, ConfirmDialog } from '@/components/ui/overlay'
+import { fullName, dateShort, money } from '@/utils/format'
+import { downloadCsv } from '@/utils/csv'
 import { toast } from 'sonner'
-import { Plus, Search, UserPlus, Trash2, FileText, ClipboardCheck, TrendingUp, Upload, Printer } from 'lucide-react'
+import { Plus, UserPlus, Upload, ChevronRight, Pencil, TrendingUp, FileText, ClipboardCheck, Printer, Trash2, SquareUserRound, CircleAlert, Download } from 'lucide-react'
 import { isPending } from '@/utils/pending'
 import EmployeeForm from './EmployeeForm'
 import JoiningFormModal from './JoiningFormModal'
@@ -18,6 +22,23 @@ import BulkEmployeeImport from './BulkEmployeeImport'
 import type { Employee } from '@/types/api'
 
 const DOC_TYPES = ['Aadhaar Card', 'PAN Card', 'Bank Proof', 'Joining Form', 'Education Certificate', 'Address Proof', 'Other']
+
+const maskLast = (v: string | null | undefined): string => {
+  const s = (v || '').trim()
+  if (!s) return '—'
+  if (s.length <= 4) return '••••'
+  return `••••${s.slice(-4)}`
+}
+
+const PENDING_FIELDS = [
+  { key: 'dob', label: 'DOB' },
+  { key: 'father_name', label: "Father's Name" },
+  { key: 'aadhaar', label: 'Aadhaar' },
+  { key: 'bank_account', label: 'Bank A/C' },
+  { key: 'bank_ifsc', label: 'IFSC' },
+  { key: 'esi_number', label: 'ESIC' },
+  { key: 'uan', label: 'UAN' },
+] as const
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState('')
@@ -36,6 +57,7 @@ export default function EmployeesPage() {
   const [onbFor, setOnbFor] = useState<any>(null)
   const [revFor, setRevFor] = useState<any>(null)
   const [joiningFor, setJoiningFor] = useState<number | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(null)
   const queryClient = useQueryClient()
 
   const openEdit = (id: number, field?: string) => {
@@ -61,7 +83,6 @@ export default function EmployeesPage() {
 
   const params = { search, page: String(page), page_size: '10', sort, order, ...filters }
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['employees', params], queryFn: () => employeeApi.list(params) })
-  const { data: filterData } = useQuery({ queryKey: ['employee-filters'], queryFn: () => employeeApi.filters() })
   const { data: clients } = useQuery({ queryKey: ['clients-select'], queryFn: () => clientApi.list() })
   const { data: sites } = useQuery({ queryKey: ['sites-select'], queryFn: () => siteApi.list() })
   const { data: docsData } = useQuery({
@@ -99,9 +120,6 @@ export default function EmployeesPage() {
     onError: (e: any) => toast.error(e?.error?.message || 'Failed to update task.'),
   })
 
-  const employees = (data?.data || []) as any[]
-  const meta: any = data?.meta || { total: 0, page: 1, page_size: 10, total_pages: 0 }
-
   const statusMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => employeeApi.setStatus(id, status),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['employees'] }); toast.success('Status updated.') },
@@ -112,41 +130,10 @@ export default function EmployeesPage() {
     onSuccess: () => { setDeleteId(null); queryClient.invalidateQueries({ queryKey: ['employees'] }); toast.success('Employee deleted.') },
   })
 
-  const columns: Column<any>[] = [
-    { key: 'employee_code', header: 'Code', sortable: true, className: 'font-mono text-[11px] text-body' },
-    { key: 'name', header: 'Employee Name', sortable: true, render: (r) => (
-      <span className="text-[13px] font-medium text-ink">{fullName(r.first_name, r.last_name)}</span>
-    ) },
-    { key: 'client_name', header: 'Client', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.client_name || '—'}</span> },
-    { key: 'site_name', header: 'Site', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.site_name || '—'}</span> },
-    { key: 'gender', header: 'Gender', render: (r) => <span className="text-[12px] text-body">{r.gender || '—'}</span> },
-    { key: 'dob', header: 'DOB', hideSm: true, render: (r) => <PendingValue value={r.dob} mono onUpdate={() => openEdit(r.id, 'dob')} /> },
-    { key: 'father_name', header: "Father's Name", hideSm: true, render: (r) => <PendingValue value={r.father_name} onUpdate={() => openEdit(r.id, 'father_name')} /> },
-    { key: 'aadhaar', header: 'Aaddhar No.', render: (r) => <span className="text-[12px] text-body font-mono">{r.aadhaar || '—'}</span> },
-    { key: 'designation', header: 'Job Title', render: (r) => <span className="text-[12px] text-body">{r.designation || '—'}</span> },
-    { key: 'ctc', header: 'Salary', render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{r.ctc ? money(Number(r.ctc)) : '—'}</span> },
-    { key: 'joining', header: 'Hiring Date', sortable: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{dateShort(r.joining_date)}</span> },
-    { key: 'bank_account', header: 'A/C No.', render: (r) => <PendingValue value={r.bank_account} mono onUpdate={() => openEdit(r.id, 'bank_account')} /> },
-    { key: 'bank_ifsc', header: 'IFSC Code', render: (r) => <PendingValue value={r.bank_ifsc} mono onUpdate={() => openEdit(r.id, 'bank_ifsc')} /> },
-    { key: 'esi_number', header: 'ESIC No.', render: (r) => <PendingValue value={r.esi_number} mono onUpdate={() => openEdit(r.id, 'esi_number')} /> },
-    { key: 'uan', header: 'UAN No.', render: (r) => <PendingValue value={r.uan} mono onUpdate={() => openEdit(r.id, 'uan')} /> },
-    { key: 'status', header: 'Status', render: (r) => <Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge> },
-    { key: 'deactivated_at', header: 'Deactivated On', hideSm: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{dateShort(r.deactivated_at)}</span> },
-    { key: 'reactivated_at', header: 'Reactivated On', hideSm: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap">{dateShort(r.reactivated_at)}</span> },
-    { key: 'actions', header: '', render: (r) => (
-      <div className="flex items-center gap-1">
-        <button onClick={() => openEdit(r.id)} className="px-1.5 py-0.5 text-[11px] text-link hover:bg-link-soft rounded-xs">Edit</button>
-        <button onClick={() => setRevFor(r)} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs"><TrendingUp className="w-3 h-3 inline mr-0.5" />Revise</button>
-        <button onClick={() => { setDocForm({ document_type: DOC_TYPES[0], document_name: '', document_number: '' }); setDocsFor(r) }} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs">Docs</button>
-        <button onClick={() => setOnbFor(r)} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs"><ClipboardCheck className="w-3 h-3 inline mr-0.5" />Onboarding</button>
-        <button onClick={() => setJoiningFor(r.id)} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs"><Printer className="w-3 h-3 inline mr-0.5" />Joining Form</button>
-        <button onClick={() => statusMut.mutate({ id: r.id, status: r.status === 'active' ? 'inactive' : 'active' })} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs">
-          {r.status === 'active' ? 'Deactivate' : 'Activate'}
-        </button>
-        <button onClick={() => setDeleteId(r.id)} className="px-1 py-0.5 text-[11px] text-error hover:bg-error-soft rounded-xs"><Trash2 className="w-3 h-3" /></button>
-      </div>
-    ) },
-  ]
+  const employees = (data?.data || []) as any[]
+  const meta: any = data?.meta || { total: 0, page: 1, page_size: 10, total_pages: 0 }
+
+  const pendingFor = (r: any) => PENDING_FIELDS.filter((f) => isPending(r[f.key]))
 
   const handleSort = (key: string) => {
     if (sort === key) setOrder(o => o === 'asc' ? 'desc' : 'asc')
@@ -154,6 +141,127 @@ export default function EmployeesPage() {
   }
 
   const siteOptions = (sites?.data || []) as any[]
+
+  const exportCsv = () => {
+    if (employees.length === 0) return
+    downloadCsv(
+      employees.map((r: any) => ({
+        employee_code: r.employee_code,
+        name: fullName(r.first_name, r.last_name),
+        client: r.client_name || '',
+        site: r.site_name || '',
+        designation: r.designation || '',
+        joining_date: r.joining_date || '',
+        ctc: r.ctc || '',
+        status: r.status || '',
+        dob: r.dob || '',
+        father_name: r.father_name || '',
+        gender: r.gender || '',
+        aadhaar: r.aadhaar || '',
+        bank_account: r.bank_account || '',
+        bank_ifsc: r.bank_ifsc || '',
+        esi_number: r.esi_number || '',
+        uan: r.uan || '',
+      })),
+      'employees'
+    )
+    toast.success('Employee list exported.')
+  }
+
+  const columns: Column<any>[] = [
+    { key: 'name', header: 'Employee', sortable: true, render: (r) => (
+      <span className="flex items-center gap-2.5 min-w-0">
+        <Avatar name={fullName(r.first_name, r.last_name)} size="sm" />
+        <span className="min-w-0">
+          <button onClick={() => openEdit(r.id)} className="block text-[13px] font-medium text-ink hover:underline truncate max-w-44 cursor-pointer text-left">{fullName(r.first_name, r.last_name)}</button>
+          <span className="block text-[11px] text-mute font-mono">{r.employee_code}</span>
+        </span>
+      </span>
+    ) },
+    { key: 'client_name', header: 'Client', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.client_name || '—'}</span> },
+    { key: 'site_name', header: 'Site', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.site_name || '—'}</span> },
+    { key: 'designation', header: 'Designation', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.designation || '—'}</span> },
+    { key: 'joining', header: 'Joining', sortable: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap tabular-nums">{dateShort(r.joining_date)}</span> },
+    { key: 'ctc', header: 'CTC', render: (r) => <span className="text-[12px] text-body font-medium whitespace-nowrap tabular-nums">{r.ctc ? money(Number(r.ctc)) : '—'}</span> },
+    { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+    { key: 'pending', header: '', className: 'w-24', render: (r) => {
+      const p = pendingFor(r)
+      if (p.length === 0) return null
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <CircleAlert className="w-3.5 h-3.5 text-warning-deep" />
+          <button
+            onClick={() => openEdit(r.id, p[0].key)}
+            title={`${p.length} pending field${p.length > 1 ? 's' : ''}`}
+            className="text-[11px] font-medium text-warning-deep hover:underline cursor-pointer"
+          >
+            {p.length} pending
+          </button>
+        </span>
+      )
+    } },
+    { key: 'expand', header: '', className: 'w-10', render: (r) => (
+      <button
+        onClick={() => setExpandedId((v) => (v === r.id ? null : r.id))}
+        aria-expanded={expandedId === r.id}
+        aria-label={expandedId === r.id ? 'Hide details' : 'Show details'}
+        className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft transition-colors cursor-pointer"
+      >
+        <ChevronRight className={`w-4 h-4 transition-transform ${expandedId === r.id ? 'rotate-90' : ''}`} />
+      </button>
+    ) },
+    { key: 'actions', header: '', className: 'w-10', render: (r) => (
+      <ActionMenu
+        items={[
+          { label: 'Edit', icon: Pencil, onClick: () => openEdit(r.id) },
+          { label: 'Revise Salary', icon: TrendingUp, onClick: () => setRevFor(r) },
+          { label: 'Documents', icon: FileText, onClick: () => { setDocForm({ document_type: DOC_TYPES[0], document_name: '', document_number: '' }); setDocsFor(r) } },
+          { label: 'Onboarding Checklist', icon: ClipboardCheck, onClick: () => setOnbFor(r) },
+          { label: 'Joining Form', icon: Printer, onClick: () => setJoiningFor(r.id) },
+          { divider: true },
+          { label: r.status === 'active' ? 'Deactivate' : 'Activate', icon: SquareUserRound, onClick: () => statusMut.mutate({ id: r.id, status: r.status === 'active' ? 'inactive' : 'active' }) },
+          { label: 'Delete', icon: Trash2, danger: true, onClick: () => setDeleteId(r.id) },
+        ]}
+      />
+    ) },
+  ]
+
+  const renderExpanded = (r: any) => (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mono-label">Records & statutory info</span>
+        <span className="text-[11px] text-mute">Sensitive fields masked — click Edit to view or change.</span>
+      </div>
+      <dl className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-6 gap-y-3">
+        <Detail label="Date of Birth" mono value={r.dob || '—'} pending={isPending(r.dob)} onEdit={() => openEdit(r.id, 'dob')} />
+        <Detail label="Father's Name" value={r.father_name || '—'} pending={isPending(r.father_name)} onEdit={() => openEdit(r.id, 'father_name')} />
+        <Detail label="Gender" value={r.gender || '—'} pending={false} />
+        <Detail label="Aadhaar No." mono value={maskLast(r.aadhaar)} pending={isPending(r.aadhaar)} onEdit={() => openEdit(r.id, 'aadhaar')} />
+        <Detail label="Bank A/C No." mono value={maskLast(r.bank_account)} pending={isPending(r.bank_account)} onEdit={() => openEdit(r.id, 'bank_account')} />
+        <Detail label="IFSC Code" mono value={r.bank_ifsc || '—'} pending={isPending(r.bank_ifsc)} onEdit={() => openEdit(r.id, 'bank_ifsc')} />
+        <Detail label="ESIC No." mono value={maskLast(r.esi_number)} pending={isPending(r.esi_number)} onEdit={() => openEdit(r.id, 'esi_number')} />
+        <Detail label="UAN (PF) No." mono value={maskLast(r.uan)} pending={isPending(r.uan)} onEdit={() => openEdit(r.id, 'uan')} />
+        <Detail label="Deactivated On" mono value={dateShort(r.deactivated_at)} pending={false} />
+        <Detail label="Reactivated On" mono value={dateShort(r.reactivated_at)} pending={false} />
+      </dl>
+      {pendingFor(r).length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+          <span className="text-[11px] text-mute mr-1">Pending:</span>
+          {pendingFor(r).map((f) => (
+            <button
+              key={f.key}
+              onClick={() => openEdit(r.id, f.key)}
+              title={`Click to update ${f.label}`}
+              className="px-2 py-0.5 text-[11px] rounded-sm bg-error-soft text-error-deep font-medium hover:underline cursor-pointer"
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
   const filterOptions = [
     { value: '', label: 'All Status' },
     { value: 'active', label: 'Active' },
@@ -166,59 +274,84 @@ export default function EmployeesPage() {
     <div>
       <PageHeader
         title="Employees"
-        subtitle={`${meta.total} total`}
-        actions={<div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => setShowImport(true)}><Upload className="w-3.5 h-3.5" /> Bulk Import</Button>
-          <Button onClick={openAdd}><UserPlus className="w-3.5 h-3.5" /> Add Employee</Button>
-        </div>}
+        description={`${meta.total} employee${meta.total === 1 ? '' : 's'} on record`}
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setShowImport(true)}><Upload className="w-3.5 h-3.5" /> Bulk Import</Button>
+            <Button onClick={openAdd}><UserPlus className="w-3.5 h-3.5" /> Add Employee</Button>
+          </>
+        }
       />
 
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <div className="flex-1 relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-mute" />
-          <input
-            type="text"
+      <div className="bg-white card-shadow rounded-md overflow-hidden">
+        <FilterBar className="px-4 py-3 border-b border-hairline">
+          <SearchInput
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            onChange={(v) => { setSearch(v); setPage(1) }}
             placeholder="Search by name, code, email, mobile..."
-            className="w-full h-9 pl-8 pr-3 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink"
+            className="w-full sm:w-72"
           />
-        </div>
-        <Select
-          options={filterOptions}
-          value={filters.status || ''}
-          onChange={(e) => { setFilters(f => ({ ...f, status: e.target.value })); setPage(1) }}
-          wrapperClassName="w-full sm:w-28 shrink-0"
-        />
-        <Select
-          options={[{ value: '', label: 'All Clients' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]}
-          value={filters.client_id || ''}
-          onChange={(e) => { setFilters(f => ({ ...f, client_id: e.target.value, site_id: '' })); setPage(1) }}
-          wrapperClassName="w-full sm:w-36 shrink-0"
-        />
-        <Select
-          options={[{ value: '', label: 'All Sites' }, ...siteOptions.filter((s: any) => !filters.client_id || String(s.client_id) === filters.client_id).map((s: any) => ({ value: String(s.id), label: s.name }))]}
-          value={filters.site_id || ''}
-          onChange={(e) => { setFilters(f => ({ ...f, site_id: e.target.value })); setPage(1) }}
-          wrapperClassName="w-full sm:w-36 shrink-0"
-        />
-      </div>
+          <SelectFilter
+            label="Status"
+            value={filters.status || ''}
+            onChange={(v) => { setFilters((f) => ({ ...f, status: v })); setPage(1) }}
+            options={filterOptions}
+          />
+          <SelectFilter
+            label="Client"
+            value={filters.client_id || ''}
+            onChange={(v) => { setFilters((f) => ({ ...f, client_id: v, site_id: '' })); setPage(1) }}
+            options={[{ value: '', label: 'All Clients' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]}
+          />
+          <SelectFilter
+            label="Site"
+            value={filters.site_id || ''}
+            onChange={(v) => { setFilters((f) => ({ ...f, site_id: v })); setPage(1) }}
+            options={[
+              { value: '', label: 'All Sites' },
+              ...siteOptions.filter((s: any) => !filters.client_id || String(s.client_id) === filters.client_id).map((s: any) => ({ value: String(s.id), label: s.name })),
+            ]}
+          />
+          <Button variant="secondary" size="sm" onClick={exportCsv} disabled={employees.length === 0} className="ml-auto" title="Download current results as CSV">
+            <Download className="w-3.5 h-3.5" /> Export
+          </Button>
+        </FilterBar>
 
-      <div className="bg-white card-shadow rounded-md p-4">
-        {isLoading ? <LoadingState /> :
-         error ? <PageError onRetry={() => refetch()} /> :
-         employees.length === 0 && !search && !filters.status ? (
-           <EmptyState title="No employees yet" description="Add your first employee to get started." action={<Button onClick={openAdd}><Plus className="w-3.5 h-3.5" /> Add Employee</Button>} />
-         ) : (
-           <>
-             <Table columns={columns} data={employees} keyFn={(r) => String(r.id)} sortKey={sort} sortDir={order} onSort={handleSort} emptyMessage="No employees match your search." />
-             <Pagination page={meta.page} totalPages={meta.total_pages} total={meta.total} pageSize={meta.page_size} onPage={setPage} />
-           </>
-         )}
+        {isLoading ? (
+          <div className="p-4"><LoadingState /></div>
+        ) : error ? (
+          <PageError onRetry={() => refetch()} />
+        ) : employees.length === 0 && !search && !filters.status ? (
+          <EmptyState
+            title="No employees yet"
+            description="Add your first employee to get started, or import them in bulk."
+            action={<Button onClick={openAdd}><Plus className="w-3.5 h-3.5" /> Add Employee</Button>}
+          />
+        ) : (
+          <>
+            <Table
+              columns={columns}
+              data={employees}
+              keyFn={(r) => String(r.id)}
+              sortKey={sort}
+              sortDir={order}
+              onSort={handleSort}
+              emptyMessage="No employees match your search."
+              minWidth="1100px"
+              expandedKey={expandedId}
+              renderExpanded={renderExpanded}
+            />
+            {employees.length > 0 && (
+              <div className="px-4 pt-3">
+                <Pagination page={meta.page} totalPages={meta.total_pages} total={meta.total} pageSize={meta.page_size} onPage={setPage} />
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {showForm && (
-        <Modal open={showForm} onClose={() => { setShowForm(false); setFocusField(null) }} title={editId ? 'Edit Employee' : 'Add Employee'} size="lg">
+        <Modal open={showForm} onClose={() => { setShowForm(false); setFocusField(null) }} title={editId ? 'Edit Employee' : 'Add Employee'} size="xl">
           <EmployeeForm
             employeeId={editId}
             focusField={focusField}
@@ -229,7 +362,7 @@ export default function EmployeesPage() {
         </Modal>
       )}
 
-      <Modal open={showImport} onClose={() => setShowImport(false)} title="Bulk Import Employees" size="lg">
+      <Modal open={showImport} onClose={() => setShowImport(false)} title="Bulk Import Employees" size="xl">
         {showImport && (
           <BulkEmployeeImport
             onClose={() => setShowImport(false)}
@@ -240,48 +373,48 @@ export default function EmployeesPage() {
 
       <Modal open={!!docsFor} onClose={() => setDocsFor(null)} title={`Documents — ${docsFor ? fullName(docsFor.first_name, docsFor.last_name) : ''}`} size="md">
         <div className="space-y-4">
-          <div className="max-h-[40vh] overflow-y-auto">
-            {(docsData?.data?.documents || []).length === 0 ? (
-              <p className="text-[13px] text-mute py-3 text-center">No documents on record yet.</p>
-            ) : (
+          {(docsData?.data?.documents || []).length === 0 ? (
+            <p className="text-[13px] text-mute py-3 text-center">No documents on record yet.</p>
+          ) : (
+            <div className="max-h-[40vh] overflow-y-auto scrollbar-thin -mx-1 px-1">
               <table className="w-full text-[12px]">
                 <thead>
                   <tr className="text-left text-mute border-b border-hairline">
-                    <th className="py-1.5 font-medium">Type</th>
-                    <th className="py-1.5 font-medium">Number</th>
-                    <th className="py-1.5 font-medium">Verified</th>
-                    <th className="py-1.5" />
+                    <th className="py-2 font-medium font-mono uppercase tracking-[0.04em] text-[11px]">Type</th>
+                    <th className="py-2 font-medium font-mono uppercase tracking-[0.04em] text-[11px]">Number</th>
+                    <th className="py-2 font-medium font-mono uppercase tracking-[0.04em] text-[11px]">Verified</th>
+                    <th className="py-2" />
                   </tr>
                 </thead>
                 <tbody>
                   {(docsData?.data?.documents || []).map((d: any) => (
                     <tr key={d.id} className="border-b border-hairline last:border-0">
-                      <td className="py-1.5 text-ink font-medium">{d.document_type}{d.document_name ? <span className="text-mute"> · {d.document_name}</span> : null}</td>
-                      <td className="py-1.5 text-body font-mono">{d.document_number || '—'}</td>
-                      <td className="py-1.5">
+                      <td className="py-2 text-ink font-medium">{d.document_type}{d.document_name ? <span className="text-mute"> · {d.document_name}</span> : null}</td>
+                      <td className="py-2 text-body font-mono">{d.document_number || '—'}</td>
+                      <td className="py-2">
                         <button onClick={() => docVerifyMut.mutate({ docId: d.id, verified: !d.verified })} disabled={docVerifyMut.isPending} title={d.verified ? 'Verified — click to unmark' : 'Mark verified'}>
-                          {d.verified
-                            ? <Badge className="bg-success-soft text-success">Verified</Badge>
-                            : <Badge className="bg-canvas-soft-2 text-mute">Pending</Badge>}
+                          <StatusBadge status={d.verified ? 'Finalized' : 'Draft'} />
                         </button>
                       </td>
-                      <td className="py-1.5 text-right">
-                        <button onClick={() => docDeleteMut.mutate(d.id)} disabled={docDeleteMut.isPending} className="px-1.5 py-0.5 text-[11px] text-error hover:bg-error-soft rounded-xs"><Trash2 className="w-3 h-3 inline" /></button>
+                      <td className="py-2 text-right">
+                        <button onClick={() => docDeleteMut.mutate(d.id)} disabled={docDeleteMut.isPending} className="p-1 text-[11px] text-error hover:bg-error-soft rounded-xs cursor-pointer" aria-label="Remove document">
+                          <Trash2 className="w-3.5 h-3.5 inline" />
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
+            </div>
+          )}
           <div className="border-t border-hairline pt-3 space-y-2">
             <p className="mono-label">Add Document Record</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <select value={docForm.document_type} onChange={e => setDocForm(f => ({ ...f, document_type: e.target.value }))} className="h-9 px-2 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink">
+              <select value={docForm.document_type} onChange={e => setDocForm(f => ({ ...f, document_type: e.target.value }))} className="h-9 px-2 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid">
                 {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
-              <Input label="" placeholder="Document name" value={docForm.document_name} onChange={e => setDocForm(f => ({ ...f, document_name: e.target.value }))} />
-              <Input label="" placeholder="Document number" value={docForm.document_number} onChange={e => setDocForm(f => ({ ...f, document_number: e.target.value }))} />
+              <input placeholder="Document name" className="h-9 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid placeholder:text-mute" value={docForm.document_name} onChange={e => setDocForm(f => ({ ...f, document_name: e.target.value }))} />
+              <input placeholder="Document number" className="h-9 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid placeholder:text-mute" value={docForm.document_number} onChange={e => setDocForm(f => ({ ...f, document_number: e.target.value }))} />
             </div>
             <div className="flex items-center justify-between">
               <p className="text-[11px] text-mute flex items-center gap-1"><FileText className="w-3 h-3" /> Text records only — no file storage.</p>
@@ -330,11 +463,17 @@ export default function EmployeesPage() {
   )
 }
 
-function PendingValue({ value, mono, onUpdate }: { value: any; mono?: boolean; onUpdate: () => void }) {
-  if (isPending(value)) {
-    return (
-      <button onClick={onUpdate} title="Click to update" className="text-[12px] text-error font-medium hover:underline cursor-pointer">Pending</button>
-    )
-  }
-  return <span className={`text-[12px] text-body ${mono ? 'font-mono whitespace-nowrap' : ''}`}>{value}</span>
+function Detail({ label, value, mono = false, pending = false, onEdit }: { label: string; value: string; mono?: boolean; pending?: boolean; onEdit?: () => void }) {
+  return (
+    <div className="min-w-0">
+      <dt className="mono-label mb-0.5">{label}</dt>
+      <dd className="text-[13px] text-body">
+        {pending ? (
+          <button onClick={onEdit} className="text-error font-medium hover:underline cursor-pointer">Pending — fill in</button>
+        ) : (
+          <span className={`font-medium text-ink ${mono ? 'font-mono tabular-nums' : ''}`}>{value}</span>
+        )}
+      </dd>
+    </div>
+  )
 }

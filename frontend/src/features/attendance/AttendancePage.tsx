@@ -1,12 +1,15 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { attendanceApi, clientApi, siteApi } from '@/services/api'
 import { Button } from '@/components/ui/fields'
-import { Badge } from '@/components/ui/data'
-import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui/state'
+import { PageHeader } from '@/components/ui/layout'
+import { StatusBadge } from '@/components/ui/status'
+import { FilterBar, SearchInput, SelectFilter, NativeSelect } from '@/components/ui/actions'
+import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
+import { downloadCsv } from '@/utils/csv'
 import { toast } from 'sonner'
-import { Save, Lock, Search } from 'lucide-react'
-import { monthYear, statusColor, statusLabel } from '@/utils/format'
+import { Save, Lock, Download, AlarmClock, Clock3, CalendarCheck2, CalendarX2 } from 'lucide-react'
+import { monthYear } from '@/utils/format'
 import type { AttendanceSheetRow } from '@/types/api'
 
 export default function AttendancePage() {
@@ -26,7 +29,7 @@ export default function AttendancePage() {
 
   const { data: clients } = useQuery({ queryKey: ['clients-select'], queryFn: () => clientApi.list() })
   const { data: allSites } = useQuery({ queryKey: ['sites-select'], queryFn: () => siteApi.list() })
-  const sites = (allSites?.data || []).filter((s: any) => !clientFilter || String(s.client_id) === clientFilter)
+  const sites = ((allSites?.data || []) as any[]).filter((s: any) => !clientFilter || String(s.client_id) === clientFilter).sort((a, b) => a.name.localeCompare(b.name))
 
   const rows = (data?.data.rows || []) as AttendanceSheetRow[]
   const finalizedCount = data?.data.finalized_count || 0
@@ -66,6 +69,29 @@ export default function AttendancePage() {
     bulkMut.mutate(items)
   }
 
+  const exportCsv = () => {
+    if (rows.length === 0) return
+    const totalDays = new Date(year, month, 0).getDate()
+    downloadCsv(
+      rows.map((row: any) => ({
+        employee_code: row.employee_code,
+        employee_name: `${row.first_name} ${row.last_name}`,
+        client: row.client_name || '',
+        site: row.site_name || '',
+        designation: row.designation || '',
+        total_days: totalDays,
+        present_days: row.present_days ?? 0,
+        absent_days: row.absent_days ?? 0,
+        paid_leave: row.paid_leave ?? 0,
+        unpaid_leave: row.unpaid_leave ?? 0,
+        ot_hours: row.ot_hours ?? 0,
+        status: row.attendance_status || 'pending',
+      })),
+      `attendance_${year}-${String(month).padStart(2, '0')}`
+    )
+    toast.success('Attendance sheet exported.')
+  }
+
   const getValue = (row: AttendanceSheetRow, field: string): number => {
     const dirtyVal = dirty.get(row.employee_id)
     if (dirtyVal && (dirtyVal as any)[field] !== undefined) return (dirtyVal as any)[field]
@@ -73,114 +99,124 @@ export default function AttendancePage() {
     return 0
   }
 
-  const sortedSites = (sites as any[]).sort((a, b) => a.name.localeCompare(b.name))
+  const totals = rows.reduce(
+    (acc, r) => ({
+      present: acc.present + (r.present_days || 0),
+      absent: acc.absent + (r.absent_days || 0),
+      paid: acc.paid + (r.paid_leave || 0),
+      unpaid: acc.unpaid + (r.unpaid_leave || 0),
+      ot: acc.ot + (r.ot_hours || 0),
+    }),
+    { present: 0, absent: 0, paid: 0, unpaid: 0, ot: 0 }
+  )
 
   return (
     <div>
       <PageHeader
         title="Monthly Attendance"
-        subtitle={`${monthYear(month, year)}${isLocked ? ' — Locked' : ''}`}
+        description={`${monthYear(month, year)} — ${rows.length} employee${rows.length === 1 ? '' : 's'} on sheet${isLocked ? ' · month locked' : ''}`}
         actions={
-          <div className="flex items-center gap-2">
+          <>
+            <Button variant="secondary" onClick={exportCsv} disabled={rows.length === 0}><Download className="w-3.5 h-3.5" /> Export</Button>
             {isLocked ? (
               <Button variant="secondary" onClick={() => finalizeMut.mutate(false)} loading={finalizeMut.isPending}><Lock className="w-3.5 h-3.5" /> Unlock Month</Button>
             ) : (
               <Button variant="secondary" onClick={() => finalizeMut.mutate(true)} loading={finalizeMut.isPending}><Lock className="w-3.5 h-3.5" /> Lock Month</Button>
             )}
             <Button onClick={handleSave} loading={bulkMut.isPending}><Save className="w-3.5 h-3.5" /> Save Changes</Button>
-          </div>
+          </>
         }
       />
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <div className="flex items-center gap-1.5">
-          <select value={month} onChange={e => setMonth(Number(e.target.value))} className="h-9 px-2 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink">
-            {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>{new Date(2000, m - 1).toLocaleDateString('en-US', { month: 'long' })}</option>)}
-          </select>
-          <select value={year} onChange={e => setYear(Number(e.target.value))} className="h-9 px-2 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink">
-            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
-        <select value={clientFilter} onChange={e => { setClientFilter(e.target.value); setSiteFilter('') }} className="h-9 px-2 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink w-full sm:w-36">
-          <option value="">All Clients</option>
-          {(clients?.data || []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select value={siteFilter} onChange={e => setSiteFilter(e.target.value)} className="h-9 px-2 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink w-full sm:w-36">
-          <option value="">All Sites</option>
-          {sortedSites.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-mute" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employee..." className="w-full h-9 pl-8 pr-3 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink" />
-        </div>
-      </div>
+      <div className="bg-white card-shadow rounded-md overflow-hidden">
+        <FilterBar className="px-4 py-3 border-b border-hairline">
+          <NativeSelect className="w-40" value={String(month)} onChange={(v) => setMonth(Number(v))} options={Array.from({ length: 12 }, (_, i) => i + 1).map((m) => ({ value: String(m), label: new Date(2000, m - 1).toLocaleDateString('en-US', { month: 'long' }) }))} />
+          <NativeSelect className="w-24" value={String(year)} onChange={(v) => setYear(Number(v))} options={[2024, 2025, 2026, 2027].map((y) => ({ value: String(y), label: String(y) }))} />
+          <SelectFilter label="Client" value={clientFilter} onChange={(v) => { setClientFilter(v); setSiteFilter('') }} options={[{ value: '', label: 'All Clients' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]} />
+          <SelectFilter label="Site" value={siteFilter} onChange={setSiteFilter} options={[{ value: '', label: 'All Sites' }, ...sites.map((s: any) => ({ value: String(s.id), label: s.name }))]} />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search employee..." className="w-full sm:flex-1 sm:min-w-48" />
+        </FilterBar>
 
-      {/* Attendance Sheet */}
-      <div className="bg-white card-shadow rounded-md">
-        {isLoading ? <LoadingState /> : error ? <PageError onRetry={() => refetch()} /> : rows.length === 0 ? <EmptyState title="No employees" description="Add employees first, then enter attendance." /> : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px]">
-              <thead>
-                <tr className="border-b border-hairline bg-canvas-soft/50">
-                  <th className="px-3 py-2 text-left text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Employee</th>
-                  <th className="px-3 py-2 text-left text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em] hidden md:table-cell">Site</th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Present</th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Absent</th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Paid Lv</th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Unpaid Lv</th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">OT Hrs</th>
-                  <th className="px-3 py-2 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, idx) => {
-                  const locked = row.attendance_status === 'finalized'
-                  const isModified = dirty.has(row.employee_id)
-                  return (
-                    <tr key={row.employee_id} className={`border-b border-hairline hover:bg-canvas-soft/40 ${idx % 2 === 1 ? 'bg-canvas-soft/20' : ''} ${isModified ? 'bg-link-soft/30' : ''}`}>
-                      <td className="px-3 py-1.5">
-                        <p className="text-[13px] font-medium text-ink">{row.first_name} {row.last_name}</p>
-                        <p className="text-[11px] text-mute">{row.employee_code} — {row.designation}</p>
-                      </td>
-                      <td className="px-3 py-1.5 hidden md:table-cell">
-                        <span className="text-[12px] text-body">{row.site_name || '—'}</span>
-                        <span className="text-[11px] text-mute block">{row.client_name || ''}</span>
-                      </td>
-                      <td className="px-1 py-1.5">
-                        <input type="number" min={0} max={31} value={getValue(row, 'present_days')} onChange={e => updateCell(row.employee_id, 'present_days', Math.min(31, Math.max(0, Number(e.target.value) || 0)))}
-                          disabled={locked} className="w-14 h-7 text-center text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink disabled:opacity-50" />
-                      </td>
-                      <td className="px-1 py-1.5">
-                        <input type="number" min={0} max={31} value={getValue(row, 'absent_days')} onChange={e => updateCell(row.employee_id, 'absent_days', Math.min(31, Math.max(0, Number(e.target.value) || 0)))}
-                          disabled={locked} className="w-14 h-7 text-center text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink disabled:opacity-50" />
-                      </td>
-                      <td className="px-1 py-1.5">
-                        <input type="number" min={0} max={31} value={getValue(row, 'paid_leave')} onChange={e => updateCell(row.employee_id, 'paid_leave', Math.min(31, Math.max(0, Number(e.target.value) || 0)))}
-                          disabled={locked} className="w-14 h-7 text-center text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink disabled:opacity-50" />
-                      </td>
-                      <td className="px-1 py-1.5">
-                        <input type="number" min={0} max={31} value={getValue(row, 'unpaid_leave')} onChange={e => updateCell(row.employee_id, 'unpaid_leave', Math.min(31, Math.max(0, Number(e.target.value) || 0)))}
-                          disabled={locked} className="w-14 h-7 text-center text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink disabled:opacity-50" />
-                      </td>
-                      <td className="px-1 py-1.5">
-                        <input type="number" min={0} max={200} step={0.5} value={getValue(row, 'ot_hours')} onChange={e => updateCell(row.employee_id, 'ot_hours', Math.min(200, Math.max(0, Number(e.target.value) || 0)))}
-                          disabled={locked} className="w-16 h-7 text-center text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink disabled:opacity-50" />
-                      </td>
-                      <td className="px-2 py-1.5 text-center">
-                        <Badge className={locked ? 'bg-success-soft text-success' : isModified ? 'bg-link-soft text-link' : row.attendance_id ? 'bg-canvas-soft-2 text-body' : 'bg-canvas-soft-2 text-mute'}>
-                          {locked ? 'Locked' : isModified ? 'Unsaved' : row.attendance_id ? 'Draft' : 'No Data'}
-                        </Badge>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+        {isLoading ? (
+          <div className="p-4"><LoadingState /></div>
+        ) : error ? (
+          <PageError onRetry={() => refetch()} />
+        ) : rows.length === 0 ? (
+          <EmptyState title="No employees on the sheet" description="Add employees first, then enter their attendance here." />
+        ) : (
+          <>
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full min-w-[820px]">
+                <thead className="sticky top-0 z-10">
+                  <tr className="border-b border-hairline bg-canvas-soft/60">
+                    <th className="px-3 py-2.5 text-left text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Employee</th>
+                    <th className="px-3 py-2.5 text-left text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em] hidden md:table-cell">Site</th>
+                    <th className="px-2 py-2.5 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Present</th>
+                    <th className="px-2 py-2.5 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Absent</th>
+                    <th className="px-2 py-2.5 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Paid Lv</th>
+                    <th className="px-2 py-2.5 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Unpaid Lv</th>
+                    <th className="px-2 py-2.5 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">OT Hrs</th>
+                    <th className="px-2 py-2.5 text-center text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em]">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, idx) => {
+                    const locked = row.attendance_status === 'finalized'
+                    const isModified = dirty.has(row.employee_id)
+                    const numClass = 'w-14 h-7 text-center text-[13px] bg-white border border-hairline rounded-sm outline-none transition-colors focus:border-navy-mid disabled:opacity-50 disabled:cursor-not-allowed tabular-nums'
+                    return (
+                      <tr key={row.employee_id} className={`border-b border-hairline transition-colors ${idx % 2 === 1 ? 'bg-canvas-soft/40' : ''} ${isModified ? 'bg-link-soft/30' : ''} hover:bg-canvas-soft/70`}>
+                        <td className="px-3 py-2">
+                          <p className="text-[13px] font-medium text-ink">{row.first_name} {row.last_name}</p>
+                          <p className="text-[11px] text-mute font-mono">{row.employee_code} — {row.designation}</p>
+                        </td>
+                        <td className="px-3 py-2 hidden md:table-cell">
+                          <span className="text-[12px] text-body">{row.site_name || '—'}</span>
+                          <span className="text-[11px] text-mute block">{row.client_name || ''}</span>
+                        </td>
+                        <td className="px-1 py-2 text-center">
+                          <input type="number" min={0} max={31} value={getValue(row, 'present_days')} onChange={e => updateCell(row.employee_id, 'present_days', Math.min(31, Math.max(0, Number(e.target.value) || 0)))}
+                            disabled={locked} aria-label="Present days" className={numClass} />
+                        </td>
+                        <td className="px-1 py-2 text-center">
+                          <input type="number" min={0} max={31} value={getValue(row, 'absent_days')} onChange={e => updateCell(row.employee_id, 'absent_days', Math.min(31, Math.max(0, Number(e.target.value) || 0)))}
+                            disabled={locked} aria-label="Absent days" className={numClass} />
+                        </td>
+                        <td className="px-1 py-2 text-center">
+                          <input type="number" min={0} max={31} value={getValue(row, 'paid_leave')} onChange={e => updateCell(row.employee_id, 'paid_leave', Math.min(31, Math.max(0, Number(e.target.value) || 0)))}
+                            disabled={locked} aria-label="Paid leave days" className={numClass} />
+                        </td>
+                        <td className="px-1 py-2 text-center">
+                          <input type="number" min={0} max={31} value={getValue(row, 'unpaid_leave')} onChange={e => updateCell(row.employee_id, 'unpaid_leave', Math.min(31, Math.max(0, Number(e.target.value) || 0)))}
+                            disabled={locked} aria-label="Unpaid leave days" className={numClass} />
+                        </td>
+                        <td className="px-1 py-2 text-center">
+                          <input type="number" min={0} max={200} step={0.5} value={getValue(row, 'ot_hours')} onChange={e => updateCell(row.employee_id, 'ot_hours', Math.min(200, Math.max(0, Number(e.target.value) || 0)))}
+                            disabled={locked} aria-label="Overtime hours" className="w-16 h-7 text-center text-[13px] bg-white border border-hairline rounded-sm outline-none transition-colors focus:border-navy-mid disabled:opacity-50 disabled:cursor-not-allowed tabular-nums" />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <StatusBadge
+                            status={locked ? 'Finalized' : isModified ? 'Processing' : row.attendance_id ? 'Draft' : 'Pending'}
+                            dot={!isModified}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 border-t border-hairline bg-canvas-soft/40 text-[12px]">
+              <span className="flex items-center gap-1.5 text-body"><CalendarCheck2 className="w-3.5 h-3.5 text-success" /> Present <b className="text-ink tabular-nums">{totals.present}</b></span>
+              <span className="flex items-center gap-1.5 text-body"><CalendarX2 className="w-3.5 h-3.5 text-error" /> Absent <b className="text-ink tabular-nums">{totals.absent}</b></span>
+              <span className="flex items-center gap-1.5 text-body"><Clock3 className="w-3.5 h-3.5 text-link" /> Paid <b className="text-ink tabular-nums">{totals.paid}</b> · Unpaid <b className="text-ink tabular-nums">{totals.unpaid}</b></span>
+              <span className="flex items-center gap-1.5 text-body"><AlarmClock className="w-3.5 h-3.5 text-warning-deep" /> OT <b className="text-ink tabular-nums">{totals.ot} hrs</b></span>
+              <span className="text-mute ml-auto">{dirty.size} unsaved row{dirty.size === 1 ? '' : 's'}</span>
+            </div>
+          </>
         )}
       </div>
-      <p className="text-[11px] text-mute mt-2">Employees with changes are highlighted. Click <strong>Save Changes</strong> to persist. Lock a month after finalising attendance.</p>
+      <p className="text-[11px] text-mute mt-2">Edited rows are highlighted. Click <strong>Save Changes</strong> to persist, then <strong>Lock Month</strong> after finalising to prevent further edits.</p>
     </div>
   )
 }

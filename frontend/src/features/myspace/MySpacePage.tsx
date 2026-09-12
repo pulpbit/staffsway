@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { essApi, leaveApi, slipApi, helpdeskApi } from '@/services/api'
 import type { SalarySlipDetail } from '@/types/api'
-import { Table, Tabs, Badge } from '@/components/ui/data'
-import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui/state'
+import { Table, Tabs, StatCard } from '@/components/ui/data'
+import { PageHeader, SectionCard } from '@/components/ui/layout'
+import { StatusBadge, type Tone } from '@/components/ui/status'
+import { Avatar, NativeSelect } from '@/components/ui/actions'
+import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { Button, Input, Select } from '@/components/ui/fields'
 import { Modal } from '@/components/ui/overlay'
 import { money, monthYear, shortMonth, dateShort } from '@/utils/format'
-import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
 import { UserRound, CalendarDays, FileText, Send, Printer, X } from 'lucide-react'
 
@@ -22,6 +24,11 @@ const TABS = [
 const now = new Date()
 const YEAR = now.getFullYear()
 
+const regTone = (s: string) => ({ approved: 'success', rejected: 'danger', pending: 'warning', in_progress: 'info' } as Record<string, Tone>)[s] || 'neutral'
+const leaveTone = (s: string) => ({ approved: 'success', rejected: 'danger', cancelled: 'neutral', pending_manager: 'warning', pending_hr: 'info' } as Record<string, Tone>)[s] || 'neutral'
+const reqTone = (s: string) => ({ open: 'info', in_progress: 'warning', resolved: 'success', closed: 'neutral', rejected: 'danger' } as Record<string, Tone>)[s] || 'neutral'
+const slipTone = (s: string) => ({ finalized: 'warning', paid: 'success', draft: 'neutral', processing: 'info' } as Record<string, Tone>)[s] || 'neutral'
+
 export default function MySpacePage() {
   const [active, setActive] = useState('overview')
   const qc = useQueryClient()
@@ -32,12 +39,12 @@ export default function MySpacePage() {
 
   return (
     <div>
-      <PageHeader title="My Space" subtitle="Your profile, attendance, leave and salary slips" />
+      <PageHeader title="My Space" description="Your profile, attendance, leave and salary slips" />
       {meQ.isLoading ? <div className="bg-white card-shadow rounded-md p-5 mt-3"><LoadingState /></div>
         : meQ.isError ? <div className="bg-white card-shadow rounded-md p-5 mt-3"><PageError onRetry={() => meQ.refetch()} /></div>
         : !profile ? null : (
           <>
-            <Tabs tabs={TABS} active={active} onChange={setActive} />
+            <div className="mt-4 mb-4"><Tabs tabs={TABS} active={active} onChange={setActive} variant="underline" /></div>
 
             {active === 'overview' && <OverviewTab profile={profile} />}
             {active === 'attendance' && empId != null && <AttendanceTab />}
@@ -52,6 +59,7 @@ export default function MySpacePage() {
 
 // ---------------- Overview ----------------
 function OverviewTab({ profile }: { profile: any }) {
+  const gross = Number(profile.basic || 0) + Number(profile.hra || 0) + Number(profile.conveyance || 0) + Number(profile.other_allowance || 0)
   const rows = [
     ['Employee Code', profile.employee_code],
     ['Designation', profile.designation || '—'],
@@ -67,55 +75,59 @@ function OverviewTab({ profile }: { profile: any }) {
     ['PF', profile.pf_applicable], ['ESIC', profile.esi_applicable], ['LWF', profile.lwf_applicable], ['PT', profile.pt_applicable], ['TDS', profile.tds_applicable],
   ]
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-3">
-      <div className="bg-white card-shadow rounded-md p-4">
-        <h3 className="text-[13px] font-semibold text-ink mb-3">Profile</h3>
-        <dl className="divide-y divide-hairline">
-          {rows.map(([k, v]) => (
-            <div key={k} className="flex justify-between py-1.5 text-[13px]">
-              <dt className="text-mute">{k}</dt>
-              <dd className="text-body font-medium text-right">{v}</dd>
+    <>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Gross Fixed" value={money(gross)} tone="warning" />
+        <StatCard label="Employee Code" value={profile.employee_code} />
+        <StatCard label="Designation" value={profile.designation || '—'} />
+        <StatCard label="Date of Joining" value={profile.joining_date ? dateShort(profile.joining_date) : '—'} />
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <SectionCard title="Profile" subtitle="Details on file with HR">
+          <div className="flex items-center gap-3 pb-3 border-b border-hairline mb-2">
+            <Avatar name={`${profile.first_name || ''} ${profile.last_name || ''}`} size="md" />
+            <div>
+              <p className="text-[15px] font-semibold text-ink">{profile.first_name} {profile.last_name}</p>
+              <p className="text-[12px] text-mute">{profile.client_name || ''}{profile.client_name && profile.site_name ? ' / ' : ''}{profile.site_name || ''}</p>
             </div>
-          ))}
-        </dl>
-      </div>
-      <div className="space-y-4">
-        <div className="bg-white card-shadow rounded-md p-4">
-          <div className="flex justify-between items-baseline mb-3">
-            <h3 className="text-[13px] font-semibold text-ink">Current Salary</h3>
-            {profile.salary_effective_from && <span className="text-[11px] text-mute">w.e.f. {dateShort(profile.salary_effective_from)}</span>}
           </div>
-          <Table
-            columns={[
-              { key: 'c', header: 'Component' },
-              { key: 'a', header: 'Amount (₹/month)', render: (r: any) => <span className="font-medium">{money(r.a)}</span> },
-            ]}
-            data={[
-              { c: 'Basic', a: profile.basic },
-              { c: 'House Rent Allowance', a: profile.hra },
-              { c: 'Conveyance', a: profile.conveyance },
-              { c: 'Other Allowance', a: profile.other_allowance },
-              { c: 'OT Rate (₹/hour)', a: profile.overtime_rate },
-            ].concat([{
-              c: 'Gross Fixed',
-              a: Number(profile.basic) + Number(profile.hra) + Number(profile.conveyance) + Number(profile.other_allowance),
-            }])}
-            keyFn={(r: any) => r.c}
-          />
-        </div>
-        <div className="bg-white card-shadow rounded-md p-4">
-          <h3 className="text-[13px] font-semibold text-ink mb-2">Statutory Applicability</h3>
-          <div className="flex flex-wrap gap-2">
-            {flags.map(([name, v]) => (
-              <Badge key={String(name)} className={v ? 'bg-success-soft text-success' : 'bg-canvas-soft-2 text-mute'}>
-                {name}: {v ? 'Applicable' : 'Not applicable'}
-              </Badge>
+          <dl className="divide-y divide-hairline">
+            {rows.map(([k, v]) => (
+              <div key={k} className="flex justify-between py-1.5 text-[13px]">
+                <dt className="text-mute">{k}</dt>
+                <dd className="text-body font-medium text-right">{v}</dd>
+              </div>
             ))}
-          </div>
-          <p className="text-[11px] text-mute mt-2">Deductions are applied during payroll only where marked applicable.</p>
+          </dl>
+        </SectionCard>
+        <div className="space-y-4">
+          <SectionCard title="Current Salary" subtitle={profile.salary_effective_from ? `Effective ${dateShort(profile.salary_effective_from)}` : undefined}>
+            <Table
+              columns={[
+                { key: 'c', header: 'Component' },
+                { key: 'a', header: 'Amount', render: (r: any) => <span className={`${r.$strong ? 'font-semibold' : 'font-medium'} tabular-nums`}>{money(r.a)}</span> },
+              ]}
+              data={[
+                { c: 'Basic', a: profile.basic },
+                { c: 'House Rent Allowance', a: profile.hra },
+                { c: 'Conveyance', a: profile.conveyance },
+                { c: 'Other Allowance', a: profile.other_allowance },
+                { c: 'OT Rate (₹/hour)', a: profile.overtime_rate },
+                { c: 'Gross Fixed', a: gross, $strong: true },
+              ]}
+              keyFn={(r: any) => r.c}
+            />
+          </SectionCard>
+          <SectionCard title="Statutory Applicability" subtitle="Deductions are applied during payroll only where marked applicable.">
+            <div className="flex flex-wrap gap-2">
+              {flags.map(([name, v]) => (
+                <StatusBadge key={String(name)} status={v ? 'Applicable' : 'Not applicable'} tone={v ? 'success' : 'neutral'} />
+              ))}
+            </div>
+          </SectionCard>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -136,27 +148,26 @@ function AttendanceTab() {
   return (
     <>
       <div className="flex gap-2 mt-4 mb-4 items-center justify-between flex-wrap">
-        <div className="flex gap-2 items-center">
-          <input type="number" value={year} onChange={e => setYear(Number(e.target.value))} className="w-24 h-9 px-2 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink" />
-          <Button variant="secondary" size="sm" onClick={() => setShowReg(true)}><CalendarDays className="w-3.5 h-3.5" /> Request Correction</Button>
-        </div>
+        <NativeSelect className="w-32" value={String(year)} onChange={(v) => setYear(Number(v))} options={[2024, 2025, 2026, 2027, 2028].map(y => ({ value: String(y), label: String(y) }))} />
+        <Button variant="secondary" size="sm" onClick={() => setShowReg(true)}><CalendarDays className="w-3.5 h-3.5" /> Request Correction</Button>
       </div>
 
       <div className="bg-white card-shadow rounded-md p-4">
         {attQ.isLoading ? <LoadingState /> : attQ.isError ? <PageError onRetry={() => attQ.refetch()} /> : (
           <Table
             columns={[
-              { key: 'month', header: 'Month', render: (r: any) => `${monthYear(r.month, r.year)}` },
-              { key: 'present_days', header: 'Present' },
-              { key: 'absent_days', header: 'Absent' },
-              { key: 'paid_leave', header: 'Paid Leave' },
-              { key: 'unpaid_leave', header: 'Unpaid Leave' },
-              { key: 'ot_hours', header: 'OT Hours' },
-              { key: 'status', header: 'Status' },
-              { key: 'remarks', header: 'Remarks', render: (r: any) => r.remarks || '—' },
+              { key: 'month', header: 'Month', render: (r: any) => <span className="font-medium text-ink">{monthYear(r.month, r.year)}</span> },
+              { key: 'present_days', header: 'Present', render: (r: any) => <span className="tabular-nums">{r.present_days}</span> },
+              { key: 'absent_days', header: 'Absent', render: (r: any) => <span className="tabular-nums">{r.absent_days}</span> },
+              { key: 'paid_leave', header: 'Paid Leave', render: (r: any) => <span className="tabular-nums">{r.paid_leave}</span> },
+              { key: 'unpaid_leave', header: 'Unpaid Leave', render: (r: any) => <span className="tabular-nums">{r.unpaid_leave}</span> },
+              { key: 'ot_hours', header: 'OT Hours', render: (r: any) => <span className="tabular-nums">{r.ot_hours}</span> },
+              { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status} tone={regTone(r.status)} /> },
+              { key: 'remarks', header: 'Remarks', render: (r: any) => <span className="text-mute">{r.remarks || '—'}</span> },
             ]}
             data={attQ.data?.data || []}
             keyFn={(r: any) => String(r.id)}
+            minWidth="820px"
           />
         )}
       </div>
@@ -167,13 +178,14 @@ function AttendanceTab() {
           <Table
             columns={[
               { key: 'period', header: 'Period', render: (r: any) => monthYear(r.month, r.year) },
-              { key: 'proposed', header: 'Proposed (P/A/PL/UL)', render: (r: any) => `${r.present_days} / ${r.absent_days} / ${r.paid_leave} / ${r.unpaid_leave}` },
+              { key: 'proposed', header: 'Proposed (P/A/PL/UL)', render: (r: any) => <span className="tabular-nums">{r.present_days} / {r.absent_days} / {r.paid_leave} / {r.unpaid_leave}</span> },
               { key: 'reason', header: 'Reason' },
-              { key: 'status', header: 'Status', render: (r: any) => <Badge className={r.status === 'approved' ? 'bg-success-soft text-success' : r.status === 'rejected' ? 'bg-error-soft text-error' : 'bg-warning-soft text-warning-deep'}>{r.status}</Badge> },
-              { key: 'reply', header: 'HR Reply', render: (r: any) => r.reply || '—' },
+              { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status} tone={regTone(r.status)} /> },
+              { key: 'reply', header: 'HR Reply', render: (r: any) => <span className="text-mute">{r.reply || '—'}</span> },
             ]}
             data={regsQ.data?.data || []}
             keyFn={(r: any) => String(r.id)}
+            minWidth="760px"
           />
         </div>
       )}
@@ -236,46 +248,48 @@ function LeaveTab({ empId }: { empId: number }) {
 
   return (
     <div className="mt-4 space-y-4">
-      <div className="bg-white card-shadow rounded-md p-4">
-        <div className="flex justify-between items-center mb-3">
-          <h3 className="text-[13px] font-semibold text-ink">Balance Summary — {YEAR}</h3>
-          <Button variant="secondary" size="sm" onClick={() => setApplyOpen(true)}><CalendarDays className="w-3.5 h-3.5" /> Apply Leave</Button>
-        </div>
-        {balQ.isLoading ? <LoadingState /> : balQ.isError ? <PageError onRetry={() => balQ.refetch()} /> : (
+      <SectionCard
+        title={`Leave Balances — ${YEAR}`}
+        subtitle="Available days for the current year"
+        action={<Button variant="secondary" size="sm" onClick={() => setApplyOpen(true)}><CalendarDays className="w-3.5 h-3.5" /> Apply Leave</Button>}
+      >
+        {balQ.isLoading ? <LoadingState /> : balQ.isError ? <PageError onRetry={() => balQ.refetch()} /> : balances.length === 0 ? (
+          <EmptyState icon={CalendarDays} title="No leave balances" description="Balances appear once leave types are configured for your role." />
+        ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             {balances.map(b => (
-              <div key={b.leave_type_id} className="border border-hairline rounded-sm p-3 bg-canvas-soft/40">
+              <div key={b.leave_type_id} className="border border-hairline rounded-md p-3 bg-canvas-soft/40">
                 <p className="text-[11px] text-mute">{b.name}</p>
-                <p className="text-lg font-semibold text-ink">{b.available}</p>
+                <p className="text-xl font-semibold text-ink tabular-nums">{b.available}</p>
                 <p className="text-[10px] text-mute">of {b.entitled} · used {b.used}{b.pending ? ` · pending ${b.pending}` : ''}</p>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
 
-      <div className="bg-white card-shadow rounded-md p-4">
-        <h3 className="text-[13px] font-semibold text-ink mb-3">My Leave History</h3>
-        {reqsQ.isLoading ? <LoadingState /> : reqsQ.isError ? <PageError onRetry={() => reqsQ.refetch()} /> : myRequests.length === 0 ? (
+      <div className="bg-white card-shadow rounded-md overflow-hidden">
+        <h3 className="text-[13px] font-semibold text-ink px-4 pt-4 pb-3">My Leave History</h3>
+        {reqsQ.isLoading ? (
+          <div className="p-4"><LoadingState /></div>
+        ) : reqsQ.isError ? (
+          <PageError onRetry={() => reqsQ.refetch()} />
+        ) : myRequests.length === 0 ? (
           <EmptyState icon={CalendarDays} title="No leave yet" description="Applied leave will appear here with its approval status." />
         ) : (
           <Table
             columns={[
-              { key: 'dates', header: 'Dates', render: (r: any) => <span>{dateShort(r.start_date)} → {dateShort(r.end_date)}</span> },
+              { key: 'dates', header: 'Dates', render: (r: any) => <span className="whitespace-nowrap">{dateShort(r.start_date)} → {dateShort(r.end_date)}</span> },
               { key: 'type_name', header: 'Type', render: (r: any) => r.type_name || 'General' },
-              { key: 'days', header: 'Days' },
-              { key: 'status', header: 'Status', render: (r: any) => <Badge className={
-                r.status === 'approved' ? 'bg-success-soft text-success'
-                : r.status === 'rejected' ? 'bg-error-soft text-error'
-                : r.status === 'cancelled' ? 'bg-canvas-soft-2 text-mute'
-                : 'bg-warning-soft text-warning-deep'
-              }>{r.status.replace('_', ' ')}</Badge> },
-              { key: 'actions', header: '', render: (r: any) => r.status.startsWith('pending')
-                ? <button onClick={() => cancelMut.mutate(r.id)} className="px-1.5 py-0.5 text-[11px] text-error hover:bg-error-soft rounded-xs">Cancel</button>
+              { key: 'days', header: 'Days', render: (r: any) => <span className="tabular-nums">{r.days}</span> },
+              { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status.replace('_', ' ')} tone={leaveTone(r.status)} /> },
+              { key: 'actions', header: '', className: 'text-right', render: (r: any) => r.status.startsWith('pending')
+                ? <button onClick={() => cancelMut.mutate(r.id)} className="px-2 py-1 text-[11px] font-medium text-error hover:bg-error-soft rounded-xs cursor-pointer">Cancel</button>
                 : null },
             ]}
             data={myRequests}
             keyFn={(r: any) => String(r.id)}
+            minWidth="820px"
           />
         )}
       </div>
@@ -329,15 +343,19 @@ function PayslipsTab() {
         <Table
           columns={[
             { key: 'slip_number', header: 'Slip No.', render: (r: any) => <span className="font-mono text-[12px]">{r.slip_number}</span> },
-            { key: 'month', header: 'Period', render: (r: any) => monthYear(r.month, r.year) },
-            { key: 'net_salary', header: 'Net Pay', render: (r: any) => <span className="font-medium">{money(r.net_salary)}</span> },
-            { key: 'generated_at', header: 'Generated On', render: (r: any) => r.generated_at?.slice(0, 10) },
-            { key: 'actions', header: '', render: (r: any) => (
-              <Button variant="secondary" size="sm" onClick={() => setOpenSlipId(r.id)}>View</Button>
+            { key: 'month', header: 'Period', render: (r: any) => <span className="font-medium text-ink">{monthYear(r.month, r.year)}</span> },
+            { key: 'net_salary', header: 'Net Pay', render: (r: any) => <span className="font-medium tabular-nums">{money(r.net_salary)}</span> },
+            { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.payroll_status} tone={slipTone(r.payroll_status)} /> },
+            { key: 'generated_at', header: 'Generated', render: (r: any) => <span className="text-mute">{r.generated_at?.slice(0, 10)}</span> },
+            { key: 'actions', header: '', className: 'text-right', render: (r: any) => (
+              <div className="flex justify-end">
+                <Button variant="secondary" size="sm" onClick={() => setOpenSlipId(r.id)}>View</Button>
+              </div>
             ) },
           ]}
           data={slips}
           keyFn={(r: any) => String(r.id)}
+          minWidth="820px"
         />
       )}
 
@@ -376,29 +394,29 @@ function PayslipsTab() {
                 <p><span className="text-mute">Present:</span> {d.item.att_present ?? d.item.present_days} days · OT {d.item.att_ot ?? d.item.ot_hours} hrs</p>
                 <p className="text-right"><span className="text-mute">Paid A/c:</span> {d.item.bank_account || '—'} ({d.item.bank_ifsc || '—'})</p>
               </div>
-              <div className="grid grid-cols-2 gap-6 py-3 text-[12px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 py-3 text-[12px]">
                 <table className="w-full">
                   <thead><tr className="text-left text-mute"><th className="pb-1 font-medium">Earnings</th><th className="pb-1 text-right font-medium">Amount</th></tr></thead>
                   <tbody>
                     {earnings.filter(([, v]) => v).map(([k, v]) => (
-                      <tr key={k}><td className="py-0.5">{k}</td><td className="py-0.5 text-right">{money(v)}</td></tr>
+                      <tr key={k}><td className="py-0.5">{k}</td><td className="py-0.5 text-right tabular-nums">{money(v)}</td></tr>
                     ))}
-                    <tr className="border-t border-hairline"><td className="pt-1 font-semibold">Gross</td><td className="pt-1 text-right font-semibold">{money(d.item.gross)}</td></tr>
+                    <tr className="border-t border-hairline"><td className="pt-1 font-semibold">Gross</td><td className="pt-1 text-right font-semibold tabular-nums">{money(d.item.gross)}</td></tr>
                   </tbody>
                 </table>
                 <table className="w-full">
                   <thead><tr className="text-left text-mute"><th className="pb-1 font-medium">Deductions</th><th className="pb-1 text-right font-medium">Amount</th></tr></thead>
                   <tbody>
                     {deductions.filter(([, v]) => v).map(([k, v]) => (
-                      <tr key={k}><td className="py-0.5">{k}</td><td className="py-0.5 text-right">{money(v)}</td></tr>
+                      <tr key={k}><td className="py-0.5">{k}</td><td className="py-0.5 text-right tabular-nums">{money(v)}</td></tr>
                     ))}
-                    <tr className="border-t border-hairline"><td className="pt-1 font-semibold">Total Deductions</td><td className="pt-1 text-right font-semibold">{money(d.item.total_deductions)}</td></tr>
+                    <tr className="border-t border-hairline"><td className="pt-1 font-semibold">Total Deductions</td><td className="pt-1 text-right font-semibold tabular-nums">{money(d.item.total_deductions)}</td></tr>
                   </tbody>
                 </table>
               </div>
               <div className="flex justify-between items-center pt-2 border-t-2 border-navy mt-1">
                 <span className="text-[13px] font-semibold text-ink">Net Pay</span>
-                <span className="text-[15px] font-bold text-navy">{money(d.item.net_salary)}</span>
+                <span className="text-[15px] font-bold text-navy tabular-nums">{money(d.item.net_salary)}</span>
               </div>
             </div>
           )
@@ -431,7 +449,6 @@ function RequestsTab({ onSubmitted }: { onSubmitted?: () => void }) {
     { value: 'document_request', label: 'Document Request' }, { value: 'id_card_request', label: 'ID Card Request' },
     { value: 'other', label: 'Other HR Query' },
   ]
-  const STATUSES: Record<string, string> = { open: 'bg-link-soft text-link-deep', in_progress: 'bg-warning-soft text-warning-deep', resolved: 'bg-success-soft text-success', closed: 'bg-canvas-soft-2 text-mute', rejected: 'bg-error-soft text-error-deep' }
 
   const rows = ((reqsQ.data?.data || []) as any[])
 
@@ -467,7 +484,7 @@ function RequestsTab({ onSubmitted }: { onSubmitted?: () => void }) {
                     <p className="text-[13px] font-medium text-ink">{r.subject}</p>
                     {r.message && <p className="text-[12px] text-mute mt-0.5 truncate max-w-[300px]">{r.message}</p>}
                   </div>
-                  <Badge className={STATUSES[r.status] || 'bg-canvas-soft-2 text-mute'}>{r.status}</Badge>
+                  <StatusBadge status={r.status} tone={reqTone(r.status)} />
                 </div>
                 <div className="flex items-center gap-2 mt-1 text-[10px] text-mute">
                   <span className="uppercase tracking-wider">{r.category?.replace(/_/g, ' ')}</span>

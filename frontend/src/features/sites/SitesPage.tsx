@@ -1,15 +1,17 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { siteApi, clientApi } from '@/services/api'
-import { Button, Input, Select, Toggle, Section } from '@/components/ui/fields'
+import { Button, Input, Select, Toggle, FormSection, FormGrid, FormDivider } from '@/components/ui/fields'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
 import { FieldErrorsDialog, useFormValidation, type FieldRule } from '@/components/ui/validation'
 import { Table, Badge } from '@/components/ui/data'
-import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui/state'
-import { statusColor, statusLabel } from '@/utils/format'
+import { PageHeader } from '@/components/ui/layout'
+import { StatusBadge } from '@/components/ui/status'
+import { FilterBar, SearchInput, SelectFilter, Avatar, ActionMenu } from '@/components/ui/actions'
+import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { STATE_OPTIONS } from '@/utils/indianStates'
 import { toast } from 'sonner'
-import { Plus, MapPin, Trash2, Building2, User, Clock, Wallet, ShieldCheck } from 'lucide-react'
+import { Plus, MapPin, Trash2, PenLine, Building2, User, Clock, Wallet, ShieldCheck, SlidersHorizontal } from 'lucide-react'
 
 const SHIFT_OPTIONS = [
   { value: 'General', label: 'General' },
@@ -70,6 +72,7 @@ export default function SitesPage() {
   const { data: clients } = useQuery({ queryKey: ['clients-select'], queryFn: () => clientApi.list() })
   const sites = (data?.data || []) as any[]
   const clientOptions = [{ value: '', label: 'Select client...' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]
+  const clientFilterOptions = [{ value: '', label: 'All Clients' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]
 
   const saveMut = useMutation({
     mutationFn: (d: any) => editId ? siteApi.update(editId, d) : siteApi.create(d),
@@ -117,6 +120,8 @@ export default function SitesPage() {
     setEditId(id); setShowForm(true); clearAll()
   }
 
+  const closeForm = () => { setShowForm(false); setEditId(null); setForm(emptyForm); clearAll() }
+
   const update = (key: string, value: any) => { setForm((f) => ({ ...f, [key]: value })); clear(key) }
 
   const statutoryRow = (label: string, onKey: string, valKey: string, suffix: string) => (
@@ -138,11 +143,14 @@ export default function SitesPage() {
   )
 
   const cols: any[] = [
-    { key: 'name', header: 'Site Name', render: (r: any) => (
-      <div>
-        <p className="text-[13px] font-medium text-ink">{r.name}</p>
-        <p className="text-[11px] text-body">{r.client_name}</p>
-      </div>
+    { key: 'name', header: 'Site', render: (r: any) => (
+      <span className="flex items-center gap-2.5 min-w-0">
+        <Avatar name={r.name} />
+        <span className="min-w-0">
+          <span className="block text-[13px] font-medium text-ink truncate max-w-44">{r.name}</span>
+          <span className="block text-[11px] text-body truncate max-w-44">{r.client_name || '—'}</span>
+        </span>
+      </span>
     ) },
     { key: 'location', header: 'Location', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{[r.state, r.district].filter(Boolean).join(', ') || '—'}</span> },
     { key: 'incharge', header: 'Incharge', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{r.site_incharge || '—'}</span> },
@@ -153,89 +161,109 @@ export default function SitesPage() {
       )
       return <span className="text-[12px] text-body">{list.join(', ') || '—'}</span>
     } },
-    { key: 'employees', header: 'Emp', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{r.active_employees || 0} / {r.total_employees || 0}</span> },
-    { key: 'status', header: 'Status', render: (r: any) => <Badge className={statusColor(r.status)}>{statusLabel(r.status)}</Badge> },
-    { key: 'actions', header: '', render: (r: any) => (
-      <div className="flex items-center gap-1">
-        <button onClick={() => openEdit(r.id)} className="px-1.5 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs">Edit</button>
-        <button onClick={() => setDeleteId(r.id)} className="px-1 py-0.5 text-[11px] text-error hover:bg-error-soft rounded-xs"><Trash2 className="w-3 h-3" /></button>
-      </div>
+    { key: 'employees', header: 'Emp', hideSm: true, render: (r: any) => <span className="text-[12px] text-body tabular-nums">{r.active_employees || 0} / {r.total_employees || 0}</span> },
+    { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status} /> },
+    { key: 'actions', header: '', className: 'w-10', render: (r: any) => (
+      <ActionMenu
+        items={[
+          { label: 'Edit', icon: PenLine, onClick: () => openEdit(r.id) },
+          { label: 'Delete', icon: Trash2, danger: true, onClick: () => setDeleteId(r.id) },
+        ]}
+      />
     ) },
   ]
 
   return (
     <div>
-      <PageHeader title="Sites" subtitle={`${sites.length} total`} actions={<Button onClick={openCreate}><Plus className="w-3.5 h-3.5" /> Add Site</Button>} />
-      <div className="flex gap-2 mb-4">
-        <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search sites..." className="flex-1 h-9 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-ink" />
-        <Select options={[{ value: '', label: 'All Clients' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]} value={clientFilter} onChange={e => setClientFilter(e.target.value)} className="w-40" />
-      </div>
+      <PageHeader
+        title="Sites"
+        description={`${sites.length} site${sites.length === 1 ? '' : 's'} — physical locations with statutory and payroll configurations.`}
+        actions={<Button onClick={openCreate}><Plus className="w-3.5 h-3.5" /> Add Site</Button>}
+      />
 
-      <div className="bg-white card-shadow rounded-md p-4">
-        {isLoading ? <LoadingState /> : error ? <PageError onRetry={() => refetch()} /> : sites.length === 0 ? <EmptyState icon={MapPin} title="No sites" action={<Button onClick={openCreate}><Plus className="w-3.5 h-3.5" /> Add Site</Button>} /> : (
-          <Table columns={cols} data={sites} keyFn={(r) => String(r.id)} />
+      <div className="bg-white card-shadow rounded-md overflow-hidden">
+        <FilterBar className="px-4 py-3 border-b border-hairline">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search sites..." className="w-full sm:w-72" />
+          <SelectFilter label="Client" value={clientFilter} onChange={setClientFilter} options={clientFilterOptions} />
+        </FilterBar>
+
+        {isLoading ? (
+          <div className="p-4"><LoadingState /></div>
+        ) : error ? (
+          <PageError onRetry={() => refetch()} />
+        ) : sites.length === 0 ? (
+          <EmptyState icon={MapPin} title="No sites" description="Add a site under a client to manage statutory and payroll settings." action={<Button onClick={openCreate}><Plus className="w-3.5 h-3.5" /> Add Site</Button>} />
+        ) : (
+          <Table columns={cols} data={sites} keyFn={(r) => String(r.id)} minWidth="1000px" />
         )}
       </div>
 
-      <Modal open={showForm} onClose={() => { setShowForm(false); setEditId(null); setForm(emptyForm); clearAll() }} title={editId ? 'Edit Site' : 'Add Site'} size="lg">
-        <div className="space-y-3">
-          <Section icon={Building2} title="Basic Details">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-1"><Select label="Parent Client" options={clientOptions} value={form.client_id} onChange={e => update('client_id', e.target.value)} error={errors.client_id} /></div>
+      <Modal open={showForm} onClose={closeForm} title={editId ? 'Edit Site' : 'Add Site'} size="lg">
+        <div className="space-y-4">
+          <FormSection icon={Building2} title="Site Details" subtitle="Placement and status under a parent client" className="mb-4">
+            <FormGrid cols={3}>
+              <Select label="Parent Client" options={clientOptions} value={form.client_id} onChange={e => update('client_id', e.target.value)} error={errors.client_id} />
               <Input label="Site Name" value={form.name} onChange={e => update('name', e.target.value)} error={errors.name} />
               <Select label="Status" options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} value={form.status} onChange={e => update('status', e.target.value)} />
-            </div>
-          </Section>
+            </FormGrid>
+          </FormSection>
 
-          <Section icon={MapPin} title="Address">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Input label="Registered Address — Line 1" value={form.address_line1} onChange={e => update('address_line1', e.target.value)} />
-              <Input label="Registered Address — Line 2" value={form.address_line2} onChange={e => update('address_line2', e.target.value)} />
+          <FormSection icon={MapPin} title="Address" subtitle="Registered address of the site" className="mb-4">
+            <FormGrid cols={2}>
+              <Input label="Address — Line 1" value={form.address_line1} onChange={e => update('address_line1', e.target.value)} />
+              <Input label="Address — Line 2" value={form.address_line2} onChange={e => update('address_line2', e.target.value)} />
               <Select label="State" options={STATE_OPTIONS} value={form.state} onChange={e => update('state', e.target.value)} />
-              <Input label="District" value={form.district} onChange={e => update('district', e.target.value)} />
-              <Input label="Pin Code" value={form.pincode} onChange={e => update('pincode', e.target.value)} />
-            </div>
-          </Section>
+              <div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="District" value={form.district} onChange={e => update('district', e.target.value)} />
+                  <Input label="Pin Code" value={form.pincode} onChange={e => update('pincode', e.target.value)} />
+                </div>
+              </div>
+            </FormGrid>
+          </FormSection>
 
-          <Section icon={User} title="Contact Details">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormSection icon={User} title="Contact Details" subtitle="Site incharge and operational contact" className="mb-4">
+            <FormGrid cols={2}>
               <Input label="Site Incharge" value={form.site_incharge} onChange={e => update('site_incharge', e.target.value)} />
               <Input label="Designation" value={form.site_incharge_designation} onChange={e => update('site_incharge_designation', e.target.value)} />
               <Input label="Contact" value={form.site_incharge_contact} onChange={e => update('site_incharge_contact', e.target.value)} />
               <Input label="Email" type="email" value={form.site_incharge_email} onChange={e => update('site_incharge_email', e.target.value)} error={errors.site_incharge_email} />
-            </div>
-          </Section>
+            </FormGrid>
+          </FormSection>
 
-          <Section icon={Clock} title="Operational Details">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <FormSection icon={SlidersHorizontal} title="Operational Details" subtitle="Shifts and overtime rules" className="mb-4">
+            <FormGrid cols={2}>
               <Select label="Shifts" options={SHIFT_OPTIONS} value={form.shift_type} onChange={e => update('shift_type', e.target.value)} />
+            </FormGrid>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+              <Toggle label="Overtime enabled" checked={form.overtime_enabled} onChange={v => update('overtime_enabled', v)} />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-              <Toggle label="Overtime" checked={form.overtime_enabled} onChange={v => update('overtime_enabled', v)} />
-            </div>
-          </Section>
+          </FormSection>
 
-          <Section icon={Wallet} title="Payroll Settings">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-              <Toggle label="Payroll Applicable" checked={form.payroll_applicable} onChange={v => update('payroll_applicable', v)} />
-              <Toggle label="Leave Policy" checked={form.leave_policy_enabled} onChange={v => update('leave_policy_enabled', v)} />
+          <FormSection icon={Wallet} title="Payroll Settings" subtitle="Participation in payroll and leave processing" className="mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+              <Toggle label="Payroll applicable" checked={form.payroll_applicable} onChange={v => update('payroll_applicable', v)} />
+              <Toggle label="Leave policy" checked={form.leave_policy_enabled} onChange={v => update('leave_policy_enabled', v)} />
               <Toggle label="Arrears" checked={form.arrears_enabled} onChange={v => update('arrears_enabled', v)} />
             </div>
-          </Section>
+          </FormSection>
 
-          <Section icon={ShieldCheck} title="Statutory & Compliance">
-            <div className="space-y-1">
+          <FormSection icon={ShieldCheck} title="Statutory & Compliance" subtitle="PF, ESI, LWF, PT, TDS defaults applied at this site" className="mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-2">
               {statutoryRow('PF (Provident Fund)', 'pf_applicable', 'pf_percent', '%')}
               {statutoryRow('ESIC', 'esic_applicable', 'esic_percent', '%')}
               {statutoryRow('LWF (Labour Welfare Fund)', 'lwf_applicable', 'lwf_percent', '%')}
               {statutoryRow('PT (Professional Tax)', 'pt_applicable', 'pt_amount', '₹')}
-              {statutoryRow('TDS', 'tds_applicable', 'tds_percent', '%')}
-              <div className="flex-1 pt-1"><Toggle label="Gratuity" checked={form.gratuity_applicable} onChange={v => update('gratuity_applicable', v)} /></div>
+              {statutoryRow('TDS on Salary', 'tds_applicable', 'tds_percent', '%')}
             </div>
-          </Section>
+            <FormDivider label="Benefits" />
+            <div className="max-w-sm">
+              <Toggle label="Gratuity applicable" checked={form.gratuity_applicable} onChange={v => update('gratuity_applicable', v)} />
+            </div>
+          </FormSection>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => { setShowForm(false); setEditId(null); setForm(emptyForm); clearAll() }}>Cancel</Button>
+            <Button variant="secondary" onClick={closeForm}>Cancel</Button>
             <Button onClick={() => { if (validate(SITE_RULES, form)) saveMut.mutate({ ...form, client_id: Number(form.client_id), pf_percent: Number(form.pf_percent), esic_percent: Number(form.esic_percent), lwf_percent: Number(form.lwf_percent), pt_amount: Number(form.pt_amount), tds_percent: Number(form.tds_percent) }) }} loading={saveMut.isPending}>Save</Button>
           </div>
         </div>
