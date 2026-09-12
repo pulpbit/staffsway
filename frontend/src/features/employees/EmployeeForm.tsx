@@ -10,7 +10,7 @@ import { IdCard, User, Phone, Briefcase, Wallet, Landmark, FileText, HeartHandsh
 interface Props {
   employeeId: number | null
   onClose: () => void
-  onSaved: () => void
+  onSaved?: (createdId?: number) => void
   onSwitchToEdit?: (id: number) => void
 }
 
@@ -184,13 +184,15 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         },
         nominee: form.nominee.name ? { name: form.nominee.name, relation: form.nominee.relation || null, share: Number(form.nominee.share) || 0, contact: form.nominee.contact || null } : null,
       }
+      let createdId: number | undefined
       if (isEdit) {
         await employeeApi.update(employeeId!, payload)
       } else {
-        await employeeApi.create(payload)
+        const res = await employeeApi.create(payload)
+        createdId = Number((res as any)?.data?.id) || undefined
       }
       clearAll()
-      onSaved()
+      onSaved?.(createdId)
     } catch (err: any) {
       if (err?.error?.fields) { applyServerErrors(err.error.fields); toast.error('Please correct the highlighted fields.') }
       else toast.error(err?.error?.message || 'Failed to save employee.')

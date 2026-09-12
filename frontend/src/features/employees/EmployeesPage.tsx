@@ -10,6 +10,7 @@ import { fullName, dateShort, money, statusColor, statusLabel } from '@/utils/fo
 import { toast } from 'sonner'
 import { Plus, Search, UserPlus, Trash2, FileText, ClipboardCheck, TrendingUp, Upload } from 'lucide-react'
 import EmployeeForm from './EmployeeForm'
+import JoiningFormModal from './JoiningFormModal'
 import SalaryRevisionModal from './SalaryRevisionModal'
 import BulkEmployeeImport from './BulkEmployeeImport'
 import type { Employee } from '@/types/api'
@@ -30,6 +31,7 @@ export default function EmployeesPage() {
   const [docForm, setDocForm] = useState({ document_type: DOC_TYPES[0], document_name: '', document_number: '' })
   const [onbFor, setOnbFor] = useState<any>(null)
   const [revFor, setRevFor] = useState<any>(null)
+  const [joiningFor, setJoiningFor] = useState<number | null>(null)
   const queryClient = useQueryClient()
 
   const params = { search, page: String(page), page_size: '10', sort, order, ...filters }
@@ -190,7 +192,7 @@ export default function EmployeesPage() {
           <EmployeeForm
             employeeId={editId}
             onClose={() => setShowForm(false)}
-            onSaved={() => { queryClient.invalidateQueries({ queryKey: ['employees'] }); setShowForm(false); toast.success(editId ? 'Employee updated.' : 'Employee added.') }}
+            onSaved={(createdId) => { queryClient.invalidateQueries({ queryKey: ['employees'] }); setShowForm(false); toast.success(editId ? 'Employee updated.' : 'Employee added.'); if (createdId) setJoiningFor(createdId) }}
             onSwitchToEdit={(id) => setEditId(id)}
           />
         </Modal>
@@ -281,6 +283,8 @@ export default function EmployeesPage() {
         employeeId={revFor?.id ?? null}
         employeeName={revFor ? fullName(revFor.first_name, revFor.last_name) : undefined}
       />
+
+      <JoiningFormModal employeeId={joiningFor} onClose={() => setJoiningFor(null)} />
 
       <ConfirmDialog
         open={!!deleteId}

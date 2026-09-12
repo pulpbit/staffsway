@@ -41,11 +41,13 @@ export interface Employee {
   address: string | null
   city: string | null
   state: string | null
+  district?: string | null
   pincode: string | null
   permanent_same_as_present?: number | null
   permanent_address?: string | null
   permanent_city?: string | null
   permanent_state?: string | null
+  permanent_district?: string | null
   permanent_pincode?: string | null
   emergency_contact_name?: string | null
   emergency_contact_phone?: string | null
@@ -105,6 +107,7 @@ export interface SalaryStructure {
   hra: number
   conveyance: number
   other_allowance: number
+  other_allowance_label?: string | null
   overtime_rate: number
   pf_applicable: number
   esic_applicable: number
