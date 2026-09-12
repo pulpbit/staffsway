@@ -329,6 +329,27 @@ employeeRoutes.delete('/:id/documents/:docId', async (c) => {
   return c.json({ data: documents.results, message: 'Document removed.' })
 })
 
+// Keep the Aadhaar Card and PAN Card document records in sync with the identity
+// fields captured on the employee form. Present value -> create/update record;
+// explicit null -> remove the record; absent -> leave unchanged.
+async function syncIdentityDocuments(db: D1Database, employeeId: number, aadhaar?: string | null, pan?: string | null) {
+  const syncOne = async (type: string, value?: string | null) => {
+    const num = value ? String(value).trim() : ''
+    if (num) {
+      const existing = await db.prepare('SELECT id FROM employee_documents WHERE employee_id = ? AND document_type = ? LIMIT 1').bind(employeeId, type).first()
+      if (existing) {
+        await db.prepare('UPDATE employee_documents SET document_number = ?, updated_at = datetime(\'now\') WHERE id = ? AND employee_id = ?').bind(num, Number(existing.id), employeeId).run()
+      } else {
+        await db.prepare('INSERT INTO employee_documents (employee_id, document_type, document_number) VALUES (?,?,?)').bind(employeeId, type, num).run()
+      }
+    } else if (value === null) {
+      await db.prepare('DELETE FROM employee_documents WHERE employee_id = ? AND document_type = ?').bind(employeeId, type).run()
+    }
+  }
+  await syncOne('Aadhaar Card', aadhaar)
+  await syncOne('PAN Card', pan)
+}
+
 employeeRoutes.post('/', async (c) => {
   const body = await c.req.json().catch(() => null)
   const parsed = createSchema.safeParse(body)
@@ -413,6 +434,8 @@ employeeRoutes.post('/', async (c) => {
       .bind(employeeId, d.nominee.name, d.nominee.relation ?? null, d.nominee.share ?? 0, d.nominee.contact ?? null)
       .run()
   }
+
+  await syncIdentityDocuments(db, employeeId, d.aadhaar, d.pan)
 
   const created = await db.prepare(`${employeeSelect} WHERE e.id = ?`).bind(employeeId).first()
   return c.json({ data: created }, 201)
@@ -835,6 +858,9 @@ employeeRoutes.put('/:id', async (c) => {
   if (sets.length) {
     await db.prepare(`UPDATE employees SET ${sets.join(', ')} WHERE id = ?`).bind(...params).run()
   }
+
+  // Keep Aadhaar/PAN document records in sync with the identity fields
+  await syncIdentityDocuments(db, id, d.aadhaar, d.pan)
 
   if (d.salary) {
     const s = d.salary
