@@ -1,6 +1,6 @@
 -- Demo seed (idempotent): safe to run multiple times; never deletes existing records.
 
-INSERT OR IGNORE INTO users (id, name, email, password_hash, role, status) VALUES (1, 'System Administrator', 'admin@staffsway.in', 'pbkdf2$100000$3feWcswJ08_aTXhowm5Bdw$kncTUIy8GG5uRfB9ZyW2lSTgXCsuIF856TEHVsuczMg', 'admin', 'active');
+INSERT OR IGNORE INTO users (id, name, email, password_hash, role, status) VALUES (1, 'System Administrator', 'admin@staffsway.in', 'pbkdf2$100000$Ztb22XBz5Xe7PLazO6USrg$5z3w-VMqdk-RVpMrYab7VLbbud_qIWcPvow3wbp3P6Y', 'admin', 'active');
 
 INSERT OR IGNORE INTO settings (id, company_name, company_tagline, address, state, pincode, phone, email, website, gstin, pan, cin, currency, financial_year_start, salary_basis_days, pf_rate, pf_cap, pf_eligibility, esic_rate, esic_eligibility, professional_tax_amount, professional_tax_min_gross, default_ot_rate, attendance_lock_enabled, lwf_employee_amount, lwf_employer_amount, tds_percent)
 VALUES (1, 'Staffsway', 'Manpower Staffing & HRMS', '501 Corporate Tower, Andheri East', 'Maharashtra', '400069', '+91 22 4890 2200', 'info@staffsway.in', 'https://staffsway.in', '27AABCP8892Q1Z5', 'AABCP8892Q', 'U74900MH2014PTC284110', 'INR', 4, 26, 12, 1800, 15000, 0.75, 21000, 200, 10000, 80, 1, 100, 100, 2);

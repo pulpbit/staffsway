@@ -1,5 +1,5 @@
 // Demo seed data for Staffsway HRMS
-export const ADMIN_PASSWORD = 'Demo@123'
+export const ADMIN_PASSWORD = 'Demo@1992'
 export const SALT = 'pwsdemo-salt'
 
 export const SETTINGS = {

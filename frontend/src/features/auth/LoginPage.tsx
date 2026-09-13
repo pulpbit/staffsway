@@ -9,7 +9,7 @@ type Mode = 'staff' | 'employee'
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('staff')
   const [email, setEmail] = useState('admin@staffsway.in')
-  const [password, setPassword] = useState('Demo@123')
+  const [password, setPassword] = useState('Demo@1992')
   const [username, setUsername] = useState('')
   const [empPwd, setEmpPwd] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -123,7 +123,7 @@ export default function LoginPage() {
           )}
         </div>
         <p className="text-center text-[11px] text-white/60 mt-4">
-          Demo credentials are pre-filled. Use <strong className="text-white/80">admin@staffsway.in</strong> / <strong className="text-white/80">Demo@123</strong>
+          Demo credentials are pre-filled. Use <strong className="text-white/80">admin@staffsway.in</strong> / <strong className="text-white/80">Demo@1992</strong>
         </p>
       </div>
     </div>
