@@ -186,6 +186,7 @@ export default function PayrollPage() {
       </div>
     ) },
     { key: 'attendance', header: 'Attendance', hideSm: true, render: (r: any) => <span className="text-[12px] text-body tabular-nums whitespace-nowrap">P:{r.present_days} A:{r.absent_days} OT:{r.ot_hours}</span> },
+    { key: 'rate', header: 'Day/Hr', hideSm: true, render: (r: any) => <span className="text-[12px] text-body tabular-nums whitespace-nowrap">{money(r.daily_rate)}/{money(r.hourly_rate)}</span> },
     ...(isDraft ? [{
       key: 'adjustments', header: 'Incentive / Bonus / Arrears', render: (r: any) => {
         const v = getAdj(r)
@@ -499,7 +500,7 @@ export default function PayrollPage() {
             <Input label="Other Recovery (₹)" type="number" value={settleForm.other_recovery} onChange={e => setSettleForm(f => ({ ...f, other_recovery: e.target.value }))} />
           </div>
           <Input label="Remarks" value={settleForm.remarks} onChange={e => setSettleForm(f => ({ ...f, remarks: e.target.value }))} />
-          <p className="text-[12px] text-mute leading-relaxed">Unpaid salary uses the full monthly earnings ÷ salary basis days. Leave encashment is computed on Basic. Any active loan outstanding is recovered from the settlement.</p>
+          <p className="text-[12px] text-mute leading-relaxed">Unpaid salary uses the full monthly earnings ÷ days in the exit month. Leave encashment is computed on Basic on the same day basis. Any active loan outstanding is recovered from the settlement.</p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setShowSettle(false)}>Cancel</Button>
             <Button loading={settleCreateMut.isPending} onClick={() => {

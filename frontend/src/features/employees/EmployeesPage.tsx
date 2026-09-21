@@ -77,6 +77,12 @@ export default function EmployeesPage() {
     if (focusId) {
       openEdit(Number(focusId), searchParams.get('field') || undefined)
       setSearchParams({}, { replace: true })
+    } else if (searchParams.has('add')) {
+      openAdd()
+      setSearchParams({}, { replace: true })
+    } else if (searchParams.has('import')) {
+      setShowImport(true)
+      setSearchParams({}, { replace: true })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -1,0 +1,3 @@
+ALTER TABLE payroll_items ADD COLUMN working_hours REAL NOT NULL DEFAULT 8;
+ALTER TABLE payroll_items ADD COLUMN daily_rate REAL NOT NULL DEFAULT 0;
+ALTER TABLE payroll_items ADD COLUMN hourly_rate REAL NOT NULL DEFAULT 0;

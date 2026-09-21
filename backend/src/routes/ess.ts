@@ -29,7 +29,7 @@ essRoutes.get('/me', async (c) => {
     `SELECT e.id, e.employee_code, e.first_name, e.last_name, e.email, e.mobile, e.designation,
       e.department, e.joining_date, e.status, e.employee_type, e.shift_type,
       s.name AS site_name, c.name AS client_name,
-      st.basic, st.hra, st.conveyance, st.other_allowance, st.overtime_rate, st.effective_from AS salary_effective_from,
+      st.basic, st.hra, st.conveyance, st.other_allowance, st.overtime_rate, st.working_hours, st.effective_from AS salary_effective_from,
       es.pf_applicable, es.esi_applicable, es.lwf_applicable, es.pt_applicable, es.tds_applicable
      FROM employees e ${LATEST_STRUCT}
      LEFT JOIN sites s ON s.id = e.site_id

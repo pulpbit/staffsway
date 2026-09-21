@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { Env } from '../types'
 import { getDb } from '../utils/db'
 import { r2 } from '../utils/money'
-import { calculatePayroll } from '../services/payroll'
+import { calculatePayroll, daysInMonth } from '../services/payroll'
 
 export const payrollRoutes = new Hono<{ Bindings: Env }>()
 
@@ -19,6 +19,7 @@ async function loadConfig(db: D1Database) {
   const s = await db.prepare('SELECT * FROM settings WHERE id = 1').first()
   return {
     salary_basis_days: Number(s?.salary_basis_days || 26),
+    default_ot_rate: Number(s?.default_ot_rate || 80),
     pf_rate: Number(s?.pf_rate || 12),
     pf_cap: Number(s?.pf_cap || 1800),
     pf_eligibility: Number(s?.pf_eligibility || 15000),
@@ -42,7 +43,7 @@ async function collectEmployees(db: D1Database, month: number, year: number, sco
       `SELECT e.id AS employee_id, e.first_name, e.last_name, e.employee_code, e.designation, e.status,
         a.id AS attendance_id, a.present_days, a.absent_days, a.paid_leave, a.unpaid_leave, a.ot_hours, a.status AS attendance_status,
         s.id AS site_id, s.name AS site_name, c.id AS client_id, c.name AS client_name,
-        st.basic, st.hra, st.conveyance, st.other_allowance, st.overtime_rate, st.pf_applicable AS st_pf, st.esic_applicable AS st_esic, st.other_deduction,
+        st.basic, st.hra, st.conveyance, st.other_allowance, st.overtime_rate, st.working_hours, st.pf_applicable AS st_pf, st.esic_applicable AS st_esic, st.other_deduction,
         COALESCE(es.pf_applicable, st.pf_applicable) AS pf_applicable,
         COALESCE(es.esi_applicable, st.esic_applicable) AS esi_applicable,
         COALESCE(es.lwf_applicable, 0) AS lwf_applicable,
@@ -205,13 +206,13 @@ payrollRoutes.post('/settlements', async (c) => {
     .first()
   if (!emp) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
 
-  const s = await db.prepare('SELECT salary_basis_days FROM settings WHERE id = 1').first()
-  const basis = Number(s?.salary_basis_days || 26)
+  const [exY, exM] = (d.exit_date || '').split('-').map(Number)
+  const dim = daysInMonth(exM || 12, exY || new Date().getFullYear())
   const monthly = Number(emp.basic || 0) + Number(emp.hra || 0) + Number(emp.conveyance || 0) + Number(emp.other_allowance || 0)
-  const dailyRate = monthly / basis
+  const dailyRate = monthly / dim
   const unpaidAmount = r2(dailyRate * d.unpaid_days)
-  // Leave encashment is computed on Basic only (consistent with leave module).
-  const encashAmount = r2((Number(emp.basic || 0) / basis) * d.encash_days)
+  // Leave encashment is computed on Basic only, on the same month-day basis.
+  const encashAmount = r2((Number(emp.basic || 0) / dim) * d.encash_days)
   let loanOutstanding = 0
   if (!d.ignore_loan_outstanding) {
     const l: any = await db
@@ -278,7 +279,7 @@ payrollRoutes.post('/preview', async (c) => {
       }
       const salary = {
         basic: Number(r.basic), hra: Number(r.hra), conveyance: Number(r.conveyance), other_allowance: Number(r.other_allowance),
-        overtime_rate: Number(r.overtime_rate), pf_applicable: Number(r.st_pf ?? 1), esic_applicable: Number(r.st_esic ?? 1), other_deduction: Number(r.other_deduction),
+        overtime_rate: Number(r.overtime_rate), working_hours: Number(r.working_hours) || 0, pf_applicable: Number(r.st_pf ?? 1), esic_applicable: Number(r.st_esic ?? 1), other_deduction: Number(r.other_deduction),
       }
       const statutory = {
         pf_applicable: Number(r.pf_applicable ?? 1),
@@ -344,7 +345,7 @@ payrollRoutes.post('/generate', async (c) => {
       }
       const salary = {
         basic: Number(r.basic), hra: Number(r.hra), conveyance: Number(r.conveyance), other_allowance: Number(r.other_allowance),
-        overtime_rate: Number(r.overtime_rate), pf_applicable: Number(r.st_pf ?? 1), esic_applicable: Number(r.st_esic ?? 1), other_deduction: Number(r.other_deduction),
+        overtime_rate: Number(r.overtime_rate), working_hours: Number(r.working_hours) || 0, pf_applicable: Number(r.st_pf ?? 1), esic_applicable: Number(r.st_esic ?? 1), other_deduction: Number(r.other_deduction),
       }
       const statutory = {
         pf_applicable: Number(r.pf_applicable ?? 1),
@@ -388,13 +389,14 @@ payrollRoutes.post('/generate', async (c) => {
   for (const { r, attendance, calc } of items) {
     ops.push(
       db.prepare(
-        `INSERT INTO payroll_items (payroll_id, employee_id, attendance_id, present_days, absent_days, paid_leave, unpaid_leave, ot_hours, basic, hra, conveyance, other_allowance, overtime_earnings, attendance_deduction, gross, pf, esic, professional_tax, lwf, tds, advance_deduction, loan_deduction, other_deduction, total_deductions, net_salary, status)
-         SELECT id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft' FROM payroll WHERE month = ? AND year = ?`
+        `INSERT INTO payroll_items (payroll_id, employee_id, attendance_id, present_days, absent_days, paid_leave, unpaid_leave, ot_hours, basic, hra, conveyance, other_allowance, working_hours, daily_rate, hourly_rate, overtime_earnings, attendance_deduction, gross, pf, esic, professional_tax, lwf, tds, advance_deduction, loan_deduction, other_deduction, total_deductions, net_salary, status)
+         SELECT id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft' FROM payroll WHERE month = ? AND year = ?`
       )
         .bind(
           r.employee_id, attendance.id ?? null, attendance.present_days, attendance.absent_days,
           attendance.paid_leave, attendance.unpaid_leave, attendance.ot_hours,
-          r.basic, r.hra, r.conveyance, r.other_allowance, calc.overtimeEarnings, calc.attendanceDeduction,
+          r.basic, r.hra, r.conveyance, r.other_allowance, Number(r.working_hours) || 8, calc.perDay, calc.hourlyRate,
+          calc.overtimeEarnings, calc.attendanceDeduction,
           calc.gross, calc.pf, calc.esic, calc.professionalTax, calc.lwf, calc.tds, calc.advance, calc.loanDeduction, calc.otherDeduction,
           calc.totalDeductions, calc.net, month, year
         )
@@ -467,7 +469,8 @@ payrollRoutes.patch('/:id/items/:itemId', async (c) => {
 
   const earnings = Number(item.basic) + Number(item.hra) + Number(item.conveyance) + Number(item.other_allowance)
   const absentDays = Number(item.absent_days) + Number(item.unpaid_leave)
-  const attendanceDeduction = r2((earnings / cfg.salary_basis_days) * absentDays)
+  const dim = daysInMonth(Number(payroll.month), Number(payroll.year))
+  const attendanceDeduction = r2((earnings / dim) * absentDays)
   const gross = r2(earnings - attendanceDeduction + Number(item.overtime_earnings) + inc + bonus + arrears)
 
   const pfBase = Number(item.basic) + Number(item.hra)

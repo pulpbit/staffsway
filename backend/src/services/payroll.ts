@@ -8,15 +8,38 @@ import { r2 } from '../utils/money'
  * ESIC rate, professional tax, caps) are sample values loaded from the Settings
  * table and are NOT claimed to reflect any client's real statutory obligations.
  *
+ * Salary basis per organization rule:
+ *  - Daily rate = monthly earnings / actual days in the month (e.g. 30 or 31)
+ *  - Hourly rate = daily rate / working hours per day (8 or 9, from salary structure)
+ *  - Overtime pay = OT hours × hourly rate
+ *  - Fallback when a salary structure has no working_hours set: the per-employee
+ *    overtime_rate is used, then the organization default_ot_rate setting.
+ *
  * Customization points for the final build:
- *  - Attendance deduction basis (per-day = earnings / salary_basis_days)
+ *  - Attendance deduction basis (per-day = earnings / days in month)
  *  - PF: rate, cap, and eligibility threshold
  *  - ESIC: rate and eligibility threshold
  *  - Professional tax: flat amount + minimum gross threshold
- *  - Per-employee overtime rate (from salary_structures)
  *  - Monthly advances (from advances table)
  *  - Per-employee fixed other deduction (from salary_structures)
  */
+
+export function daysInMonth(month: number, year: number): number {
+  return new Date(year, month, 0).getDate()
+}
+
+export function hourlyRateFor(month: number, year: number, salary: SalaryLike, defaultOtRate: number): number {
+  const workingHours = Number(salary.working_hours) || 0
+  if (workingHours > 0) {
+    return r2((salaryEarnings(salary) / daysInMonth(month, year)) / workingHours)
+  }
+  if (Number(salary.overtime_rate) > 0) return Number(salary.overtime_rate)
+  return defaultOtRate
+}
+
+function salaryEarnings(salary: SalaryLike): number {
+  return Number(salary.basic) + Number(salary.hra) + Number(salary.conveyance) + Number(salary.other_allowance)
+}
 
 export interface SalaryLike {
   basic: number
@@ -24,6 +47,7 @@ export interface SalaryLike {
   conveyance: number
   other_allowance: number
   overtime_rate: number
+  working_hours: number
   pf_applicable: number
   esic_applicable: number
   other_deduction: number
@@ -58,6 +82,8 @@ export interface CalcInput {
 export interface CalcResult {
   earnings: number
   perDay: number
+  hourlyRate: number
+  daysInMonth: number
   attendanceDeduction: number
   overtimeEarnings: number
   incentive: number
@@ -86,10 +112,12 @@ export function calculatePayroll(input: CalcInput): CalcResult | null {
   const otherAllowance = salary.other_allowance
 
   const earnings = basic + hra + conveyance + otherAllowance
-  const perDay = r2(earnings / s.salary_basis_days)
+  const dim = daysInMonth(Number(attendance.month), Number(attendance.year))
+  const perDay = r2(earnings / dim)
   const absentDays = attendance.absent_days + attendance.unpaid_leave
   const attendanceDeduction = r2(perDay * absentDays)
-  const overtimeEarnings = r2(attendance.ot_hours * salary.overtime_rate)
+  const hourlyRate = hourlyRateFor(Number(attendance.month), Number(attendance.year), salary, s.default_ot_rate)
+  const overtimeEarnings = r2(attendance.ot_hours * hourlyRate)
   const incentive = r2(Number(input.incentive || 0))
   const bonus = r2(Number(input.bonus || 0))
   const arrears = r2(Number(input.arrears || 0))
@@ -116,6 +144,8 @@ export function calculatePayroll(input: CalcInput): CalcResult | null {
   return {
     earnings,
     perDay,
+    hourlyRate,
+    daysInMonth: dim,
     attendanceDeduction,
     overtimeEarnings,
     incentive,

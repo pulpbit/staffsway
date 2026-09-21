@@ -60,7 +60,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
     bank_name: '', bank_holder_name: '', bank_account: '', bank_ifsc: '', pan: '', uan: '', esi_number: '',
     ctc: '',
     joining_date: new Date().toISOString().slice(0, 10), designation: '', department: '',
-    reporting_manager: '', employee_type: 'permanent', shift_type: 'General', working_days_week: '6', notice_period_days: '',
+    reporting_manager: '', employee_type: 'permanent', shift_type: 'General', working_days_week: '6', notice_period_days: '', working_hours: '8',
     client_id: '', site_id: '',
     status: 'active', grade: '', previous_employment: '',
     salary: { basic: 0, hra: 0, conveyance: 0, other_allowance: 0, other_allowance_label: '' },
@@ -126,7 +126,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         bank_name: e.bank_name || '', bank_holder_name: e.bank_holder_name || '', bank_account: e.bank_account || '', bank_ifsc: e.bank_ifsc || '', pan: e.pan || '', uan: e.uan || '', esi_number: e.esi_number || '',
         ctc: e.ctc !== null && e.ctc !== undefined ? String(e.ctc) : '',
         joining_date: e.joining_date || '', designation: e.designation || '', department: e.department || '',
-        reporting_manager: e.reporting_manager || '', employee_type: e.employee_type || 'permanent', shift_type: e.shift_type || 'General', working_days_week: String(e.working_days_week ?? 6), notice_period_days: e.notice_period_days ? String(e.notice_period_days) : '',
+        reporting_manager: e.reporting_manager || '', employee_type: e.employee_type || 'permanent', shift_type: e.shift_type || 'General', working_days_week: String(e.working_days_week ?? 6), notice_period_days: e.notice_period_days ? String(e.notice_period_days) : '', working_hours: String(s.working_hours ?? 8),
         client_id: e.site?.client_id ? String(e.site.client_id) : '', site_id: e.site_id ? String(e.site_id) : '',
         status: e.status || 'active', grade: e.grade || '', previous_employment: e.previous_employment || '',
         salary: { basic: Number(s.basic) || 0, hra: Number(s.hra) || 0, conveyance: Number(s.conveyance) || 0, other_allowance: Number(s.other_allowance) || 0, other_allowance_label: s.other_allowance_label || '' },
@@ -203,7 +203,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
           basic: Number(form.salary.basic) || 0, hra: Number(form.salary.hra) || 0, conveyance: Number(form.salary.conveyance) || 0,
           other_allowance: otherAllowanceOn ? (Number(form.salary.other_allowance) || 0) : 0,
           other_allowance_label: otherAllowanceOn ? (form.salary.other_allowance_label || null) : null,
-          overtime_rate: 0, pf_applicable: form.statutory.pf_applicable, esic_applicable: form.statutory.esi_applicable, other_deduction: 0,
+          overtime_rate: 0, working_hours: Number(form.working_hours) || 8, pf_applicable: form.statutory.pf_applicable, esic_applicable: form.statutory.esi_applicable, other_deduction: 0,
         },
         statutory: {
           pf_applicable: form.statutory.pf_applicable, esi_applicable: form.statutory.esi_applicable,
@@ -355,6 +355,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             </FormGrid>
             <FormGrid cols={3}>
               <Select label="Notice Period" options={[{ value: '', label: 'Not applicable' }, ...NOTICE_PERIODS]} value={form.notice_period_days} onChange={e => update('notice_period_days', e.target.value)} />
+              <Input label="Working Hours / Day" type="number" min={1} max={24} step={1} value={form.working_hours} onChange={e => update('working_hours', e.target.value)} />
               {isEdit && (
                 <Select label="Status" options={['active', 'inactive', 'resigned', 'terminated'].map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))} value={form.status} onChange={e => update('status', e.target.value)} />
               )}
@@ -395,7 +396,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
                 <Input label="ESI No." value={form.esi_number} onChange={e => update('esi_number', e.target.value)} ref={fieldRefs.esi_number} />
               </FormGrid>
             )}
-            <p className="text-[11px] text-mute">Other deductions and OT rate are managed via payroll salary revisions.</p>
+            <p className="text-[11px] text-mute">Other deductions are managed via payroll salary revisions. Working Hours / Day (set under Official Information) drives the hourly rate: monthly earnings ÷ days in month ÷ working hours.</p>
           </FormSection>
 
           <FormSection icon={Landmark} title="Bank Details" subtitle="Salary disbursement account (masked elsewhere in the app)" className="mb-4">

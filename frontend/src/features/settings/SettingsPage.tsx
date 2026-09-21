@@ -132,9 +132,10 @@ export default function SettingsPage() {
             {active === 'payroll' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-xl">
                 <h3 className="mono-label col-span-full">Salary Calculation Basis</h3>
-                <Input label="Salary Basis Days" type="number" value={set.salary_basis_days || 26} onChange={e => saveMut.mutate({ salary_basis_days: Number(e.target.value) })} />
-                <Input label="Default OT Rate (₹/hr)" type="number" value={set.default_ot_rate || 80} onChange={e => saveMut.mutate({ default_ot_rate: Number(e.target.value) })} />
+                <Input label="Salary Basis Days (leave encashment)" type="number" value={set.salary_basis_days || 26} onChange={e => saveMut.mutate({ salary_basis_days: Number(e.target.value) })} />
+                <Input label="Default OT Rate (₹/hr, fallback)" type="number" value={set.default_ot_rate || 80} onChange={e => saveMut.mutate({ default_ot_rate: Number(e.target.value) })} />
                 <div />
+                <p className="col-span-full -mt-1 text-[11px] text-mute">Monthly payroll derives OT from the employee's own numbers: hourly rate = (Basic + HRA + Conveyance + Other Allowance) ÷ days in month ÷ working hours/day. The default OT rate is only used when an employee has no working hours set.</p>
                 <h3 className="mono-label col-span-full mt-4">Provident Fund (PF)</h3>
                 <Input label="PF Rate (%)" type="number" value={set.pf_rate || 12} onChange={e => saveMut.mutate({ pf_rate: Number(e.target.value) })} />
                 <Input label="PF Cap (₹)" type="number" value={set.pf_cap || 1800} onChange={e => saveMut.mutate({ pf_cap: Number(e.target.value) })} />

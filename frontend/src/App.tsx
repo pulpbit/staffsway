@@ -6,6 +6,7 @@ import { LoadingState } from '@/components/ui/state'
 
 import ManagementDashboardPage from '@/features/dashboard/ManagementDashboardPage'
 import EmployeesPage from '@/features/employees/EmployeesPage'
+import EmployeeTransferPage from '@/features/employees/EmployeeTransferPage'
 import ClientsPage from '@/features/clients/ClientsPage'
 import SitesPage from '@/features/sites/SitesPage'
 import AttendancePage from '@/features/attendance/AttendancePage'
@@ -50,6 +51,7 @@ export default function App() {
       >
         <Route index element={<IndexRoute />} />
         <Route path="employees" element={<EmployeesPage />} />
+        <Route path="employees/transfer" element={<EmployeeTransferPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="sites" element={<SitesPage />} />
         <Route path="attendance" element={<AttendancePage />} />

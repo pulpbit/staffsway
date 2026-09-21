@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import type { Env } from '../types'
 import { getDb } from '../utils/db'
 import { r2 as r2Round } from '../utils/money'
+import { daysInMonth } from '../services/payroll'
 
 export const reportRoutes = new Hono<{ Bindings: Env }>()
 
@@ -117,7 +118,7 @@ reportRoutes.get('/salary', async (c) => {
   const rows = await getDb(c.env)
     .prepare(
       `SELECT e.employee_code, e.first_name, e.last_name, e.designation, e.status, s.name AS site_name, c.name AS client_name,
-        st.basic, st.hra, st.conveyance, st.other_allowance, st.overtime_rate, st.other_deduction,
+        st.basic, st.hra, st.conveyance, st.other_allowance, st.overtime_rate, st.working_hours, st.other_deduction,
         (st.basic + st.hra + st.conveyance + st.other_allowance) AS monthly_salary
        FROM employees e
        LEFT JOIN sites s ON s.id = e.site_id
@@ -175,10 +176,10 @@ reportRoutes.get('/ot', async (c) => {
     .prepare(
       `SELECT e.employee_code, e.first_name, e.last_name, e.designation, s.name AS site_name, c.name AS client_name,
         a.present_days, a.ot_hours,
-        (SELECT st3.overtime_rate FROM salary_structures st3 WHERE st3.employee_id = e.id ORDER BY st3.effective_from DESC, st3.id DESC LIMIT 1) AS overtime_rate,
-        ROUND(a.ot_hours * (SELECT st3.overtime_rate FROM salary_structures st3 WHERE st3.employee_id = e.id ORDER BY st3.effective_from DESC, st3.id DESC LIMIT 1), 2) AS ot_amount, a.status
+        st.basic, st.hra, st.conveyance, st.other_allowance, st.overtime_rate, st.working_hours, a.status
        FROM attendance_monthly a
        JOIN employees e ON e.id = a.employee_id
+       ${LATEST_STRUCT}
        LEFT JOIN sites s ON s.id = e.site_id
        LEFT JOIN clients c ON c.id = s.client_id
        WHERE ${where.join(' AND ')} AND a.ot_hours > 0
@@ -186,8 +187,15 @@ reportRoutes.get('/ot', async (c) => {
     )
     .bind(...params)
     .all()
-  const totalOt = rows.results.reduce((acc, r: any) => acc + Number(r.ot_hours || 0), 0)
-  return c.json({ data: rows.results, meta: { month, year, total_ot_hours: totalOt } })
+  const dim = daysInMonth(month, year)
+  const mapped = (rows.results as any[]).map((r) => {
+    const earnings = Number(r.basic || 0) + Number(r.hra || 0) + Number(r.conveyance || 0) + Number(r.other_allowance || 0)
+    const hours = Number(r.working_hours) || 0
+    const hourly = hours > 0 ? r2Round(earnings / dim / hours) : (Number(r.overtime_rate) > 0 ? Number(r.overtime_rate) : 0)
+    return { ...r, hourly_rate: hourly, ot_amount: r2Round(Number(r.ot_hours) * hourly) }
+  })
+  const totalOt = mapped.reduce((acc, r) => acc + Number(r.ot_hours || 0), 0)
+  return c.json({ data: mapped, meta: { month, year, basis_days: dim, total_ot_hours: totalOt } })
 })
 
 // 8. Active / inactive employees

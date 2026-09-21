@@ -83,6 +83,7 @@ const employeeBase = {
       other_allowance: z.number().min(0).optional(),
       other_allowance_label: z.string().max(100).optional().nullable(),
       overtime_rate: z.number().min(0).optional(),
+      working_hours: z.number().min(1).max(24).optional(),
       pf_applicable: z.boolean().optional(),
       esic_applicable: z.boolean().optional(),
        other_deduction: z.number().min(0).optional(),
@@ -396,14 +397,14 @@ employeeRoutes.post('/', async (c) => {
   const salary = d.salary || { basic: 0 }
   await db
     .prepare(
-      `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, pf_applicable, esic_applicable, other_deduction)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+      `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, working_hours, pf_applicable, esic_applicable, other_deduction)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .bind(
       employeeId, d.joining_date || new Date().toISOString().slice(0, 10),
       salary.basic || 0, salary.hra || 0, salary.conveyance || 0, salary.other_allowance || 0,
       salary.other_allowance_label ?? null,
-      salary.overtime_rate || 0, salary.pf_applicable === false ? 0 : 1, salary.esic_applicable === false ? 0 : 1,
+      salary.overtime_rate || 0, salary.working_hours || 8, salary.pf_applicable === false ? 0 : 1, salary.esic_applicable === false ? 0 : 1,
       salary.other_deduction || 0
     )
     .run()
@@ -489,7 +490,7 @@ const IMPORT_STR_FIELDS = [
   'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'joining_date', 'designation', 'department',
   'grade', 'reporting_manager', 'previous_employment', 'shift_type',
 ]
-const IMPORT_SALARY_KEYS = ['basic', 'hra', 'conveyance', 'other_allowance', 'other_allowance_label', 'overtime_rate', 'other_deduction'] as const
+const IMPORT_SALARY_KEYS = ['basic', 'hra', 'conveyance', 'other_allowance', 'other_allowance_label', 'overtime_rate', 'working_hours', 'other_deduction'] as const
 
 function coerceImportRow(raw: Record<string, unknown>): Record<string, unknown> {
   const r: Record<string, unknown> = {}
@@ -525,6 +526,7 @@ function coerceImportRow(raw: Record<string, unknown>): Record<string, unknown> 
       other_allowance: numVal(salarySrc.other_allowance) ?? 0,
       other_allowance_label: strVal(salarySrc.other_allowance_label),
       overtime_rate: numVal(salarySrc.overtime_rate) ?? 0,
+      working_hours: numVal(salarySrc.working_hours) ?? 8,
       pf_applicable: pfFlat,
       esic_applicable: esicFlat,
       other_deduction: numVal(salarySrc.other_deduction) ?? 0,
@@ -687,14 +689,14 @@ employeeRoutes.post('/import', async (c) => {
       ops.push(
         db
           .prepare(
-            `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, pf_applicable, esic_applicable, other_deduction)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+            `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, working_hours, pf_applicable, esic_applicable, other_deduction)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
           )
           .bind(
             seq, d.joining_date || today,
             sal.basic || 0, sal.hra || 0, sal.conveyance || 0, sal.other_allowance || 0,
             sal.other_allowance_label ?? null,
-            sal.overtime_rate || 0, sal.pf_applicable === false ? 0 : 1, sal.esic_applicable === false ? 0 : 1,
+            sal.overtime_rate || 0, sal.working_hours || 8, sal.pf_applicable === false ? 0 : 1, sal.esic_applicable === false ? 0 : 1,
             sal.other_deduction || 0
           )
       )
@@ -748,14 +750,14 @@ employeeRoutes.post('/import', async (c) => {
         ops.push(
           db
             .prepare(
-              `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, pf_applicable, esic_applicable, other_deduction)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+              `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, working_hours, pf_applicable, esic_applicable, other_deduction)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
             )
             .bind(
               target.id, d.joining_date || today,
               s.basic || 0, s.hra || 0, s.conveyance || 0, s.other_allowance || 0,
               s.other_allowance_label ?? null,
-              s.overtime_rate || 0, s.pf_applicable === false ? 0 : 1, s.esic_applicable === false ? 0 : 1,
+              s.overtime_rate || 0, s.working_hours || 8, s.pf_applicable === false ? 0 : 1, s.esic_applicable === false ? 0 : 1,
               s.other_deduction || 0
             )
         )
@@ -865,14 +867,14 @@ employeeRoutes.put('/:id', async (c) => {
     const s = d.salary
     await db
       .prepare(
-        `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, pf_applicable, esic_applicable, other_deduction)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+        `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, working_hours, pf_applicable, esic_applicable, other_deduction)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
       )
       .bind(
         id, d.joining_date || new Date().toISOString().slice(0, 10),
         s.basic || 0, s.hra || 0, s.conveyance || 0, s.other_allowance || 0,
         s.other_allowance_label ?? null,
-        s.overtime_rate || 0, s.pf_applicable === false ? 0 : 1, s.esic_applicable === false ? 0 : 1, s.other_deduction || 0
+        s.overtime_rate || 0, s.working_hours || 8, s.pf_applicable === false ? 0 : 1, s.esic_applicable === false ? 0 : 1, s.other_deduction || 0
       )
       .run()
   }
@@ -903,6 +905,7 @@ const revisionSchema = z.object({
   conveyance: z.number().min(0).default(0),
   other_allowance: z.number().min(0).default(0),
   overtime_rate: z.number().min(0).default(0),
+  working_hours: z.number().min(1).max(24).optional(),
   designation: z.string().max(100).optional(),
   remarks: z.string().max(500).optional(),
 })
@@ -939,10 +942,10 @@ employeeRoutes.post('/:id/revision', async (c) => {
   const ops: D1PreparedStatement[] = [
     db
       .prepare(
-        `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, pf_applicable, esic_applicable, other_deduction)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+        `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, working_hours, pf_applicable, esic_applicable, other_deduction)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
       )
-      .bind(id, d.effective_from, r2(d.basic), r2(d.hra), r2(d.conveyance), r2(d.other_allowance), oldStruct.other_allowance_label ?? null, r2(d.overtime_rate), Number(oldStruct.pf_applicable ?? 1), Number(oldStruct.esic_applicable ?? 1), Number(oldStruct.other_deduction || 0)),
+      .bind(id, d.effective_from, r2(d.basic), r2(d.hra), r2(d.conveyance), r2(d.other_allowance), oldStruct.other_allowance_label ?? null, r2(d.overtime_rate), Number(d.working_hours) || Number(oldStruct.working_hours) || 8, Number(oldStruct.pf_applicable ?? 1), Number(oldStruct.esic_applicable ?? 1), Number(oldStruct.other_deduction || 0)),
     db
       .prepare(
         `INSERT INTO salary_revisions (employee_id, effective_from, reason, old_basic, new_basic, old_gross, new_gross, designation, remarks, created_by)

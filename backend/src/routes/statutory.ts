@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Env } from '../types'
 import { getDb } from '../utils/db'
 import { r2 } from '../utils/money'
+import { daysInMonth } from '../services/payroll'
 import { requireRole, STAFF_ROLES } from '../middleware/auth'
 
 export const statutoryRoutes = new Hono<{ Bindings: Env }>()
@@ -363,11 +364,9 @@ statutoryRoutes.get('/ot-compliance', async (c) => {
     return c.json({ error: { code: 'validation_error', message: 'month and year are required.' } }, 400)
   }
   const db = getDb(c.env)
-  const setRow: any = await db.prepare('SELECT salary_basis_days FROM settings WHERE id = 1').first()
-  const basisDays = Number(setRow?.salary_basis_days) || 26
   const rows = await db.prepare(
     `SELECT a.employee_id, e.employee_code, e.first_name, e.last_name,
-      a.ot_hours, st.overtime_rate AS ot_rate, st.basic
+      a.ot_hours, st.overtime_rate AS ot_rate, st.basic, st.hra, st.conveyance, st.other_allowance, st.working_hours
      FROM attendance_monthly a
      JOIN employees e ON e.id = a.employee_id
      JOIN salary_structures st ON st.id = (
@@ -376,11 +375,14 @@ statutoryRoutes.get('/ot-compliance', async (c) => {
      WHERE a.month = ? AND a.year = ? AND a.ot_hours > 0
      ORDER BY e.first_name`
   ).bind(month, year).all()
+  const dim = daysInMonth(month, year)
   const data = (rows.results as any[]).map((r) => {
-    const dailyRate = Number(r.basic) / basisDays
-    const hourlyRate = dailyRate / 8
+    const earnings = Number(r.basic) + Number(r.hra) + Number(r.conveyance) + Number(r.other_allowance)
+    const hours = Number(r.working_hours) || 8
+    const dailyRate = earnings / dim
+    const hourlyRate = dailyRate / hours
     const requiredRate = r2(hourlyRate * 2)
-    const actualRate = Number(r.ot_rate)
+    const actualRate = r2(hourlyRate)
     const payableRequired = r2(requiredRate * Number(r.ot_hours))
     const payableActual = r2(actualRate * Number(r.ot_hours))
     return {
@@ -401,11 +403,11 @@ statutoryRoutes.get('/ot-compliance', async (c) => {
   return c.json({
     data,
     meta: {
-      month, year, basis_days: basisDays,
+      month, year, basis_days: dim,
       ot_workers: data.length,
       violations: violations.length,
       total_gap: r2(violations.reduce((s, d) => s + d.gap, 0)),
-      rule: 'OT must be paid at twice the ordinary hourly rate (Basic ÷ basis days ÷ 8 × 2).',
+      rule: 'OT must be paid at twice the ordinary hourly rate (earnings ÷ days in month ÷ working hours per day × 2).',
     },
   })
 })

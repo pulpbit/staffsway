@@ -76,6 +76,7 @@ export interface SalaryRow {
   conveyance: number
   other_allowance: number
   overtime_rate: number
+  working_hours: number
   pf_applicable: number
   esic_applicable: number
   other_deduction: number
@@ -97,6 +98,7 @@ export interface AttendanceRow {
 
 export interface PayrollSettings {
   salary_basis_days: number
+  default_ot_rate: number
   pf_rate: number
   pf_cap: number
   pf_eligibility: number

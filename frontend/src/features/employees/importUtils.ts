@@ -60,7 +60,8 @@ export const IMPORT_COLUMNS: ImportColumn[] = [
   { key: 'hra', label: 'hra', type: 'number' },
   { key: 'conveyance', label: 'conveyance', type: 'number' },
   { key: 'other_allowance', label: 'other_allowance', type: 'number' },
-  { key: 'overtime_rate', label: 'overtime_rate', type: 'number', hint: 'OT rate per hour' },
+  { key: 'overtime_rate', label: 'overtime_rate', type: 'number', hint: 'OT rate per hour (fallback only)' },
+  { key: 'working_hours', label: 'working_hours', type: 'number', hint: 'Working hours per day, e.g. 8 or 9' },
   { key: 'other_deduction', label: 'other_deduction', type: 'number' },
   { key: 'pf_applicable', label: 'pf_applicable', type: 'bool', options: ['Yes', 'No'] },
   { key: 'esic_applicable', label: 'esic_applicable', type: 'bool', options: ['Yes', 'No'] },
@@ -75,6 +76,7 @@ const SALARY_NUM_MAP: Record<string, string> = {
   conveyance: 'conveyance',
   other_allowance: 'other_allowance',
   overtime_rate: 'overtime_rate',
+  working_hours: 'working_hours',
   other_deduction: 'other_deduction',
 }
 const SALARY_FLAG_MAP: Record<string, string> = { pf_applicable: 'pf_applicable', esic_applicable: 'esic_applicable' }
@@ -109,6 +111,8 @@ const HEADER_ALIASES: Record<string, string> = {
   site: 'site_name',
   basic__salary: 'basic',
   ot__rate: 'overtime_rate',
+  working__hours: 'working_hours',
+  working__days: 'working_hours',
 }
 
 function normalizeHeader(h: string): string {
@@ -281,6 +285,7 @@ export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteR
         conveyance: typeof salaryInput.conveyance === 'number' ? salaryInput.conveyance : 0,
         other_allowance: typeof salaryInput.other_allowance === 'number' ? salaryInput.other_allowance : 0,
         overtime_rate: typeof salaryInput.overtime_rate === 'number' ? salaryInput.overtime_rate : 0,
+        working_hours: typeof salaryInput.working_hours === 'number' ? salaryInput.working_hours : undefined,
         pf_applicable: salaryInput.pf_applicable ?? true,
         esic_applicable: salaryInput.esic_applicable ?? true,
         other_deduction: typeof salaryInput.other_deduction === 'number' ? salaryInput.other_deduction : 0,
@@ -350,6 +355,7 @@ function templateExampleRow(): Record<string, unknown> {
     conveyance: 800,
     other_allowance: 600,
     overtime_rate: 80,
+    working_hours: 8,
     other_deduction: 0,
     pf_applicable: 'Yes',
     esic_applicable: 'Yes',

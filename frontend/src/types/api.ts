@@ -109,6 +109,7 @@ export interface SalaryStructure {
   other_allowance: number
   other_allowance_label?: string | null
   overtime_rate: number
+  working_hours: number
   pf_applicable: number
   esic_applicable: number
   other_deduction: number
@@ -261,6 +262,9 @@ export interface PayrollItem {
   hra: number
   conveyance: number
   other_allowance: number
+  working_hours: number
+  daily_rate: number
+  hourly_rate: number
   overtime_earnings: number
   attendance_deduction: number
   incentive: number
@@ -424,6 +428,8 @@ export interface PayrollPreview {
     earnings: number
     overtimeEarnings: number
     perDay: number
+    hourlyRate: number
+    daysInMonth: number
     has_attendance_draft: boolean
   })[]
   totals: { gross: number; net: number; deductions: number }

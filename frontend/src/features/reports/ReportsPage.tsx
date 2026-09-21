@@ -132,6 +132,7 @@ const REPORTS: ReportDef[] = [
     { key: 'client_name', header: 'Client' },
     { key: 'present_days', header: 'Present' },
     { key: 'ot_hours', header: 'OT Hrs' },
+    { key: 'hourly_rate', header: 'Rate/hr', render: (r: any) => money(r.hourly_rate || 0) },
     { key: 'ot_amount', header: 'OT Amt', render: (r: any) => money(r.ot_amount) },
   ] },
   { key: 'shift', label: 'Shift', group: 'Attendance', clientFilter: true, siteFilter: true, columns: [
@@ -163,7 +164,7 @@ const REPORTS: ReportDef[] = [
     { key: 'designation', header: 'Designation' },
     { key: 'client_name', header: 'Client' },
     { key: 'monthly_salary', header: 'Monthly', render: (r: any) => money(r.monthly_salary) },
-    { key: 'overtime_rate', header: 'OT Rate', render: (r: any) => `${r.overtime_rate}/hr` },
+    { key: 'working_hours', header: 'Hours/Day', render: (r: any) => r.working_hours ? `${r.working_hours} hrs` : <span className="text-mute">—</span> },
   ] },
   { key: 'bank-statement', label: 'Bank Statement', group: 'Payroll', needsMonth: true, clientFilter: true, siteFilter: true, columns: [
     { key: 'employee_code', header: 'Code', className: 'font-mono text-[11px]' },

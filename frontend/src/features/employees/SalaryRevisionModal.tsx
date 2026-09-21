@@ -23,6 +23,7 @@ export default function SalaryRevisionModal({ open, onClose, employeeId, employe
     conveyance: '',
     other_allowance: '',
     overtime_rate: '',
+    working_hours: '',
     designation: '',
     remarks: '',
   })
@@ -43,6 +44,7 @@ export default function SalaryRevisionModal({ open, onClose, employeeId, employe
       conveyance: String(salary.conveyance ?? ''),
       other_allowance: String(salary.other_allowance ?? ''),
       overtime_rate: String(salary.overtime_rate ?? ''),
+      working_hours: String(salary.working_hours ?? ''),
     }
   }
 
@@ -62,6 +64,7 @@ export default function SalaryRevisionModal({ open, onClose, employeeId, employe
         conveyance: Number(form.conveyance) || 0,
         other_allowance: Number(form.other_allowance) || 0,
         overtime_rate: Number(form.overtime_rate) || 0,
+        working_hours: form.working_hours === '' ? undefined : (Number(form.working_hours) || 8),
         designation: form.designation || undefined,
         remarks: form.remarks || undefined,
       }),
@@ -70,7 +73,7 @@ export default function SalaryRevisionModal({ open, onClose, employeeId, employe
       qc.invalidateQueries({ queryKey: ['revisions', employeeId] })
       qc.invalidateQueries({ queryKey: ['employee', employeeId] })
       qc.invalidateQueries({ queryKey: ['employees'] })
-      setForm(f => ({ ...f, basic: '', hra: '', conveyance: '', other_allowance: '', overtime_rate: '', designation: '', remarks: '' }))
+      setForm(f => ({ ...f, basic: '', hra: '', conveyance: '', other_allowance: '', overtime_rate: '', working_hours: '', designation: '', remarks: '' }))
     },
     onError: (e: any) => toast.error(e?.error?.message || 'Failed to revise salary.'),
   })
@@ -106,11 +109,13 @@ export default function SalaryRevisionModal({ open, onClose, employeeId, employe
             <Input label="HRA (₹)" type="number" value={val('hra')} onChange={e => setForm(f => ({ ...f, hra: e.target.value }))} />
             <Input label="Conveyance (₹)" type="number" value={val('conveyance')} onChange={e => setForm(f => ({ ...f, conveyance: e.target.value }))} />
             <Input label="Other Allowance (₹)" type="number" value={val('other_allowance')} onChange={e => setForm(f => ({ ...f, other_allowance: e.target.value }))} />
-            <Input label="OT Rate (/hr)" type="number" value={val('overtime_rate')} onChange={e => setForm(f => ({ ...f, overtime_rate: e.target.value }))} />
+            <Input label="Working Hours / Day" type="number" min={1} max={24} step={1} value={val('working_hours')} onChange={e => setForm(f => ({ ...f, working_hours: e.target.value }))} />
+            <Input label="OT Rate (₹/hr — fallback)" type="number" value={val('overtime_rate')} onChange={e => setForm(f => ({ ...f, overtime_rate: e.target.value }))} />
             <Input label="New Designation (for promotion)" value={form.designation} onChange={e => setForm(f => ({ ...f, designation: e.target.value }))} placeholder={salary ? undefined : ''} />
           </div>
           <Input label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} />
           <p className="text-[11px] text-mute">A new salary structure is created from the effective date. Past payslips and payroll runs stay unchanged.</p>
+          <p className="text-[11px] text-mute">Hourly rate = (Basic + HRA + Conveyance + Other Allowance) ÷ days in month ÷ Working Hours/day. OT is paid at that hourly rate; the OT rate field is only a fallback.</p>
 
           {(revData?.data || []).length > 0 && (
             <div>

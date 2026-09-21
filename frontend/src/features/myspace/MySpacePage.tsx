@@ -105,14 +105,14 @@ function OverviewTab({ profile }: { profile: any }) {
             <Table
               columns={[
                 { key: 'c', header: 'Component' },
-                { key: 'a', header: 'Amount', render: (r: any) => <span className={`${r.$strong ? 'font-semibold' : 'font-medium'} tabular-nums`}>{money(r.a)}</span> },
+                { key: 'a', header: 'Amount', render: (r: any) => <span className={`${r.$strong ? 'font-semibold' : 'font-medium'} tabular-nums`}>{r.$text ? r.a : money(r.a)}</span> },
               ]}
               data={[
                 { c: 'Basic', a: profile.basic },
                 { c: 'House Rent Allowance', a: profile.hra },
                 { c: 'Conveyance', a: profile.conveyance },
                 { c: 'Other Allowance', a: profile.other_allowance },
-                { c: 'OT Rate (₹/hour)', a: profile.overtime_rate },
+                { c: 'Working Hours / Day', a: `${profile.working_hours || 8} hrs`, $text: true },
                 { c: 'Gross Fixed', a: gross, $strong: true },
               ]}
               keyFn={(r: any) => r.c}

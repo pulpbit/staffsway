@@ -5,7 +5,7 @@ import {
   Menu, X, LayoutDashboard, Users, Building2, MapPin, CalendarCheck, UserPlus, CalendarDays, IndianRupee,
   FileText, BarChart3, Settings, LogOut, ChevronDown, ShieldCheck, UserRound, Target, FolderOpen, Package,
   GraduationCap, UserMinus, HeadphonesIcon, PanelLeftClose, PanelLeftOpen, Search as SearchIcon, Building2 as OrgIcon,
-  Loader2, User as UserIcon,
+  Loader2, User as UserIcon, ArrowRightLeft, Upload, ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { employeeApi, settingsApi } from '@/services/api'
@@ -16,16 +16,28 @@ import { fullName } from '@/utils/format'
 
 interface NavItem { to: string; label: string; icon: any; end?: boolean }
 interface NavGroup { label: string; items: NavItem[] }
+interface NavSubmenu { label: string; icon: any; submenu: NavItem[] }
+type NavEntry = NavGroup | NavSubmenu
 
-const NAV_GROUPS: NavGroup[] = [
+const NAV_GROUPS: NavEntry[] = [
   {
     label: 'Overview',
     items: [{ to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true }],
   },
   {
+    label: 'Employee Management',
+    icon: Users,
+    submenu: [
+      { to: '/employees?add=1', label: 'Add New Employee', icon: UserPlus },
+      { to: '/employees', label: 'Employee Master', icon: Users, end: true },
+      { to: '/documents', label: 'Employee Docs', icon: FileText },
+      { to: '/employees/transfer', label: 'Employee Transfer', icon: ArrowRightLeft },
+      { to: '/employees?import=1', label: 'Bulk Import', icon: Upload },
+    ],
+  },
+  {
     label: 'People',
     items: [
-      { to: '/employees', label: 'Employees', icon: Users },
       { to: '/recruitment', label: 'Recruitment', icon: UserPlus },
       { to: '/performance', label: 'Performance', icon: Target },
       { to: '/separation', label: 'Separation', icon: UserMinus },
@@ -64,7 +76,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ]
 
-const EMPLOYEE_GROUPS: NavGroup[] = [
+const EMPLOYEE_GROUPS: NavEntry[] = [
   { label: 'My Workplace', items: [{ to: '/my', label: 'My Space', icon: UserRound }] },
 ]
 
@@ -78,13 +90,27 @@ const roleLabel: Record<string, string> = {
   employee: 'Employee',
 }
 
+const isGroup = (e: NavEntry): e is NavGroup => 'items' in e
+
+const pathsFor = (item: NavItem) => item.to.split('?')[0]
+
 function useCrumb(locationPath: string): Crumb[] {
   const groups = NAV_GROUPS
   for (const g of groups) {
-    for (const item of g.items) {
-      if (locationPath === item.to || locationPath.startsWith(item.to + '/')) {
-        if (g.items.length === 1 && g.label === 'Overview') return []
-        return [{ label: g.label, to: g.items[0].to }, { label: item.label }]
+    if (isGroup(g)) {
+      for (const item of g.items) {
+        const to = pathsFor(item)
+        if (locationPath === to || locationPath.startsWith(to + '/')) {
+          if (g.items.length === 1 && g.label === 'Overview') return []
+          return [{ label: g.label, to }, { label: item.label }]
+        }
+      }
+    } else {
+      for (const item of g.submenu) {
+        const to = pathsFor(item)
+        if (locationPath === to || locationPath.startsWith(to + '/')) {
+          return [{ label: g.label, to: '/employees' }, { label: item.label }]
+        }
       }
     }
   }
@@ -164,6 +190,66 @@ function GlobalSearch({ onNavigate }: { onNavigate: () => void }) {
 }
 
 // ---------- Sidebar ----------
+function SubmenuNav({ entry, collapsed, onNavigate }: { entry: NavSubmenu; collapsed: boolean; onNavigate: () => void }) {
+  const location = useLocation()
+  const [open, setOpen] = useState(false)
+  const active = entry.submenu.some((it) => {
+    const to = pathsFor(it)
+    return location.pathname === to || location.pathname.startsWith(to + '/')
+  })
+  const isOpen = open || (!collapsed && active)
+
+  useEffect(() => {
+    if (active) setOpen(true)
+  }, [active])
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => { if (!collapsed) setOpen((v) => !v) }}
+        title={collapsed ? entry.label : undefined}
+        aria-label={entry.label}
+        aria-expanded={isOpen}
+        className={`group flex items-center gap-2.5 h-8 px-2.5 rounded-sm text-[13px] font-medium transition-colors relative w-full ${
+          active ? 'bg-white/12 text-white' : 'text-white/60 hover:text-white hover:bg-white/5'
+        }`}
+      >
+        <entry.icon className="w-4 h-4 shrink-0" />
+        {!collapsed && <span className="truncate flex-1 text-left">{entry.label}</span>}
+        {!collapsed && (
+          <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+        )}
+        {collapsed && (
+          <span className="pointer-events-none absolute left-full ml-3 z-50 hidden group-hover:block whitespace-nowrap bg-navy text-white text-[12px] px-2 py-1 rounded-sm card-shadow-lg">
+            {entry.label}
+          </span>
+        )}
+      </button>
+      {isOpen && (
+        <div className="mt-0.5 space-y-0.5">
+          {entry.submenu.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `group flex items-center gap-2.5 h-7 pl-8 pr-2.5 rounded-sm text-[12.5px] transition-colors relative ${
+                  isActive ? 'bg-white/10 text-white' : 'text-white/55 hover:text-white hover:bg-white/5'
+                }`
+              }
+              onClick={onNavigate}
+            >
+              <item.icon className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{item.label}</span>
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate: () => void }) {
   const { user } = useAuth()
   const groups = user?.role === 'employee' ? EMPLOYEE_GROUPS : NAV_GROUPS
@@ -177,34 +263,37 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate:
 
   return (
     <nav className="flex-1 min-h-0 overflow-y-auto scrollbar-thin px-2 py-3 space-y-4" aria-label="Main navigation">
-      {groups.map((g) => (
-        <div key={g.label}>
-          {!collapsed && (
-            <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/30">{g.label}</p>
-          )}
-          <div className="space-y-0.5">
-            {g.items.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                title={collapsed ? item.label : undefined}
-                aria-label={item.label}
-                className={linkClass}
-                onClick={onNavigate}
-              >
-                <item.icon className="w-4 h-4 shrink-0" />
-                {!collapsed && <span className="truncate">{item.label}</span>}
-                {collapsed && (
-                  <span className="pointer-events-none absolute left-full ml-3 z-50 hidden group-hover:block whitespace-nowrap bg-navy text-white text-[12px] px-2 py-1 rounded-sm card-shadow-lg">
-                    {item.label}
-                  </span>
-                )}
-              </NavLink>
-            ))}
+      {groups.map((g) => {
+        if (!isGroup(g)) return <SubmenuNav key={g.label} entry={g} collapsed={collapsed} onNavigate={onNavigate} />
+        return (
+          <div key={g.label}>
+            {!collapsed && (
+              <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/30">{g.label}</p>
+            )}
+            <div className="space-y-0.5">
+              {g.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  title={collapsed ? item.label : undefined}
+                  aria-label={item.label}
+                  className={linkClass}
+                  onClick={onNavigate}
+                >
+                  <item.icon className="w-4 h-4 shrink-0" />
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                  {collapsed && (
+                    <span className="pointer-events-none absolute left-full ml-3 z-50 hidden group-hover:block whitespace-nowrap bg-navy text-white text-[12px] px-2 py-1 rounded-sm card-shadow-lg">
+                      {item.label}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </nav>
   )
 }

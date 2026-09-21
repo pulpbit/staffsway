@@ -1,0 +1,1 @@
+ALTER TABLE salary_structures ADD COLUMN working_hours REAL NOT NULL DEFAULT 8;

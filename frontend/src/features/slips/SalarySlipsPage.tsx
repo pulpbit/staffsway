@@ -138,6 +138,9 @@ export default function SalarySlipsPage() {
                 <span><span className="text-mute">Paid Leave:</span> <span className="font-medium tabular-nums">{detail.item?.att_paid || detail.item?.paid_leave || 0}</span></span>
                 <span><span className="text-mute">Unpaid Leave:</span> <span className="font-medium tabular-nums">{detail.item?.att_unpaid || detail.item?.unpaid_leave || 0}</span></span>
                 <span><span className="text-mute">OT Hours:</span> <span className="font-medium tabular-nums">{detail.item?.att_ot || detail.item?.ot_hours || 0}</span></span>
+                <span><span className="text-mute">Hours/Day:</span> <span className="font-medium tabular-nums">{detail.item?.working_hours || 8}</span></span>
+                <span><span className="text-mute">Day Rate:</span> <span className="font-medium tabular-nums">{money(detail.item?.daily_rate || 0)}</span></span>
+                <span><span className="text-mute">Hourly Rate:</span> <span className="font-medium tabular-nums">{money(detail.item?.hourly_rate || 0)}</span></span>
               </div>
             </div>
 

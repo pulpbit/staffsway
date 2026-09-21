@@ -79,7 +79,7 @@ export const employeeApi = {
   verifyDocument: (id: number, docId: number, verified: boolean) => api.patch<unknown[]>(`/employees/${id}/documents/${docId}/verify`, { verified }),
   setStatus: (id: number, status: string) => api.patch<import('@/types/api').Employee>(`/employees/${id}/status`, { status }),
   revisions: (id: number) => api.get<unknown[]>(`/employees/${id}/revisions`),
-  createRevision: (id: number, data: { effective_from: string; reason: 'increment' | 'promotion' | 'revision' | 'correction'; basic: number; hra?: number; conveyance?: number; other_allowance?: number; overtime_rate?: number; designation?: string; remarks?: string }) =>
+  createRevision: (id: number, data: { effective_from: string; reason: 'increment' | 'promotion' | 'revision' | 'correction'; basic: number; hra?: number; conveyance?: number; other_allowance?: number; overtime_rate?: number; working_hours?: number; designation?: string; remarks?: string }) =>
     api.post<import('@/types/api').Employee>(`/employees/${id}/revision`, data),
   delete: (id: number) => api.delete(`/employees/${id}`),
   importEmployees: (rows: unknown[]) => api.post<EmployeeImportResult>('/employees/import', { rows }),
@@ -314,7 +314,7 @@ export interface EssProfile {
   id: number; employee_code: string; first_name: string; last_name: string; email?: string | null; mobile?: string | null
   designation?: string | null; department?: string | null; joining_date: string; status: string
   employee_type?: string | null; shift_type?: string | null; site_name?: string | null; client_name?: string | null
-  basic: number; hra: number; conveyance: number; other_allowance: number; overtime_rate: number
+  basic: number; hra: number; conveyance: number; other_allowance: number; overtime_rate: number; working_hours: number
   salary_effective_from?: string | null
   pf_applicable?: number; esi_applicable?: number; lwf_applicable?: number; pt_applicable?: number; tds_applicable?: number
 }

@@ -46,6 +46,7 @@ const joinSchema = z.object({
   hra: z.number().min(0).optional(),
   conveyance: z.number().min(0).optional(),
   other_allowance: z.number().min(0).optional(),
+  working_hours: z.number().min(1).max(24).optional(),
 })
 
 const ONBOARDING_CHECKLIST = [
@@ -256,8 +257,8 @@ recruitmentRoutes.post('/candidates/:id/join', async (c) => {
     .run()
   const employeeId = Number(info.meta.last_row_id)
 
-  await db.prepare('INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance) VALUES (?,?,?,?,?,?)')
-    .bind(employeeId, d.joining_date, d.basic, d.hra ?? 0, d.conveyance ?? 0, d.other_allowance ?? 0).run()
+  await db.prepare('INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, working_hours) VALUES (?,?,?,?,?,?,?)')
+    .bind(employeeId, d.joining_date, d.basic, d.hra ?? 0, d.conveyance ?? 0, d.other_allowance ?? 0, d.working_hours ?? 8).run()
   await db.prepare('INSERT OR IGNORE INTO employee_statutory (employee_id, pf_applicable, esi_applicable, pt_applicable) VALUES (?,1,1,1)').bind(employeeId).run()
 
   for (const task of ONBOARDING_CHECKLIST) {
