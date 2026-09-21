@@ -106,7 +106,7 @@ export default function AttendancePage() {
     if (row.marks?.[date]) return row.marks[date]
     return defaultMark(date, WEEKDAY_DOW[row.weekly_off] ?? 0, holidaySet)
   }
-  const isGridRow = (row: AttendanceSheetRow) => !!row.marks || changes.has(row.employee_id)
+  const isGridRow = (_row: AttendanceSheetRow) => true
 
   const gridSummary = (row: AttendanceSheetRow) => {
     const marks: Record<string, AttendanceMark> = {}
@@ -318,27 +318,23 @@ export default function AttendancePage() {
                       ))}
                       {days.map((d) => {
                         const date = d.date
-                        const mark = grid ? markFor(row, date) : null
+                        const mark = markFor(row, date)
                         const isWeekend = weeklyOffDow === d.dow
                         const holiday = holidaySet.has(date)
                         const isOverride = mark !== null && mark !== defaultMark(date, weeklyOffDow, holidaySet)
                         return (
                           <td key={date} className="px-0.5 py-1 text-center border-l border-hairline" style={{ minWidth: DAY_W, width: DAY_W }}>
-                            {mark === null ? (
-                              <span className="text-mute/40 select-none" title={isWeekend ? 'Weekly rest' : holiday ? 'Holiday' : 'Not entered'}>·</span>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={locked}
-                                aria-label={`${date} ${MARK_LABEL[mark]}`}
-                                onClick={(e) => !locked && setMenu({ empId: row.employee_id, date, x: e.clientX, y: e.clientY })}
-                                onKeyDown={handleKey(row, date)}
-                                title={`${d.label} ${d.dayNo} · ${MARK_LABEL[mark]}${isOverride ? ' (override)' : ''}`}
-                                className={`w-full h-7 rounded-sm text-[11px] font-semibold tabular-nums transition-colors relative ${locked ? 'cursor-default' : 'cursor-pointer hover:ring-1 hover:ring-navy-mid'} ${MARK_CHIP[mark]} ${isOverride ? 'ring-1 ring-warning/40' : ''}`}
-                              >
-                                {MARK_TEXT[mark]}
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              disabled={locked}
+                              aria-label={`${date} ${MARK_LABEL[mark]}`}
+                              onClick={(e) => !locked && setMenu({ empId: row.employee_id, date, x: e.clientX, y: e.clientY })}
+                              onKeyDown={handleKey(row, date)}
+                              title={`${d.label} ${d.dayNo} · ${MARK_LABEL[mark]}${isOverride ? ' (override)' : ''}`}
+                              className={`w-full h-7 rounded-sm text-[11px] font-semibold tabular-nums transition-colors relative ${locked ? 'cursor-default' : 'cursor-pointer hover:ring-1 hover:ring-navy-mid'} ${MARK_CHIP[mark]} ${isOverride ? 'ring-1 ring-warning/40' : ''}`}
+                            >
+                              {MARK_TEXT[mark]}
+                            </button>
                           </td>
                         )
                       })}
