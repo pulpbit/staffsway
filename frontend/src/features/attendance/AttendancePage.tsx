@@ -232,8 +232,7 @@ export default function AttendancePage() {
   // Sticky left offsets accumulate.
   let leftAcc = 0
   const leftOffsets = LEFT_COLS.map((c) => { const o = leftAcc; leftAcc += c.w; return o })
-  let rightAcc = 0
-  const rightOffsets = RIGHT_COLS.map((c) => { const o = rightAcc; rightAcc += c.w; return o })
+  const rightAcc = RIGHT_COLS.reduce((s, c) => s + c.w, 0)
 
   return (
     <div>
@@ -283,18 +282,16 @@ export default function AttendancePage() {
               <thead>
                 <tr>
                   {LEFT_COLS.map((c, i) => (
-                    <th key={c.label} rowSpan={2} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, zIndex: 30 }} className="sticky top-0 px-2 py-1.5 h-7 text-left text-[10px] font-medium font-mono text-mute uppercase tracking-[0.04em] bg-canvas-soft">{c.label}</th>
+                    <th key={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, zIndex: 30 }} className="sticky top-0 px-2 py-1.5 text-left text-[10px] font-medium font-mono text-mute uppercase tracking-[0.04em] bg-canvas-soft border-b border-hairline">{c.label}</th>
                   ))}
                   {days.map((d) => (
-                    <th key={d.date} className="px-0 py-1 h-7 text-center text-[10px] font-medium text-mute border-l border-b border-hairline" style={{ minWidth: DAY_W, width: DAY_W }}>{d.label}</th>
+                    <th key={d.date} className="sticky top-0 px-0 py-1 text-center border-l border-b border-hairline bg-canvas-soft" style={{ minWidth: DAY_W, width: DAY_W, zIndex: 20 }}>
+                      <span className="block text-[10px] font-medium text-mute leading-tight">{d.label}</span>
+                      <span className="block text-[11px] font-semibold text-ink tabular-nums leading-tight">{d.dayNo}</span>
+                    </th>
                   ))}
                   {RIGHT_COLS.map((c, i) => (
-                    <th key={c.key} rowSpan={2} style={{ right: rightOffsets[i], minWidth: c.w, width: c.w, zIndex: 30 }} className="sticky top-0 px-1.5 py-1 h-7 text-center text-[10px] font-medium font-mono text-mute uppercase tracking-[0.02em] bg-canvas-soft">{c.label}</th>
-                  ))}
-                </tr>
-                <tr>
-                  {days.map((d) => (
-                    <th key={d.date} className="sticky top-7 px-0 py-1 h-7 text-center text-[11px] font-semibold text-ink tabular-nums border-l border-b border-hairline bg-canvas-soft" style={{ minWidth: DAY_W, width: DAY_W, zIndex: 20 }}>{d.dayNo}</th>
+                    <th key={c.key} className="px-1.5 py-1 text-center text-[10px] font-medium font-mono text-mute uppercase tracking-[0.02em] bg-canvas-soft border-b border-hairline" style={{ minWidth: c.w, width: c.w }}>{c.label}</th>
                   ))}
                 </tr>
               </thead>
@@ -339,7 +336,7 @@ export default function AttendancePage() {
                         )
                       })}
                       {RIGHT_COLS.map((c, i) => (
-                        <td key={c.key} style={{ right: rightOffsets[i], minWidth: c.w, width: c.w, zIndex: 10 }} className="sticky px-1.5 py-1 text-center bg-inherit">
+                        <td key={c.key} className="px-1.5 py-1 text-center" style={{ minWidth: c.w, width: c.w }}>
                           {c.key === 'OT' ? (
                             <input
                               type="number" min={0} max={200} step={0.5}
@@ -380,7 +377,7 @@ export default function AttendancePage() {
                     )
                   })}
                   {RIGHT_COLS.map((c, i) => (
-                    <td key={c.key} style={{ right: rightOffsets[i], minWidth: c.w, width: c.w, zIndex: 20 }} className="sticky px-1.5 py-1 text-center bg-canvas-soft">
+                    <td key={c.key} className="px-1.5 py-1 text-center">
                       <span className="font-mono text-[11px] font-semibold text-ink tabular-nums">
                         {c.key === 'P' ? totals.p : c.key === 'A' ? totals.a : c.key === 'R' ? totals.rx : c.key === 'HD' ? totals.hd : c.key === 'HF' ? totals.hf : c.key === 'L' ? totals.l : c.key === 'OT' ? `${totals.ot}hrs` : c.key === 'PD' ? totals.pd : `₹${money(totals.amt)}`}
                       </span>
