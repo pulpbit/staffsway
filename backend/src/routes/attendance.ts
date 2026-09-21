@@ -9,7 +9,7 @@ const monthQuery = z.object({
   year: z.string().regex(/^\d{4}$/),
 })
 
-const MARK_CODES = ['P', 'A', 'R', 'HD', 'HF', 'L'] as const
+const MARK_CODES = ['P', 'A', 'R', 'HD', 'HF', 'L', 'X'] as const
 const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const WEEKDAY_DOW: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }
 
@@ -19,7 +19,8 @@ const dateStr = (month: number, year: number, dayNo: number) => `${year}-${pad(m
 const monthStart = (month: number, year: number) => `${year}-${pad(month)}-01`
 const monthEnd = (month: number, year: number) => `${year}-${pad(month)}-${pad(monthDays(month, year))}`
 
-const defaultMark = (date: string, weeklyOffDow: number, holidays: Set<string>): string => {
+const defaultMark = (date: string, weeklyOffDow: number, holidays: Set<string>, joiningDate?: string | null): string => {
+  if (joiningDate && date < String(joiningDate).slice(0, 10)) return 'X'
   const dow = new Date(`${date}T00:00:00`).getDay()
   if (dow === weeklyOffDow) return 'R'
   if (holidays.has(date)) return 'HD'
@@ -31,12 +32,12 @@ interface GridTotals {
   ot_hours: number; ot_days: number; payable_days: number; actual_salary: number; total_days: number
 }
 
-function computeGrid(stored: Record<string, string>, holidays: Set<string>, weeklyOffDow: number, monthlyEarnings: number, workingHours: number, otHours: number, month: number, year: number): GridTotals {
+function computeGrid(stored: Record<string, string>, holidays: Set<string>, weeklyOffDow: number, monthlyEarnings: number, workingHours: number, otHours: number, month: number, year: number, joiningDate?: string | null): GridTotals {
   const days = monthDays(month, year)
-  const counts = { P: 0, A: 0, R: 0, HD: 0, HF: 0, L: 0 }
+  const counts = { P: 0, A: 0, R: 0, HD: 0, HF: 0, L: 0, X: 0 }
   for (let d = 1; d <= days; d++) {
     const date = dateStr(month, year, d)
-    const final = stored[date] || defaultMark(date, weeklyOffDow, holidays)
+    const final = defaultMark(date, weeklyOffDow, holidays, joiningDate) === 'X' ? 'X' : (stored[date] || defaultMark(date, weeklyOffDow, holidays, joiningDate))
     counts[final as keyof typeof counts]++
   }
   const wHrs = workingHours > 0 ? workingHours : 8
@@ -84,7 +85,7 @@ async function fetchSheetRows(db: D1Database, month: number, year: number, opts:
   const empRows = await db
     .prepare(
       `SELECT e.id AS employee_id, e.employee_code, e.first_name, e.last_name,
-        e.father_name, e.spouse_name, e.designation, e.status,
+        e.father_name, e.spouse_name, e.designation, e.status, e.joining_date,
         s.id AS site_id, s.name AS site_name,
         COALESCE(s.weekly_off, 'Sun') AS weekly_off,
         c.id AS client_id, c.name AS client_name,
@@ -145,10 +146,11 @@ async function fetchSheetRows(db: D1Database, month: number, year: number, opts:
       father_name: e.father_name || null, spouse_name: e.spouse_name || null, designation: e.designation, status: e.status,
       site_id: e.site_id, site_name: e.site_name, client_id: e.client_id, client_name: e.client_name,
       weekly_off: e.weekly_off, monthly_earnings: earnings, working_hours: workHrs,
+      joining_date: e.joining_date || null,
       attendance_id: Number(e.attendance_id) || null, attendance_status: e.attendance_status || null,
     }
     if (stored) {
-      const calc = computeGrid(stored, holidays, weeklyOffDow, earnings, workHrs, Number(e.ot_hours) || 0, month, year)
+      const calc = computeGrid(stored, holidays, weeklyOffDow, earnings, workHrs, Number(e.ot_hours) || 0, month, year, e.joining_date || null)
       return { ...base, legacy: false, marks: stored, ...calc }
     }
     const present = Number(e.present_days) || 0
@@ -408,7 +410,7 @@ attendanceRoutes.post('/marks', async (c) => {
     const weeklyOffDow = WEEKDAY_DOW[(siteWeek as any)?.weekly_off || 'Sun'] ?? 0
 
     // Full grid = sent marks (already the final grid the user saw).
-    const counts = { P: 0, A: 0, R: 0, HD: 0, HF: 0, L: 0 }
+    const counts = { P: 0, A: 0, R: 0, HD: 0, HF: 0, L: 0, X: 0 }
     for (let d = 1; d <= dim; d++) {
       const date = dateStr(month, year, d)
       counts[marks[date] as keyof typeof counts]++

@@ -49,7 +49,7 @@ slipRoutes.get('/:id', async (c) => {
 
   const item = await db.prepare(
     `SELECT pi.*, e.employee_code, e.first_name, e.last_name, e.designation, e.department, e.gender, e.joining_date,
-       e.bank_name, e.bank_account, e.bank_ifsc, e.uan, e.pan,
+       e.bank_name, e.bank_account, e.bank_ifsc, e.uan, e.pan, e.esi_number,
        s.name AS site_name, c.name AS client_name,
        a.present_days AS att_present, a.absent_days AS att_absent, a.paid_leave AS att_paid, a.unpaid_leave AS att_unpaid, a.ot_hours AS att_ot
      FROM payroll_items pi

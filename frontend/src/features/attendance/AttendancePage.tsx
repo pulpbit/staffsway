@@ -10,9 +10,9 @@ import { toast } from 'sonner'
 import { Save, Lock, Download, CalendarCheck, CalendarX2, CalendarDays, Palmtree, Sun, Moon, BadgeCheck, IndianRupee } from 'lucide-react'
 import { monthYear, money } from '@/utils/format'
 import type { AttendanceSheetRow, AttendanceMark } from '@/types/api'
-import { MARK_ORDER, MARK_LABEL, MARK_CHIP, WEEKDAY_DOW, defaultMark, computeSummary, r2 } from './attendanceGrid'
+import { MARK_ORDER, MARK_LABEL, MARK_CHIP, WEEKDAY_DOW, defaultMark, isPreJoining, computeSummary, r2 } from './attendanceGrid'
 
-const MARK_TEXT = { P: 'P', A: 'A', R: 'R', HD: 'HD', HF: 'HF', L: 'L' } as const
+const MARK_TEXT = { P: 'P', A: 'A', R: 'R', HD: 'HD', HF: 'HF', L: 'L', X: 'X' } as const
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const LEFT_COLS = [
@@ -101,10 +101,11 @@ export default function AttendancePage() {
     return c?.ot_hours !== undefined ? c.ot_hours : (row.ot_hours ?? 0)
   }
   const markFor = (row: AttendanceSheetRow, date: string): AttendanceMark => {
+    if (isPreJoining(date, row.joining_date)) return 'X'
     const c = getChange(row.employee_id)
     if (c?.marks?.[date]) return c.marks[date]
     if (row.marks?.[date]) return row.marks[date]
-    return defaultMark(date, WEEKDAY_DOW[row.weekly_off] ?? 0, holidaySet)
+    return defaultMark(date, WEEKDAY_DOW[row.weekly_off] ?? 0, holidaySet, row.joining_date)
   }
   const isGridRow = (_row: AttendanceSheetRow) => true
 
@@ -125,6 +126,7 @@ export default function AttendancePage() {
 
   const setMark = (row: AttendanceSheetRow, date: string, mark: AttendanceMark) => {
     if (isLockedRow(row)) return
+    if (isPreJoining(date, row.joining_date)) return
     setChanges((prev) => {
       const next = new Map(prev)
       const cur = next.get(row.employee_id) || { marks: {} }
@@ -160,6 +162,7 @@ export default function AttendancePage() {
 
   const handleKey = (row: AttendanceSheetRow, date: string) => (e: React.KeyboardEvent) => {
     if (isLockedRow(row)) return
+    if (isPreJoining(date, row.joining_date)) return
     const k = e.key.toLowerCase()
     const map: Record<string, AttendanceMark> = { p: 'P', a: 'A', r: 'R', h: 'HD', f: 'HF', l: 'L' }
     if (map[k]) { e.preventDefault(); setMark(row, date, map[k]) }
@@ -220,7 +223,7 @@ export default function AttendancePage() {
       if (!isGridRow(row)) continue
       for (const d of days) {
         const date = d.date
-        const cell = (map[date] || (map[date] = { P: 0, A: 0, R: 0, HD: 0, HF: 0, L: 0 }))
+        const cell = (map[date] || (map[date] = { P: 0, A: 0, R: 0, HD: 0, HF: 0, L: 0, X: 0 }))
         cell[markFor(row, date)]++
       }
     }
@@ -321,17 +324,18 @@ export default function AttendancePage() {
                         const mark = markFor(row, date)
                         const isWeekend = weeklyOffDow === d.dow
                         const holiday = holidaySet.has(date)
-                        const isOverride = mark !== null && mark !== defaultMark(date, weeklyOffDow, holidaySet)
+                        const preJoin = isPreJoining(date, row.joining_date)
+                        const isOverride = !preJoin && mark !== null && mark !== defaultMark(date, weeklyOffDow, holidaySet, row.joining_date)
                         return (
                           <td key={date} className="px-0.5 py-1 text-center border-l border-hairline" style={{ minWidth: DAY_W, width: DAY_W }}>
                             <button
                               type="button"
-                              disabled={locked}
+                              disabled={locked || preJoin}
                               aria-label={`${date} ${MARK_LABEL[mark]}`}
-                              onClick={(e) => !locked && setMenu({ empId: row.employee_id, date, x: e.clientX, y: e.clientY })}
+                              onClick={(e) => !locked && !preJoin && setMenu({ empId: row.employee_id, date, x: e.clientX, y: e.clientY })}
                               onKeyDown={handleKey(row, date)}
                               title={`${d.label} ${d.dayNo} · ${MARK_LABEL[mark]}${isOverride ? ' (override)' : ''}`}
-                              className={`w-full h-7 rounded-sm text-[11px] font-semibold tabular-nums transition-colors relative ${locked ? 'cursor-default' : 'cursor-pointer hover:ring-1 hover:ring-navy-mid'} ${MARK_CHIP[mark]} ${isOverride ? 'ring-1 ring-warning/40' : ''}`}
+                              className={`w-full h-7 rounded-sm text-[11px] font-semibold tabular-nums transition-colors relative ${locked || preJoin ? 'cursor-default' : 'cursor-pointer hover:ring-1 hover:ring-navy-mid'} ${MARK_CHIP[mark]} ${isOverride ? 'ring-1 ring-warning/40' : ''}`}
                             >
                               {MARK_TEXT[mark]}
                             </button>
@@ -372,7 +376,7 @@ export default function AttendancePage() {
                   ))}
                   {days.map((d) => {
                     const c = dayCounts[d.date]
-                    const bits = c ? [c.P && `P${c.P}`, c.A && `A${c.A}`, c.R && `R${c.R}`, c.HD && `HD${c.HD}`, c.HF && `HF${c.HF}`, c.L && `L${c.L}`].filter(Boolean) : []
+                    const bits = c ? [c.P && `P${c.P}`, c.A && `A${c.A}`, c.R && `R${c.R}`, c.HD && `HD${c.HD}`, c.HF && `HF${c.HF}`, c.L && `L${c.L}`, c.X && `X${c.X}`].filter(Boolean) : []
                     return (
                       <td key={d.date} className="sticky bottom-0 px-0.5 py-1 text-center border-l border-hairline bg-canvas-soft" style={{ minWidth: DAY_W, width: DAY_W, zIndex: 10 }}>
                         <span className="text-[9px] leading-[1.35] text-mute tabular-nums block">{bits.join(' ')}</span>
@@ -413,12 +417,13 @@ export default function AttendancePage() {
         <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-info text-[9px] inline-flex items-center justify-center font-bold text-white">HD</span> Holiday</span>
         <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-warning text-[9px] inline-flex items-center justify-center font-bold text-ink">HF</span> Half Day (½ PD)</span>
         <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-error-deep text-[9px] inline-flex items-center justify-center font-bold text-white">L</span> Leave (no pay)</span>
+        <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-neutral-soft ring-1 ring-inset ring-hairline text-[9px] inline-flex items-center justify-center font-bold text-mute">X</span> Not Joined (before DOJ)</span>
         <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-warning-soft ring-1 ring-warning/40 text-[9px] inline-flex items-center justify-center font-bold text-warning-deep">A</span> Override</span>
         <span className="text-mute ml-auto">{dirtyCount} unsaved employee{dirtyCount === 1 ? '' : 's'}</span>
       </div>
 
       <p className="text-[11px] text-mute mt-2 shrink-0">
-        Click a day cell to mark an override (A / R / HD / HF / L), Right-click clears it. Keyboard: <b>P A R H F L</b> keys on a focused cell. Rest & holiday days default automatically; <b>Payable Days = P + R + HD + HF/2 + OT days</b>.
+        Click a day cell to mark an override (A / R / HD / HF / L), Right-click clears it. Keyboard: <b>P A R H F L</b> keys on a focused cell. Rest & holiday days default automatically; days before an employee's joining date are marked <b>X</b> (not payable). <b>Payable Days = P + R + HD + HF/2 + OT days</b>.
       </p>
 
       {menu && (

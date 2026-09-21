@@ -225,7 +225,7 @@ export interface AttendanceSheetHoliday {
   name: string
 }
 
-export type AttendanceMark = 'P' | 'A' | 'R' | 'HD' | 'HF' | 'L'
+export type AttendanceMark = 'P' | 'A' | 'R' | 'HD' | 'HF' | 'L' | 'X'
 
 export interface AttendanceSheetRow {
   employee_id: number
@@ -243,6 +243,7 @@ export interface AttendanceSheetRow {
   weekly_off: string
   monthly_earnings: number
   working_hours: number
+  joining_date?: string | null
   attendance_id: number | null
   attendance_status: string | null
   // Editable grid mode: full day marks + live totals.
@@ -420,6 +421,7 @@ export interface SalarySlipDetail {
     bank_ifsc?: string
     uan?: string
     pan?: string
+    esi_number?: string
     joining_date?: string
     department?: string
     gender?: string

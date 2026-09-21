@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from 'react'
+import { Fragment, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery } from '@tanstack/react-query'
 import { employeeApi, settingsApi } from '@/services/api'
@@ -29,6 +29,12 @@ export default function JoiningFormModal({ employeeId, onClose }: Props) {
     () => (employee && settings ? <JoiningFormBody employee={employee} settings={settings} /> : null),
     [employee, settings],
   )
+
+  useEffect(() => {
+    if (!content) return
+    document.body.classList.add('print-joining')
+    return () => document.body.classList.remove('print-joining')
+  }, [content])
 
   if (!employeeId) return null
 
@@ -69,22 +75,22 @@ function Section({ title, rows }: { title: string; rows: FieldRow[] }) {
   const chunked: FieldRow[][] = []
   for (let i = 0; i < rows.length; i += 2) chunked.push(rows.slice(i, i + 2))
   return (
-    <div className="mb-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.08em] border-b-2 border-neutral-400 pb-1 mb-1.5">{title}</p>
+    <div className="mb-2 break-inside-avoid">
+      <p className="text-[10px] font-bold uppercase tracking-[0.08em] border-b-2 border-neutral-400 pb-0.5 mb-1">{title}</p>
       <table className="w-full border-collapse">
         <tbody>
           {chunked.map((pair, i) => (
             <tr key={i}>
               {pair.map(([k, v]) => (
                 <Fragment key={k}>
-                  <td className="border border-neutral-300 bg-neutral-100/70 px-2 py-1.5 font-medium w-44 text-[11.5px]">{k}</td>
-                  <td className="border border-neutral-300 px-2 py-1.5 text-[12px] w-1/2 break-words">{v}</td>
+                  <td className="border border-neutral-300 bg-neutral-100/70 px-1.5 py-[3px] font-medium w-[42%] text-[10.5px]">{k}</td>
+                  <td className="border border-neutral-300 px-1.5 py-[3px] text-[11px] w-[58%] break-words">{v}</td>
                 </Fragment>
               ))}
               {pair.length === 1 && (
                 <>
-                  <td className="border border-neutral-300 bg-neutral-100/70 w-44" />
-                  <td className="border border-neutral-300" />
+                  <td className="border border-neutral-300 bg-neutral-100/70 w-[42%]" />
+                  <td className="border border-neutral-300 w-[58%]" />
                 </>
               )}
             </tr>
@@ -118,16 +124,16 @@ function JoiningFormBody({ employee: e, settings }: { employee: Employee; settin
   const name = fullName(e.first_name, e.last_name)
 
   return (
-    <div className="text-[12px] text-neutral-900 leading-relaxed">
-      <div className="text-center mb-5">
-        <p className="text-[20px] font-bold tracking-tight uppercase">{settings.company_name}</p>
-        {settings.company_tagline && <p className="text-[11px] text-neutral-600">{settings.company_tagline}</p>}
-        {companyLine1 && <p className="text-[11px] text-neutral-600">{companyLine1}</p>}
-        {companyLine2 && <p className="text-[11px] text-neutral-600">{companyLine2}</p>}
-        {companyLine3 && <p className="text-[11px] text-neutral-600">{companyLine3}</p>}
-        <hr className="mt-3 border-t-2 border-neutral-300" />
-        <p className="text-[16px] font-bold tracking-[0.12em] mt-2">JOINING FORM</p>
-        <p className="text-[11px] text-neutral-600 mt-0.5">Employee Joining Details &amp; Declaration</p>
+    <div className="text-[11px] text-neutral-900 leading-snug">
+      <div className="text-center mb-3">
+        <p className="text-[16px] font-bold tracking-tight uppercase">{settings.company_name}</p>
+        {settings.company_tagline && <p className="text-[10px] text-neutral-600">{settings.company_tagline}</p>}
+        {companyLine1 && <p className="text-[10px] text-neutral-600">{companyLine1}</p>}
+        {companyLine2 && <p className="text-[10px] text-neutral-600">{companyLine2}</p>}
+        {companyLine3 && <p className="text-[10px] text-neutral-600">{companyLine3}</p>}
+        <hr className="mt-2 border-t-2 border-neutral-300" />
+        <p className="text-[13px] font-bold tracking-[0.12em] mt-1.5">JOINING FORM</p>
+        <p className="text-[10px] text-neutral-600 mt-0.5">Employee Joining Details &amp; Declaration</p>
       </div>
 
       <Section title="1. Personal Details" rows={[
@@ -184,23 +190,25 @@ function JoiningFormBody({ employee: e, settings }: { employee: Employee; settin
         ['Professional Tax Applicable', yesNo(stat?.pt_applicable)],
       ]} />
 
-      <Section title="5. Bank Details" rows={[
-        ['Account Holder Name', e.bank_holder_name || '—'],
-        ['Bank Name', e.bank_name || '—'],
-        ['Account No.', e.bank_account || '—'],
-        ['IFSC Code', e.bank_ifsc || '—'],
-      ]} />
+      <div className="grid grid-cols-2 gap-x-4">
+        <Section title="5. Bank Details" rows={[
+          ['Account Holder Name', e.bank_holder_name || '—'],
+          ['Bank Name', e.bank_name || '—'],
+          ['Account No.', e.bank_account || '—'],
+          ['IFSC Code', e.bank_ifsc || '—'],
+        ]} />
 
-      <Section title="6. Nominee Details" rows={[
-        ['Nominee Name', nominee?.name || '—'],
-        ['Relation', nominee?.relation || '—'],
-        ['Share (%)', nominee?.share ? `${nominee.share}` : '—'],
-        ['Contact', nominee?.contact || '—'],
-      ]} />
+        <Section title="6. Nominee Details" rows={[
+          ['Nominee Name', nominee?.name || '—'],
+          ['Relation', nominee?.relation || '—'],
+          ['Share (%)', nominee?.share ? `${nominee.share}` : '—'],
+          ['Contact', nominee?.contact || '—'],
+        ]} />
+      </div>
 
-      <div className="mb-4">
-        <p className="text-[11px] font-bold uppercase tracking-[0.08em] border-b-2 border-neutral-400 pb-1 mb-1.5">7. Declaration</p>
-        <p className="text-justify text-[12px]">
+      <div className="mb-2 break-inside-avoid">
+        <p className="text-[10px] font-bold uppercase tracking-[0.08em] border-b-2 border-neutral-400 pb-0.5 mb-1">7. Declaration</p>
+        <p className="text-justify text-[11px]">
           I, <strong>{name}</strong>, hereby declare that the particulars furnished in this form are true, complete and
           correct to the best of my knowledge. I have read and understood the terms and conditions of my employment and
           agree to abide by the rules, regulations and policies of the company as amended from time to time. I authorize
@@ -209,7 +217,7 @@ function JoiningFormBody({ employee: e, settings }: { employee: Employee; settin
         </p>
       </div>
 
-      <div className="mt-10 flex items-end justify-between">
+      <div className="mt-6 flex items-end justify-between break-inside-avoid">
         <div>
           <p>____________________________</p>
           <p className="mt-1 font-medium">Signature of Employee</p>
@@ -217,11 +225,11 @@ function JoiningFormBody({ employee: e, settings }: { employee: Employee; settin
         </div>
         <div className="text-right">
           <p>For &amp; on behalf of <strong>{settings.company_name}</strong></p>
-          <p className="mt-10 font-medium">Authorized Signatory / HR</p>
+          <p className="mt-6 font-medium">Authorized Signatory / HR</p>
           <p className="mt-1 text-neutral-500">Date: ________________</p>
         </div>
       </div>
-      <p className="mt-6 text-center text-[10px] text-neutral-400 tracking-wide">This is a computer generated joining form.</p>
+      <p className="mt-3 text-center text-[10px] text-neutral-400 tracking-wide">This is a computer generated joining form.</p>
     </div>
   )
 }

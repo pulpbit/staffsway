@@ -189,15 +189,15 @@
   }
   .print-letter, .print-letter * { visibility: visible; }
   .print-letter { position: fixed; top: 0; left: 0; width: 100%; background: white; }
+  body.print-joining #root { display: none !important; }
   .print-join, .print-join * { visibility: visible; }
   .print-join {
     display: block !important;
-    position: absolute;
-    top: 0; left: 0;
+    position: static !important;
     width: 100%;
     margin: 0;
     padding: 0;
     background: white;
   }
-  @page { size: A4; margin: 16mm 12mm; }
+  @page { size: A4; margin: 12mm 10mm; }
 }

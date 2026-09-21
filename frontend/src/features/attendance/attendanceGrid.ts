@@ -11,6 +11,7 @@ export const MARK_LABEL: Record<AttendanceMark, string> = {
   HD: 'Holiday',
   HF: 'Half Day',
   L: 'Leave (LOP)',
+  X: 'Not Joined',
 }
 
 export const MARK_CHIP: Record<AttendanceMark, string> = {
@@ -20,11 +21,19 @@ export const MARK_CHIP: Record<AttendanceMark, string> = {
   HD: 'bg-info text-white',
   HF: 'bg-warning text-ink',
   L: 'bg-error-deep text-white',
+  X: 'bg-neutral-soft text-mute ring-1 ring-inset ring-hairline',
 }
 
 export const r2 = (n: number) => Math.round(n * 100) / 100
 
-export function defaultMark(date: string, weeklyOffDow: number, holidays: Set<string>): AttendanceMark {
+// Days before an employee's joining date are not worked (pre-joining).
+export function isPreJoining(date: string, joiningDate?: string | null): boolean {
+  if (!joiningDate) return false
+  return date < String(joiningDate).slice(0, 10)
+}
+
+export function defaultMark(date: string, weeklyOffDow: number, holidays: Set<string>, joiningDate?: string | null): AttendanceMark {
+  if (isPreJoining(date, joiningDate)) return 'X'
   const dow = new Date(`${date}T00:00:00`).getDay()
   if (dow === weeklyOffDow) return 'R'
   if (holidays.has(date)) return 'HD'
@@ -54,7 +63,7 @@ export function computeSummary(
   otHours: number,
   totalDays: number
 ): GridSummary {
-  const counts = { P: 0, A: 0, R: 0, HD: 0, HF: 0, L: 0 }
+  const counts = { P: 0, A: 0, R: 0, HD: 0, HF: 0, L: 0, X: 0 }
   for (const [date, mark] of Object.entries(marks)) {
     counts[mark as keyof typeof counts]++
   }

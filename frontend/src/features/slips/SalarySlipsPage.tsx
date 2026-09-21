@@ -127,6 +127,7 @@ export default function SalarySlipsPage() {
               {labelRow('DOJ', detail.item?.joining_date ? dateShort(String(detail.item.joining_date)) : '—')}
               {labelRow('UAN', detail.item?.uan, true)}
               {labelRow('PAN', detail.item?.pan, true)}
+              {labelRow('ESI No.', detail.item?.esi_number, true)}
             </div>
 
             {/* Attendance */}

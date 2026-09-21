@@ -393,6 +393,8 @@ function PayslipsTab() {
                 <p className="text-right"><span className="text-mute">Designation:</span> <span className="font-medium">{d.item.designation}</span></p>
                 <p><span className="text-mute">Present:</span> {d.item.att_present ?? d.item.present_days} days · OT {d.item.att_ot ?? d.item.ot_hours} hrs</p>
                 <p className="text-right"><span className="text-mute">Paid A/c:</span> {d.item.bank_account || '—'} ({d.item.bank_ifsc || '—'})</p>
+                <p><span className="text-mute">ESI No.:</span> <span className="font-mono">{d.item.esi_number || '—'}</span></p>
+                <p className="text-right"><span className="text-mute">UAN:</span> <span className="font-mono">{d.item.uan || '—'}</span></p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 py-3 text-[12px]">
                 <table className="w-full">

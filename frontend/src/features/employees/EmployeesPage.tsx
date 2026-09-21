@@ -14,7 +14,7 @@ import { fullName, dateShort, money } from '@/utils/format'
 import { downloadCsv } from '@/utils/csv'
 import { stateShort } from '@/utils/states'
 import { toast } from 'sonner'
-import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download } from 'lucide-react'
+import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download, ScrollText } from 'lucide-react'
 import EmployeeForm from './EmployeeForm'
 import JoiningFormModal from './JoiningFormModal'
 import SalaryRevisionModal from './SalaryRevisionModal'
@@ -195,13 +195,16 @@ export default function EmployeesPage() {
     { key: 'bank_ifsc', header: 'IFSC', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.bank_ifsc || '—'}</span> },
     { key: 'uan', header: 'UAN', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.uan || '—'}</span> },
     { key: 'esi_number', header: 'ESIC No.', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.esi_number || '—'}</span> },
-    { key: 'actions', header: '', className: 'w-16', render: (r) => (
+    { key: 'actions', header: '', className: 'w-24', render: (r) => (
       <div className="flex items-center gap-1">
         <button onClick={() => openView(r)} title="View profile" aria-label="View profile" className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer">
           <Eye className="w-4 h-4" />
         </button>
         <button onClick={() => openEdit(r.id)} title="Edit employee" aria-label="Edit employee" className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer">
           <Pencil className="w-4 h-4" />
+        </button>
+        <button onClick={() => setJoiningFor(r.id)} title="Generate joining form" aria-label="Generate joining form" className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer">
+          <ScrollText className="w-4 h-4" />
         </button>
       </div>
     ) },
