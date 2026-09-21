@@ -302,10 +302,11 @@ export default function AttendancePage() {
                   const dirty = changes.has(row.employee_id)
                   const s = rowSummary(row)
                   const weeklyOffDow = WEEKDAY_DOW[row.weekly_off] ?? 0
+                  const stickyBg = dirty ? 'bg-link-soft' : idx % 2 === 1 ? 'bg-canvas-soft' : 'bg-white'
                   return (
                     <tr key={row.employee_id} className={`border-b border-hairline transition-colors ${idx % 2 === 1 ? 'bg-canvas-soft/40' : ''} ${dirty ? 'bg-link-soft/30' : ''} hover:bg-canvas-soft/70`}>
                       {LEFT_COLS.map((c, i) => (
-                        <td key={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, zIndex: 10 }} className="sticky px-2 py-1.5 bg-inherit">
+                        <td key={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, zIndex: 10 }} className={`sticky px-2 py-1.5 shadow-[1px_0_0_0_rgba(1,27,63,0.06)] ${stickyBg}`}>
                           {i === 0 && <span className="font-mono text-[11px] text-mute">{row.employee_code}</span>}
                           {i === 1 && <span className="block text-[12px] font-medium text-ink leading-tight">{row.first_name} {row.last_name}</span>}
                           {i === 2 && <span className="block text-[11px] text-mute leading-tight truncate" title={[row.father_name, row.spouse_name].filter(Boolean).join(' / ') || ''}>{[row.father_name, row.spouse_name].filter(Boolean).join(' / ') || '—'}</span>}
