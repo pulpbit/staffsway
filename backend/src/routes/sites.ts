@@ -7,6 +7,7 @@ const siteSchema = z.object({
   client_id: z.number().int().positive(),
   name: z.string().min(1).max(191),
   status: z.enum(['active', 'inactive']).optional(),
+  weekly_off: z.string().regex(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)$/).optional().or(z.literal('')),
   address_line1: z.string().max(191).optional().or(z.literal('')),
   address_line2: z.string().max(191).optional().or(z.literal('')),
   state: z.string().max(100).optional().or(z.literal('')),
@@ -35,6 +36,7 @@ const siteSchema = z.object({
 })
 
 const SITE_COLUMNS = `s.id, s.client_id, s.name, s.status,
+  s.weekly_off,
   s.address_line1, s.address_line2, s.state, s.district, s.pincode,
   s.site_incharge, s.site_incharge_designation, s.site_incharge_contact, s.site_incharge_email,
   s.shift_type, s.overtime_enabled,
@@ -79,7 +81,7 @@ siteRoutes.get('/:id', async (c) => {
   return c.json({ data: { ...(site as object), employees: employees.results } })
 })
 
-const INSERT_COLUMNS = `client_id, name, status,
+const INSERT_COLUMNS = `client_id, name, status, weekly_off,
   address_line1, address_line2, state, district, pincode,
   site_incharge, site_incharge_designation, site_incharge_contact, site_incharge_email,
   shift_type, overtime_enabled, payroll_applicable, leave_policy_enabled, arrears_enabled,
@@ -105,10 +107,10 @@ siteRoutes.post('/', async (c) => {
   const info = await db
     .prepare(
       `INSERT INTO sites (${INSERT_COLUMNS.replaceAll(', ', ',')})
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .bind(
-      d.client_id, d.name, d.status ?? 'active',
+      d.client_id, d.name, d.status ?? 'active', d.weekly_off || 'Sun',
       d.address_line1 || null, d.address_line2 || null, d.state || null,
       d.district || null, d.pincode || null,
       d.site_incharge || null, d.site_incharge_designation || null,

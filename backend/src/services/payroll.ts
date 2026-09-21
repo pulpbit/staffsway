@@ -10,13 +10,13 @@ import { r2 } from '../utils/money'
  *
  * Salary basis per organization rule:
  *  - Daily rate = monthly earnings / actual days in the month (e.g. 30 or 31)
- *  - Hourly rate = daily rate / working hours per day (8 or 9, from salary structure)
- *  - Overtime pay = OT hours × hourly rate
- *  - Fallback when a salary structure has no working_hours set: the per-employee
- *    overtime_rate is used, then the organization default_ot_rate setting.
+ *  - Payable days (PD) = P + R + HD + (HF/2) + OT days (from the day grid)
+ *  - Attendance deduction = per-day × (total days − payable days)
+ *  - Overtime pay: new grid months credit OT days inside payable days at the
+ *    per-day rate (displayed separately). Legacy months fall back to
+ *    OT hours × hourly rate.
  *
  * Customization points for the final build:
- *  - Attendance deduction basis (per-day = earnings / days in month)
  *  - PF: rate, cap, and eligibility threshold
  *  - ESIC: rate and eligibility threshold
  *  - Professional tax: flat amount + minimum gross threshold
@@ -114,14 +114,21 @@ export function calculatePayroll(input: CalcInput): CalcResult | null {
   const earnings = basic + hra + conveyance + otherAllowance
   const dim = daysInMonth(Number(attendance.month), Number(attendance.year))
   const perDay = r2(earnings / dim)
-  const absentDays = attendance.absent_days + attendance.unpaid_leave
-  const attendanceDeduction = r2(perDay * absentDays)
+
+  // Grid-basis months expose payable days; legacy months fall back to
+  // total − absent − unpaid leave (which is what the old counts implied).
+  const gridBasis = attendance.payable_days !== null && attendance.payable_days !== undefined
+  const totalDays = attendance.total_days ?? dim
+  const payable = gridBasis ? Number(attendance.payable_days) : dim - attendance.absent_days - attendance.unpaid_leave
+  const attendanceDeduction = r2(perDay * Math.max(0, totalDays - payable))
   const hourlyRate = hourlyRateFor(Number(attendance.month), Number(attendance.year), salary, s.default_ot_rate)
-  const overtimeEarnings = r2(attendance.ot_hours * hourlyRate)
+  const overtimeEarnings = gridBasis
+    ? r2((Number(attendance.ot_days) || 0) * perDay)
+    : r2(attendance.ot_hours * hourlyRate)
   const incentive = r2(Number(input.incentive || 0))
   const bonus = r2(Number(input.bonus || 0))
   const arrears = r2(Number(input.arrears || 0))
-  const gross = r2(earnings - attendanceDeduction + overtimeEarnings + incentive + bonus + arrears)
+  const gross = r2(perDay * payable + (gridBasis ? 0 : overtimeEarnings) + incentive + bonus + arrears)
 
   const pfApplicable = (input.statutory ? input.statutory.pf_applicable === 1 : salary.pf_applicable === 1) && basic + hra <= s.pf_eligibility
   const pf = pfApplicable ? Math.min(r2(((basic + hra) * s.pf_rate) / 100), s.pf_cap) : 0

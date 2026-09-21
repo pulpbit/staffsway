@@ -11,6 +11,7 @@ import EmployeeTransferPage from '@/features/employees/EmployeeTransferPage'
 import ClientsPage from '@/features/clients/ClientsPage'
 import SitesPage from '@/features/sites/SitesPage'
 import AttendancePage from '@/features/attendance/AttendancePage'
+import AttendanceReportPage from '@/features/attendance/AttendanceReportPage'
 import RecruitmentPage from '@/features/recruitment/RecruitmentPage'
 import LeavesPage from '@/features/leaves/LeavesPage'
 import PayrollPage from '@/features/payroll/PayrollPage'
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="clients" element={<ClientsPage />} />
         <Route path="sites" element={<SitesPage />} />
         <Route path="attendance" element={<AttendancePage />} />
+        <Route path="attendance/report" element={<AttendanceReportPage />} />
         <Route path="recruitment" element={<RecruitmentPage />} />
         <Route path="leaves" element={<LeavesPage />} />
         <Route path="payroll" element={<PayrollPage />} />

@@ -94,6 +94,14 @@ export interface AttendanceRow {
   ot_hours: number
   remarks: string | null
   status: string
+  total_days: number | null
+  rest_days: number | null
+  holiday_days: number | null
+  half_days: number | null
+  leave_days: number | null
+  ot_days: number | null
+  payable_days: number | null
+  actual_salary: number | null
 }
 
 export interface PayrollSettings {

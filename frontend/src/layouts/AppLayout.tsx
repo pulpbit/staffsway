@@ -16,7 +16,7 @@ import { fullName } from '@/utils/format'
 
 interface NavItem { to: string; label: string; icon: any; end?: boolean }
 interface NavGroup { label: string; items: NavItem[] }
-interface NavSubmenu { label: string; icon: any; submenu: NavItem[] }
+interface NavSubmenu { label: string; icon: any; path?: string; submenu: NavItem[] }
 type NavEntry = NavGroup | NavSubmenu
 
 const NAV_GROUPS: NavEntry[] = [
@@ -27,6 +27,7 @@ const NAV_GROUPS: NavEntry[] = [
   {
     label: 'Employee Management',
     icon: Users,
+    path: '/employees',
     submenu: [
       { to: '/employees/new', label: 'Add New Employee', icon: UserPlus },
       { to: '/employees', label: 'Employee Master', icon: Users, end: true },
@@ -45,10 +46,18 @@ const NAV_GROUPS: NavEntry[] = [
     ],
   },
   {
+    label: 'Attendance',
+    icon: CalendarCheck,
+    path: '/attendance',
+    submenu: [
+      { to: '/attendance', label: 'Monthly Attendance', icon: CalendarCheck, end: true },
+      { to: '/attendance/report', label: 'Attendance Report', icon: BarChart3 },
+      { to: '/leaves', label: 'Leave Management', icon: CalendarDays },
+    ],
+  },
+  {
     label: 'Workforce',
     items: [
-      { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
-      { to: '/leaves', label: 'Leave Management', icon: CalendarDays },
       { to: '/payroll', label: 'Payroll', icon: IndianRupee },
       { to: '/slips', label: 'Salary Slips', icon: FileText },
     ],
@@ -115,10 +124,17 @@ function useCrumb(locationPath: string): Crumb[] {
         }
       }
     } else {
+      // Exact match first so nested pages (e.g. /attendance/report) show their own crumb.
       for (const item of g.submenu) {
         const to = pathsFor(item)
-        if (locationPath === to || locationPath.startsWith(to + '/')) {
-          return [{ label: g.label, to: '/employees' }, { label: item.label }]
+        if (locationPath === to) {
+          return [{ label: g.label, to: g.path || to }, { label: item.label }]
+        }
+      }
+      for (const item of g.submenu) {
+        const to = pathsFor(item)
+        if (locationPath.startsWith(to + '/')) {
+          return [{ label: g.label, to: g.path || to }, { label: item.label }]
         }
       }
     }

@@ -120,13 +120,19 @@ export const siteApi = {
 export const attendanceApi = {
   sheet: (month: number, year: number, params?: Record<string, string>) => {
     const q = new URLSearchParams({ month: String(month), year: String(year), ...params }).toString()
-    return api.get<{ month: number; year: number; rows: import('@/types/api').AttendanceSheetRow[]; finalized_count: number }>(`/attendance/sheet?${q}`)
+    return api.get<import('@/types/api').AttendanceSheet>(`/attendance/sheet?${q}`)
+  },
+  report: (month: number, year: number, params?: Record<string, string>) => {
+    const q = new URLSearchParams({ month: String(month), year: String(year), ...params }).toString()
+    return api.get<import('@/types/api').AttendanceReport>(`/attendance/report?${q}`)
   },
   list: (params?: Record<string, string>) => {
     const q = params ? `?${new URLSearchParams(params).toString()}` : ''
     return api.get<import('@/types/api').AttendanceRow[]>(`/attendance${q}`)
   },
   bulk: (month: number, year: number, items: unknown[]) => api.post<{ saved: number; employees: number }>('/attendance/bulk', { month, year, items }),
+  marks: (month: number, year: number, items: { employee_id: number; marks: Record<string, string>; ot_hours?: number }[]) =>
+    api.post<{ saved: number }>('/attendance/marks', { month, year, items }),
   update: (id: number, data: unknown) => api.put<import('@/types/api').AttendanceRow>(`/attendance/${id}`, data),
   finalize: (month: number, year: number, locked?: boolean) => api.post<{ updated: number; status: string }>('/attendance/finalize', { month, year, locked }),
   months: () => api.get<unknown[]>('/attendance/months'),

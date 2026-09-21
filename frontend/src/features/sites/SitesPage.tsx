@@ -36,6 +36,7 @@ const emptyForm = {
   site_incharge_contact: '',
   site_incharge_email: '',
   shift_type: 'General',
+  weekly_off: 'Sun',
   overtime_enabled: true,
   payroll_applicable: true,
   leave_policy_enabled: true,
@@ -106,6 +107,7 @@ export default function SitesPage() {
       site_incharge_contact: r.site_incharge_contact || '',
       site_incharge_email: r.site_incharge_email || '',
       shift_type: r.shift_type || 'General',
+      weekly_off: r.weekly_off || 'Sun',
       overtime_enabled: !!r.overtime_enabled,
       payroll_applicable: !!r.payroll_applicable,
       leave_policy_enabled: !!r.leave_policy_enabled,
@@ -155,6 +157,7 @@ export default function SitesPage() {
     { key: 'location', header: 'Location', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{[r.state, r.district].filter(Boolean).join(', ') || '—'}</span> },
     { key: 'incharge', header: 'Incharge', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{r.site_incharge || '—'}</span> },
     { key: 'shift', header: 'Shift', hideSm: true, render: (r: any) => <Badge className="bg-canvas-soft-2 text-body">{r.shift_type || 'General'}</Badge> },
+    { key: 'weekoff', header: 'Week Off', hideSm: true, render: (r: any) => <Badge className="bg-navy-soft text-navy-mid">{r.weekly_off || 'Sun'}</Badge> },
     { key: 'statutory', header: 'Statutory', hideSm: true, render: (r: any) => {
       const list = ['PF', 'ESI', 'LWF', 'PT', 'TDS'].filter(k =>
         k === 'PF' ? r.pf_applicable : k === 'ESI' ? r.esic_applicable : k === 'LWF' ? r.lwf_applicable : k === 'PT' ? r.pt_applicable : r.tds_applicable
@@ -234,6 +237,7 @@ export default function SitesPage() {
           <FormSection icon={SlidersHorizontal} title="Operational Details" subtitle="Shifts and overtime rules" className="mb-4">
             <FormGrid cols={2}>
               <Select label="Shifts" options={SHIFT_OPTIONS} value={form.shift_type} onChange={e => update('shift_type', e.target.value)} />
+              <Select label="Weekly Rest Day" options={['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => ({ value: d, label: d }))} value={form.weekly_off} onChange={e => update('weekly_off', e.target.value)} />
             </FormGrid>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
               <Toggle label="Overtime enabled" checked={form.overtime_enabled} onChange={v => update('overtime_enabled', v)} />

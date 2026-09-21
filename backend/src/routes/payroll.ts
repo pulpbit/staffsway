@@ -42,6 +42,7 @@ async function collectEmployees(db: D1Database, month: number, year: number, sco
     .prepare(
       `SELECT e.id AS employee_id, e.first_name, e.last_name, e.employee_code, e.designation, e.status,
         a.id AS attendance_id, a.present_days, a.absent_days, a.paid_leave, a.unpaid_leave, a.ot_hours, a.status AS attendance_status,
+        a.total_days, a.rest_days, a.holiday_days, a.half_days, a.leave_days, a.ot_days, a.payable_days, a.actual_salary,
         s.id AS site_id, s.name AS site_name, c.id AS client_id, c.name AS client_name,
         st.basic, st.hra, st.conveyance, st.other_allowance, st.overtime_rate, st.working_hours, st.pf_applicable AS st_pf, st.esic_applicable AS st_esic, st.other_deduction,
         COALESCE(es.pf_applicable, st.pf_applicable) AS pf_applicable,
@@ -276,6 +277,14 @@ payrollRoutes.post('/preview', async (c) => {
         id: Number(r.attendance_id), employee_id: Number(r.employee_id), month, year,
         present_days: Number(r.present_days), absent_days: Number(r.absent_days), paid_leave: Number(r.paid_leave),
         unpaid_leave: Number(r.unpaid_leave), ot_hours: Number(r.ot_hours), remarks: '', status: r.attendance_status,
+        total_days: r.total_days === null ? null : Number(r.total_days),
+        rest_days: r.rest_days === null ? null : Number(r.rest_days),
+        holiday_days: r.holiday_days === null ? null : Number(r.holiday_days),
+        half_days: r.half_days === null ? null : Number(r.half_days),
+        leave_days: r.leave_days === null ? null : Number(r.leave_days),
+        ot_days: r.ot_days === null ? null : Number(r.ot_days),
+        payable_days: r.payable_days === null ? null : Number(r.payable_days),
+        actual_salary: r.actual_salary === null ? null : Number(r.actual_salary),
       }
       const salary = {
         basic: Number(r.basic), hra: Number(r.hra), conveyance: Number(r.conveyance), other_allowance: Number(r.other_allowance),
@@ -297,6 +306,7 @@ payrollRoutes.post('/preview', async (c) => {
         designation: r.designation, site_name: r.site_name, client_name: r.client_name,
         present_days: attendance.present_days, absent_days: attendance.absent_days,
         paid_leave: attendance.paid_leave, unpaid_leave: attendance.unpaid_leave, ot_hours: attendance.ot_hours,
+        total_days: attendance.total_days, payable_days: attendance.payable_days, ot_days: attendance.ot_days,
         attendance_status: r.attendance_status, has_attendance_draft: attendance.status !== 'finalized',
         ...calc,
       }
@@ -342,6 +352,14 @@ payrollRoutes.post('/generate', async (c) => {
         id: Number(r.attendance_id), employee_id: Number(r.employee_id), month, year,
         present_days: Number(r.present_days), absent_days: Number(r.absent_days), paid_leave: Number(r.paid_leave),
         unpaid_leave: Number(r.unpaid_leave), ot_hours: Number(r.ot_hours), remarks: '', status: r.attendance_status,
+        total_days: r.total_days === null ? null : Number(r.total_days),
+        rest_days: r.rest_days === null ? null : Number(r.rest_days),
+        holiday_days: r.holiday_days === null ? null : Number(r.holiday_days),
+        half_days: r.half_days === null ? null : Number(r.half_days),
+        leave_days: r.leave_days === null ? null : Number(r.leave_days),
+        ot_days: r.ot_days === null ? null : Number(r.ot_days),
+        payable_days: r.payable_days === null ? null : Number(r.payable_days),
+        actual_salary: r.actual_salary === null ? null : Number(r.actual_salary),
       }
       const salary = {
         basic: Number(r.basic), hra: Number(r.hra), conveyance: Number(r.conveyance), other_allowance: Number(r.other_allowance),
@@ -387,14 +405,17 @@ payrollRoutes.post('/generate', async (c) => {
   }
 
   for (const { r, attendance, calc } of items) {
+    const gridBasis = attendance.payable_days !== null && attendance.payable_days !== undefined
+    const totalDays = attendance.total_days ?? daysInMonth(month, year)
+    const payable = gridBasis ? Number(attendance.payable_days) : totalDays - attendance.absent_days - attendance.unpaid_leave
     ops.push(
       db.prepare(
         `INSERT INTO payroll_items (payroll_id, employee_id, attendance_id, present_days, absent_days, paid_leave, unpaid_leave, ot_hours, basic, hra, conveyance, other_allowance, working_hours, daily_rate, hourly_rate, overtime_earnings, attendance_deduction, gross, pf, esic, professional_tax, lwf, tds, advance_deduction, loan_deduction, other_deduction, total_deductions, net_salary, status)
          SELECT id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft' FROM payroll WHERE month = ? AND year = ?`
       )
         .bind(
-          r.employee_id, attendance.id ?? null, attendance.present_days, attendance.absent_days,
-          attendance.paid_leave, attendance.unpaid_leave, attendance.ot_hours,
+          r.employee_id, attendance.id ?? null, payable, Math.max(0, totalDays - payable),
+          0, 0, attendance.ot_hours,
           r.basic, r.hra, r.conveyance, r.other_allowance, Number(r.working_hours) || 8, calc.perDay, calc.hourlyRate,
           calc.overtimeEarnings, calc.attendanceDeduction,
           calc.gross, calc.pf, calc.esic, calc.professionalTax, calc.lwf, calc.tds, calc.advance, calc.loanDeduction, calc.otherDeduction,
@@ -468,10 +489,20 @@ payrollRoutes.patch('/:id/items/:itemId', async (c) => {
   const otherDed = parsed.data.other_deduction !== undefined ? r2(parsed.data.other_deduction) : Number(item.other_deduction || 0)
 
   const earnings = Number(item.basic) + Number(item.hra) + Number(item.conveyance) + Number(item.other_allowance)
-  const absentDays = Number(item.absent_days) + Number(item.unpaid_leave)
+  const present = Number(item.present_days) || 0
+  const absent = Number(item.absent_days) || 0
+  const worked = present + absent
   const dim = daysInMonth(Number(payroll.month), Number(payroll.year))
-  const attendanceDeduction = r2((earnings / dim) * absentDays)
-  const gross = r2(earnings - attendanceDeduction + Number(item.overtime_earnings) + inc + bonus + arrears)
+  const att: any = await db
+    .prepare('SELECT payable_days FROM attendance_monthly WHERE employee_id = ? AND month = ? AND year = ?')
+    .bind(item.employee_id, payroll.month, payroll.year)
+    .first()
+  const gridBasis = att?.payable_days !== null && att?.payable_days !== undefined
+  // Recompute on the stored present/absent split (present = payable days on grid months).
+  const perDay = worked > 0 ? earnings / worked : earnings / dim
+  const attendanceDeduction = r2(perDay * Math.max(0, dim - present - absent))
+  // Grid months already fold overtime into payable days; legacy months add OT hours.
+  const gross = r2(perDay * present + (gridBasis ? 0 : Number(item.overtime_earnings || 0)) + inc + bonus + arrears)
 
   const pfBase = Number(item.basic) + Number(item.hra)
   const pf = Number(flags.pf ?? 1) === 1 && pfBase <= cfg.pf_eligibility ? Math.min(r2((pfBase * cfg.pf_rate) / 100), cfg.pf_cap) : 0

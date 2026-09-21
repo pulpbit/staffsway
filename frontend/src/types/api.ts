@@ -186,6 +186,7 @@ export interface Site {
   tds_applicable: boolean | number
   tds_percent: number
   gratuity_applicable: boolean | number
+  weekly_off?: string
   client_name?: string
   active_employees?: number
   total_employees?: number
@@ -212,25 +213,122 @@ export interface AttendanceRow {
   client_name?: string
 }
 
+export interface AttendanceSheetDay {
+  date: string
+  dayNo: number
+  dow: number
+  label: string
+}
+
+export interface AttendanceSheetHoliday {
+  date: string
+  name: string
+}
+
+export type AttendanceMark = 'P' | 'A' | 'R' | 'HD' | 'HF' | 'L'
+
 export interface AttendanceSheetRow {
   employee_id: number
   employee_code: string
   first_name: string
   last_name: string
+  father_name: string | null
+  spouse_name: string | null
   designation: string
   status: string
   site_id: number | null
   site_name: string | null
   client_id: number | null
   client_name: string | null
+  weekly_off: string
+  monthly_earnings: number
+  working_hours: number
   attendance_id: number | null
-  present_days: number | null
-  absent_days: number | null
-  paid_leave: number | null
-  unpaid_leave: number | null
-  ot_hours: number | null
-  remarks: string | null
   attendance_status: string | null
+  // Editable grid mode: full day marks + live totals.
+  legacy: boolean
+  marks: Record<string, AttendanceMark> | null
+  p: number
+  a: number
+  r: number
+  hd: number
+  hf: number
+  l: number
+  ot_hours: number
+  ot_days: number
+  payable_days: number
+  actual_salary: number
+  total_days: number
+  // Count-based fallback (legacy months).
+  present_days?: number | null
+  absent_days?: number | null
+  paid_leave?: number | null
+  unpaid_leave?: number | null
+  remarks?: string | null
+}
+
+export interface AttendanceSheet {
+  month: number
+  year: number
+  total_days: number
+  days: AttendanceSheetDay[]
+  holidays: AttendanceSheetHoliday[]
+  anyGrid: boolean
+  rows: AttendanceSheetRow[]
+  finalized_count: number
+}
+
+export interface AttendanceReportEmployee {
+  employee_id: number
+  employee_code: string
+  name: string
+  father_name: string | null
+  designation: string | null
+  status: string
+  client_id: number | null
+  client_name: string | null
+  site_id: number | null
+  site_name: string | null
+  attendance_status: string | null
+  p: number
+  a: number
+  rest: number
+  hd: number
+  hf: number
+  l: number
+  ot_hours: number
+  ot_days: number
+  payable_days: number
+  monthly_earnings: number
+  actual_salary: number
+}
+
+export interface AttendanceReportGroup {
+  client_id: number | null
+  client_name: string | null
+  site_id: number | null
+  site_name: string | null
+  headcount: number
+  p: number
+  a: number
+  rest: number
+  hd: number
+  hf: number
+  l: number
+  ot_hours: number
+  ot_days: number
+  payable_days: number
+  monthly_earnings: number
+  actual_salary: number
+}
+
+export interface AttendanceReport {
+  month: number
+  year: number
+  total_days: number
+  employees: AttendanceReportEmployee[]
+  groups: AttendanceReportGroup[]
+  totals: AttendanceReportGroup
 }
 
 export interface Payroll {
