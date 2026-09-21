@@ -16,11 +16,11 @@ const MARK_TEXT = { P: 'P', A: 'A', R: 'R', HD: 'HD', HF: 'HF', L: 'L' } as cons
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 const LEFT_COLS = [
-  { label: 'Emp. ID', w: 76 },
-  { label: 'Emp. Name', w: 180 },
-  { label: "Father's/Spouse Name", w: 150 },
-  { label: 'Designation', w: 130 },
-  { label: 'Salary', w: 96 },
+  { label: 'Emp. ID', w: 60 },
+  { label: 'Emp. Name', w: 132 },
+  { label: 'Father / Spouse', w: 104 },
+  { label: 'Designation', w: 96 },
+  { label: 'Salary', w: 84 },
 ]
 
 const DAY_W = 38
@@ -235,7 +235,7 @@ export default function AttendancePage() {
   const rightAcc = RIGHT_COLS.reduce((s, c) => s + c.w, 0)
 
   return (
-    <div>
+    <div className="flex flex-col h-full min-h-0">
       <PageHeader
         title="Monthly Attendance"
         description={`${monthYear(month, year)} · ${rows.length} active employee${rows.length === 1 ? '' : 's'} · ${totalDays} calendar days${monthLocked ? ' · month locked' : ''}`}
@@ -252,8 +252,8 @@ export default function AttendancePage() {
         }
       />
 
-      <div className="bg-white card-shadow rounded-md overflow-hidden">
-        <FilterBar className="px-4 py-3 border-b border-hairline">
+      <div className="flex-1 min-h-0 bg-white card-shadow rounded-md overflow-hidden flex flex-col">
+        <FilterBar className="px-4 py-3 border-b border-hairline shrink-0">
           <NativeSelect className="w-40" value={String(month)} onChange={(v) => { setMonth(Number(v)); setChanges(new Map()) }} options={Array.from({ length: 12 }, (_, i) => i + 1).map((m) => ({ value: String(m), label: new Date(2000, m - 1).toLocaleDateString('en-US', { month: 'long' }) }))} />
           <NativeSelect className="w-24" value={String(year)} onChange={(v) => { setYear(Number(v)); setChanges(new Map()) }} options={[2024, 2025, 2026, 2027].map((y) => ({ value: String(y), label: String(y) }))} />
           <SelectFilter label="Client" value={clientFilter} onChange={(v) => { setClientFilter(v); setSiteFilter(''); setChanges(new Map()) }} options={[{ value: '', label: 'All Clients' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]} />
@@ -277,12 +277,14 @@ export default function AttendancePage() {
         ) : rows.length === 0 ? (
           <EmptyState title="No employees on the sheet" description="Add employees first, then enter their attendance here." />
         ) : (
-          <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full border-collapse text-[12px]" style={{ minWidth: leftAcc + days.length * DAY_W + rightAcc }}>
+          <div className="flex-1 min-h-[280px] overflow-auto scrollbar-thin">
+            <table className="border-collapse text-[12px]" style={{ width: leftAcc + days.length * DAY_W + rightAcc, minWidth: leftAcc + days.length * DAY_W + rightAcc }}>
               <thead>
                 <tr>
                   {LEFT_COLS.map((c, i) => (
-                    <th key={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, zIndex: 30 }} className="sticky top-0 px-2 py-1.5 text-left text-[10px] font-medium font-mono text-mute uppercase tracking-[0.04em] bg-canvas-soft border-b border-hairline">{c.label}</th>
+                    <th key={c.label} title={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, maxWidth: c.w, zIndex: 30 }} className="sticky top-0 px-2 py-1.5 text-left text-[10px] font-medium font-mono text-mute uppercase tracking-[0.04em] bg-canvas-soft border-b border-hairline overflow-hidden">
+                      <span className="block truncate">{c.label}</span>
+                    </th>
                   ))}
                   {days.map((d) => (
                     <th key={d.date} className="sticky top-0 px-0 py-1 text-center border-l border-b border-hairline bg-canvas-soft" style={{ minWidth: DAY_W, width: DAY_W, zIndex: 20 }}>
@@ -306,7 +308,7 @@ export default function AttendancePage() {
                   return (
                     <tr key={row.employee_id} className={`border-b border-hairline transition-colors ${idx % 2 === 1 ? 'bg-canvas-soft/40' : ''} ${dirty ? 'bg-link-soft/30' : ''} hover:bg-canvas-soft/70`}>
                       {LEFT_COLS.map((c, i) => (
-                        <td key={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, zIndex: 10 }} className={`sticky px-2 py-1.5 shadow-[1px_0_0_0_rgba(1,27,63,0.06)] ${stickyBg}`}>
+                        <td key={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, maxWidth: c.w, zIndex: 10 }} className={`sticky px-2 py-1.5 overflow-hidden shadow-[1px_0_0_0_rgba(1,27,63,0.06)] ${stickyBg}`}>
                           {i === 0 && <span className="font-mono text-[11px] text-mute">{row.employee_code}</span>}
                           {i === 1 && <span className="block text-[12px] font-medium text-ink leading-tight">{row.first_name} {row.last_name}</span>}
                           {i === 2 && <span className="block text-[11px] text-mute leading-tight truncate" title={[row.father_name, row.spouse_name].filter(Boolean).join(' / ') || ''}>{[row.father_name, row.spouse_name].filter(Boolean).join(' / ') || '—'}</span>}
@@ -362,23 +364,23 @@ export default function AttendancePage() {
               </tbody>
               <tfoot>
                 <tr className="bg-canvas-soft border-t border-hairline shadow-[0_-1px_0_rgba(1,27,63,0.05)]">
-                  <td style={{ left: leftOffsets[0], zIndex: 20 }} className="sticky px-2 py-1.5 bg-canvas-soft">
-                    <span className="text-[11px] font-semibold text-ink uppercase tracking-wide">Total · {monthYear(month, year)}</span>
+                  <td style={{ left: leftOffsets[0], zIndex: 30 }} className="sticky bottom-0 px-2 py-1.5 bg-canvas-soft">
+                    <span className="text-[11px] font-semibold text-ink uppercase tracking-wide">Total</span>
                   </td>
                   {LEFT_COLS.slice(1).map((c, i) => (
-                    <td key={c.label} style={{ left: leftOffsets[i + 1], zIndex: 20 }} className="sticky px-2 py-1.5 bg-canvas-soft" />
+                    <td key={c.label} style={{ left: leftOffsets[i + 1], zIndex: 30 }} className="sticky bottom-0 px-2 py-1.5 bg-canvas-soft" />
                   ))}
                   {days.map((d) => {
                     const c = dayCounts[d.date]
                     const bits = c ? [c.P && `P${c.P}`, c.A && `A${c.A}`, c.R && `R${c.R}`, c.HD && `HD${c.HD}`, c.HF && `HF${c.HF}`, c.L && `L${c.L}`].filter(Boolean) : []
                     return (
-                      <td key={d.date} className="px-0.5 py-1 text-center border-l border-hairline" style={{ minWidth: DAY_W, width: DAY_W }}>
+                      <td key={d.date} className="sticky bottom-0 px-0.5 py-1 text-center border-l border-hairline bg-canvas-soft" style={{ minWidth: DAY_W, width: DAY_W, zIndex: 10 }}>
                         <span className="text-[9px] leading-[1.35] text-mute tabular-nums block">{bits.join(' ')}</span>
                       </td>
                     )
                   })}
                   {RIGHT_COLS.map((c, i) => (
-                    <td key={c.key} className="px-1.5 py-1 text-center">
+                    <td key={c.key} className="sticky bottom-0 px-1.5 py-1 text-center bg-canvas-soft" style={{ zIndex: 10 }}>
                       <span className="font-mono text-[11px] font-semibold text-ink tabular-nums">
                         {c.key === 'P' ? totals.p : c.key === 'A' ? totals.a : c.key === 'R' ? totals.rx : c.key === 'HD' ? totals.hd : c.key === 'HF' ? totals.hf : c.key === 'L' ? totals.l : c.key === 'OT' ? `${totals.ot}hrs` : c.key === 'PD' ? totals.pd : `₹${money(totals.amt)}`}
                       </span>
@@ -392,7 +394,7 @@ export default function AttendancePage() {
       </div>
 
       {/* Stat summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-2 mt-3">
+      <div className="flex gap-2 mt-3 shrink-0 overflow-x-auto scrollbar-thin pb-1">
         <SummaryStat icon={CalendarCheck} tone="text-success bg-success-soft" label="Present" value={String(totals.p)} />
         <SummaryStat icon={CalendarX2} tone="text-error bg-error-soft" label="Absent" value={String(totals.a)} />
         <SummaryStat icon={Palmtree} tone="text-mute bg-neutral-soft" label="Rest" value={String(totals.rx)} />
@@ -404,7 +406,7 @@ export default function AttendancePage() {
         <SummaryStat icon={CalendarX2} tone="text-mute bg-neutral-soft" label="OT (Hrs/Days)" value={`${r2(totals.ot)} / ${totals.otd}`} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-3 rounded-md bg-white card-shadow mt-3 text-[12px]">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-3 rounded-md bg-white card-shadow mt-3 text-[12px] shrink-0">
         <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-success text-[9px] inline-flex items-center justify-center font-bold text-white">P</span> Present</span>
         <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-error text-[9px] inline-flex items-center justify-center font-bold text-white">A</span> Absent</span>
         <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-neutral text-[9px] inline-flex items-center justify-center font-bold text-white">R</span> Weekly Rest</span>
@@ -415,7 +417,7 @@ export default function AttendancePage() {
         <span className="text-mute ml-auto">{dirtyCount} unsaved employee{dirtyCount === 1 ? '' : 's'}</span>
       </div>
 
-      <p className="text-[11px] text-mute mt-2">
+      <p className="text-[11px] text-mute mt-2 shrink-0">
         Click a day cell to mark an override (A / R / HD / HF / L), Right-click clears it. Keyboard: <b>P A R H F L</b> keys on a focused cell. Rest & holiday days default automatically; <b>Payable Days = P + R + HD + HF/2 + OT days</b>.
       </p>
 
@@ -446,7 +448,7 @@ export default function AttendancePage() {
 
 function SummaryStat({ icon: Icon, tone, label, value }: { icon: any; tone: string; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-md bg-white card-shadow px-3 py-2 min-w-0">
+    <div className="flex items-center gap-2.5 rounded-md bg-white card-shadow px-3 py-2 shrink-0 min-w-[132px]">
       <span className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-4 h-4" /></span>
       <span className="min-w-0">
         <span className="block text-[10px] text-mute uppercase tracking-wide font-medium truncate">{label}</span>

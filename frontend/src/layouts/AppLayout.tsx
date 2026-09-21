@@ -424,39 +424,71 @@ function TopBar({ onToggleSidebar, breadcrumb }: { onToggleSidebar: () => void; 
 // ---------- Layout root ----------
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    try { return localStorage.getItem('staffsway_sidebar_open') !== '0' } catch { return true }
+  const [sidebarPinned, setSidebarPinned] = useState(() => {
+    try { return localStorage.getItem('staffsway_sidebar_pinned') === '1' } catch { return false }
   })
+  const [sidebarHover, setSidebarHover] = useState(false)
   const location = useLocation()
   const crumb = useCrumb(location.pathname)
 
+  const desktopVisible = sidebarPinned || sidebarHover
+
   useEffect(() => {
-    try { localStorage.setItem('staffsway_sidebar_open', sidebarOpen ? '1' : '0') } catch { /* noop */ }
-  }, [sidebarOpen])
+    try { localStorage.setItem('staffsway_sidebar_pinned', sidebarPinned ? '1' : '0') } catch { /* noop */ }
+  }, [sidebarPinned])
 
   useEffect(() => {
     setMobileOpen(false)
+    setSidebarHover(false)
   }, [location.pathname])
 
   const toggleSidebar = () => {
-    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) setSidebarOpen((v) => !v)
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) setSidebarPinned((v) => !v)
     else setMobileOpen(true)
   }
 
   return (
     <div className="h-screen flex overflow-hidden bg-canvas-soft">
-      {/* Desktop sidebar */}
-      {sidebarOpen && (
-        <aside className="hidden lg:flex shrink-0 flex-col bg-navy w-60">
-          <div className="px-3 h-13 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <img src="/images/logo.png" alt="Staffsway" className="h-12 w-auto max-w-[210px] object-contain shrink-0" />
-            </div>
-          </div>
-          <SidebarNav collapsed={false} onNavigate={() => {}} />
-          <SidebarFooter collapsed={false} />
-        </aside>
+      {/* Desktop hover-reveal sidebar */}
+      <div
+        className="hidden lg:block fixed left-0 top-0 bottom-0 w-2.5 z-40"
+        onMouseEnter={() => setSidebarHover(true)}
+        aria-hidden="true"
+      />
+      {!desktopVisible && (
+        <button
+          type="button"
+          onMouseEnter={() => setSidebarHover(true)}
+          onClick={() => setSidebarPinned(true)}
+          aria-label="Show navigation"
+          title="Show navigation"
+          className="hidden lg:flex fixed left-0 top-1/2 -translate-y-1/2 z-40 items-center justify-center w-4 h-20 rounded-r-md bg-navy/90 text-white/60 hover:text-white hover:w-6 transition-all"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
       )}
+      <aside
+        onMouseEnter={() => setSidebarHover(true)}
+        onMouseLeave={() => setSidebarHover(false)}
+        className={`hidden lg:flex fixed left-0 top-0 bottom-0 z-50 w-60 flex-col bg-navy shadow-modal transition-transform duration-200 ${desktopVisible ? 'translate-x-0' : '-translate-x-full pointer-events-none'}`}
+      >
+        <div className="px-3 h-13 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src="/images/logo.png" alt="Staffsway" className="h-12 w-auto max-w-[180px] object-contain shrink-0" />
+          </div>
+          <button
+            type="button"
+            onClick={() => { setSidebarPinned(false); setSidebarHover(false) }}
+            title="Hide navigation"
+            aria-label="Hide navigation"
+            className="p-1 rounded-sm text-white/50 hover:text-white hover:bg-white/5 shrink-0"
+          >
+            <PanelLeft className="w-4 h-4" />
+          </button>
+        </div>
+        <SidebarNav collapsed={false} onNavigate={() => setSidebarHover(false)} />
+        <SidebarFooter collapsed={false} />
+      </aside>
 
       {/* Mobile drawer */}
       {mobileOpen && (
