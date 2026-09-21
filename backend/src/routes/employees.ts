@@ -15,6 +15,10 @@ const listSchema = z.object({
   department: z.string().optional(),
   employee_type: z.string().optional(),
   shift_type: z.string().optional(),
+  joined_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  joined_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  exited_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  exited_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   sort: z.enum(['name', 'code', 'employee_code', 'joining', 'status']).optional(),
   order: z.enum(['asc', 'desc']).optional(),
   page: z.string().regex(/^\d+$/).optional(),
@@ -125,10 +129,22 @@ export const employeeRoutes = new Hono<{ Bindings: Env }>()
 const employeeSelect = `
   SELECT e.*,
     s.name AS site_name, s.location AS site_location, s.client_id AS client_id,
-    c.name AS client_name
+    c.name AS client_name,
+    st.basic, st.hra, st.conveyance, st.other_allowance, st.effective_from AS salary_effective_from,
+    st.working_hours,
+    COALESCE(
+      (SELECT COALESCE(sep.last_working_date, sep.resignation_date)
+       FROM separations sep WHERE sep.employee_id = e.id AND sep.status = 'approved'
+       ORDER BY sep.id DESC LIMIT 1),
+      e.deactivated_at
+    ) AS exit_date
   FROM employees e
   LEFT JOIN sites s ON s.id = e.site_id
-  LEFT JOIN clients c ON c.id = s.client_id`
+  LEFT JOIN clients c ON c.id = s.client_id
+  LEFT JOIN salary_structures st ON st.id = (
+    SELECT st2.id FROM salary_structures st2 WHERE st2.employee_id = e.id
+    ORDER BY st2.effective_from DESC, st2.id DESC LIMIT 1
+  )`
 
 async function buildWhere(c: Context<{ Bindings: Env }>) {
   const query = c.req.query()
@@ -149,6 +165,18 @@ async function buildWhere(c: Context<{ Bindings: Env }>) {
   if (f.department && f.department !== '') { conditions.push('e.department = ?'); params.push(f.department) }
   if (f.employee_type && f.employee_type !== '') { conditions.push('e.employee_type = ?'); params.push(f.employee_type) }
   if (f.shift_type && f.shift_type !== '') { conditions.push('e.shift_type = ?'); params.push(f.shift_type) }
+  if (f.joined_from) { conditions.push('e.joining_date >= ?'); params.push(f.joined_from) }
+  if (f.joined_to) { conditions.push('e.joining_date <= ?'); params.push(f.joined_to) }
+  if (f.exited_from || f.exited_to) {
+    const clause = `COALESCE(
+      (SELECT COALESCE(sep.last_working_date, sep.resignation_date)
+       FROM separations sep WHERE sep.employee_id = e.id AND sep.status = 'approved'
+       ORDER BY sep.id DESC LIMIT 1),
+      e.deactivated_at
+    )`
+    if (f.exited_from) { conditions.push(`${clause} >= ?`); params.push(f.exited_from) }
+    if (f.exited_to) { conditions.push(`${clause} <= ?`); params.push(f.exited_to) }
+  }
   return { ok: true as const, conditions, params, filters: f }
 }
 
@@ -196,6 +224,43 @@ employeeRoutes.get('/filters', async (c) => {
       departments: departments.results.map((r: any) => r.department),
       employee_types: employeeTypes.results.map((r: any) => r.employee_type),
       shift_types: shiftTypes.results.map((r: any) => r.shift_type),
+    },
+  })
+})
+
+employeeRoutes.get('/stats', async (c) => {
+  const db = getDb(c.env)
+  const now = new Date()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const yyyy = now.getFullYear()
+  const [total, active, inactive, joinedThisMonth, exitedThisMonth, onLeaveToday] = await Promise.all([
+    db.prepare('SELECT COUNT(*) AS c FROM employees').first(),
+    db.prepare("SELECT COUNT(*) AS c FROM employees WHERE status = 'active'").first(),
+    db.prepare("SELECT COUNT(*) AS c FROM employees WHERE status IN ('inactive','resigned','terminated')").first(),
+    db.prepare(`SELECT COUNT(*) AS c FROM employees WHERE joining_date LIKE ? || '%'`).bind(`${yyyy}-${mm}`).first(),
+    db.prepare(`
+      SELECT COUNT(*) AS c FROM (
+        SELECT e.id,
+          COALESCE(
+            (SELECT COALESCE(sep.last_working_date, sep.resignation_date)
+             FROM separations sep WHERE sep.employee_id = e.id AND sep.status = 'approved'
+             ORDER BY sep.id DESC LIMIT 1),
+            e.deactivated_at
+          ) AS exit_dt
+        FROM employees e WHERE e.status IN ('inactive','resigned','terminated')
+      ) WHERE exit_dt LIKE ? || '%'
+    `).bind(`${yyyy}-${mm}`).first(),
+    db.prepare(`SELECT COUNT(*) AS c FROM leave_requests WHERE status = 'approved' AND date('now') BETWEEN start_date AND end_date`).first(),
+  ])
+  const n = (v: { c?: number } | null | undefined): number => Number(v?.c || 0)
+  return c.json({
+    data: {
+      total: n(total),
+      active: n(active),
+      inactive: n(inactive),
+      joined_this_month: n(joinedThisMonth),
+      exit_this_month: n(exitedThisMonth),
+      on_leave_today: n(onLeaveToday),
     },
   })
 })

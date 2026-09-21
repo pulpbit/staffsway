@@ -80,6 +80,22 @@
   ::selection {
     background: var(--color-navy-soft);
   }
+  * {
+    scrollbar-color: var(--color-hairline-strong) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-hairline-strong);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
 }
 
 @layer utilities {
@@ -122,19 +138,27 @@
     border-radius: var(--radius-xs);
   }
   .scrollbar-thin {
-    scrollbar-width: thin;
+    scrollbar-width: auto;
     scrollbar-color: var(--color-hairline-strong) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background: var(--color-hairline-strong);
     border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
+  }
+  .scrollbar-none-x {
+    scrollbar-width: none;
+  }
+  .scrollbar-none-x::-webkit-scrollbar {
+    height: 0px;
   }
   .text-balance {
     text-wrap: balance;

@@ -121,6 +121,7 @@ export interface EmployeeDocument {
   document_type: string
   document_name: string
   document_number: string | null
+  verified?: number
 }
 
 export interface Client {

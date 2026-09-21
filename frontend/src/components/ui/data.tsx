@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { TableSkeleton } from './skeleton'
 import { type Tone } from './status'
@@ -53,6 +53,7 @@ export interface Column<T> {
   sortable?: boolean
   className?: string
   hideSm?: boolean
+  sticky?: boolean
 }
 
 // ---------- Table ----------
@@ -70,9 +71,42 @@ interface TableProps<T> {
   minWidth?: string
   expandedKey?: string | number | null
   renderExpanded?: (row: T) => ReactNode
+  bare?: boolean
 }
 
-export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, emptyMessage = 'No data found.', emptyState, loading, rowClick, minWidth = '640px', expandedKey, renderExpanded }: TableProps<T>) {
+export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, emptyMessage = 'No data found.', emptyState, loading, rowClick, minWidth = '640px', expandedKey, renderExpanded, bare = false }: TableProps<T>) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
+  const [barLeft, setBarLeft] = useState(0)
+  const [barRight, setBarRight] = useState(0)
+  const [scrollWidth, setScrollWidth] = useState(0)
+  const [canHoriz, setCanHoriz] = useState(false)
+
+  // Measure horizontal overflow and keep the floating bar aligned with the table edges.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const update = () => {
+      setCanHoriz(el.scrollWidth > el.clientWidth + 1)
+      setScrollWidth(el.scrollWidth)
+      const r = el.getBoundingClientRect()
+      setBarLeft(r.left)
+      setBarRight(window.innerWidth - r.right)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    window.addEventListener('resize', update)
+    return () => { ro.disconnect(); window.removeEventListener('resize', update) }
+  }, [data.length])
+
+  const syncFromMain = () => {
+    if (barRef.current && scrollRef.current) barRef.current.scrollLeft = scrollRef.current.scrollLeft
+  }
+  const syncFromBar = () => {
+    if (scrollRef.current && barRef.current) scrollRef.current.scrollLeft = barRef.current.scrollLeft
+  }
+
   if (loading) {
     return (
       <div className="overflow-x-auto scrollbar-thin">
@@ -82,55 +116,68 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
   }
 
   return (
-    <div className="overflow-x-auto scrollbar-thin -mx-4 sm:mx-0">
-      <table className="w-full" style={{ minWidth }}>
-        <thead>
-          <tr className="border-b border-hairline bg-canvas-soft/60">
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                className={`px-3 py-2.5 text-left text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em] select-none whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-ink' : ''} ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.className || ''}`}
-                onClick={() => col.sortable && onSort?.(col.key)}
-              >
-                <span className="inline-flex items-center gap-1">
-                  {col.header}
-                  {col.sortable && sortKey === col.key && (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
-                  {col.sortable && sortKey !== col.key && <ArrowUpDown className="w-3 h-3 opacity-30" />}
-                </span>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length} className="px-3 py-10 text-center text-[13px] text-mute">
-                {emptyState ?? emptyMessage}
-              </td>
+    <Fragment>
+      <div ref={scrollRef} onScroll={syncFromMain} className={bare ? '' : 'overflow-x-auto scrollbar-none-x -mx-4 sm:mx-0'}>
+        <table className="w-full" style={{ minWidth }}>
+          <thead>
+            <tr className="border-b border-hairline bg-canvas-soft/60">
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  className={`px-3 py-2.5 text-left text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em] select-none whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-ink' : ''} ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? 'sticky left-0 z-20 bg-canvas-soft' : ''} ${col.className || ''}`}
+                  onClick={() => col.sortable && onSort?.(col.key)}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    {col.header}
+                    {col.sortable && sortKey === col.key && (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
+                    {col.sortable && sortKey !== col.key && <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </span>
+                </th>
+              ))}
             </tr>
-          ) : (
-            data.map((row, idx) => (
-              <Fragment key={keyFn(row)}>
-                <tr onClick={() => rowClick?.(row)} className={`border-b border-hairline transition-colors ${rowClick ? 'cursor-pointer' : ''} ${idx % 2 === 1 ? 'bg-canvas-soft/40' : ''} ${expandedKey === keyFn(row) ? 'bg-canvas-soft/60' : ''} hover:bg-canvas-soft/70`}>
-                  {columns.map((col) => (
-                    <td key={col.key} className={`px-3 py-2.5 text-[13px] align-middle ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.className || ''}`}>
-                      {col.render ? col.render(row, idx) : String((row as Record<string, unknown>)[col.key] ?? '')}
-                    </td>
-                  ))}
-                </tr>
-                {expandedKey === keyFn(row) && renderExpanded && (
-                  <tr className="border-b border-hairline">
-                    <td colSpan={columns.length} className="px-4 py-4 bg-canvas-soft/40">
-                      {renderExpanded(row)}
-                    </td>
+          </thead>
+          <tbody>
+            {data.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length} className="px-3 py-10 text-center text-[13px] text-mute">
+                  {emptyState ?? emptyMessage}
+                </td>
+              </tr>
+            ) : (
+              data.map((row, idx) => (
+                <Fragment key={keyFn(row)}>
+                  <tr onClick={() => rowClick?.(row)} className={`border-b border-hairline transition-colors ${rowClick ? 'cursor-pointer' : ''} ${idx % 2 === 1 ? 'bg-canvas-soft/40' : 'bg-white'} ${expandedKey === keyFn(row) ? 'bg-canvas-soft/60' : ''} hover:bg-canvas-soft/70`}>
+                    {columns.map((col) => (
+                      <td key={col.key} className={`px-3 py-2.5 text-[13px] align-middle ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? `sticky left-0 z-10 ${idx % 2 === 1 ? 'bg-canvas-soft' : 'bg-white'}` : ''} ${col.className || ''}`}>
+                        {col.render ? col.render(row, idx) : String((row as Record<string, unknown>)[col.key] ?? '')}
+                      </td>
+                    ))}
                   </tr>
-                )}
-              </Fragment>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
+                  {expandedKey === keyFn(row) && renderExpanded && (
+                    <tr className="border-b border-hairline">
+                      <td colSpan={columns.length} className="px-4 py-4 bg-canvas-soft/40">
+                        {renderExpanded(row)}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+      {!bare && canHoriz && scrollWidth > 0 && (
+        <div
+          ref={barRef}
+          onScroll={syncFromBar}
+          style={{ left: barLeft, right: barRight }}
+          className="fixed z-30 bottom-2 overflow-x-auto scrollbar-thin h-3 bg-white/95 backdrop-blur-md rounded-md border border-hairline card-shadow-lg"
+          aria-hidden="true"
+        >
+          <div style={{ width: scrollWidth }} className="h-0.5" />
+        </div>
+      )}
+    </Fragment>
   )
 }
 

@@ -67,6 +67,7 @@ export const employeeApi = {
     const q = new URLSearchParams(params).toString()
     return api.get<unknown[] & { meta: PaginationMeta }>(`/employees?${q}`)
   },
+  stats: () => api.get<{ total: number; active: number; inactive: number; joined_this_month: number; exit_this_month: number; on_leave_today: number }>('/employees/stats'),
   get: (id: number) => api.get<import('@/types/api').Employee>(`/employees/${id}`),
   checkAadhaar: (aadhaar: string) => api.get<{ exists: boolean; employee: import('@/types/api').Employee | null }>(`/employees/check-aadhaar?aadhaar=${encodeURIComponent(aadhaar)}`),
   nextCode: (siteId?: number | string) => api.get<{ code: string }>(`/employees/next-code${siteId ? `?site_id=${siteId}` : ''}`),

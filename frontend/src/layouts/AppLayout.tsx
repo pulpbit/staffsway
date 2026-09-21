@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Menu, X, LayoutDashboard, Users, Building2, MapPin, CalendarCheck, UserPlus, CalendarDays, IndianRupee,
   FileText, BarChart3, Settings, LogOut, ChevronDown, ShieldCheck, UserRound, Target, FolderOpen, Package,
-  GraduationCap, UserMinus, HeadphonesIcon, PanelLeftClose, PanelLeftOpen, Search as SearchIcon, Building2 as OrgIcon,
-  Loader2, User as UserIcon, ArrowRightLeft, Upload, ChevronRight,
+  GraduationCap, UserMinus, HeadphonesIcon, Search as SearchIcon, Building2 as OrgIcon,
+  Loader2, User as UserIcon, ArrowRightLeft, Upload, ChevronRight, PanelLeft,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { employeeApi, settingsApi } from '@/services/api'
@@ -28,7 +28,7 @@ const NAV_GROUPS: NavEntry[] = [
     label: 'Employee Management',
     icon: Users,
     submenu: [
-      { to: '/employees?add=1', label: 'Add New Employee', icon: UserPlus },
+      { to: '/employees/new', label: 'Add New Employee', icon: UserPlus },
       { to: '/employees', label: 'Employee Master', icon: Users, end: true },
       { to: '/documents', label: 'Employee Docs', icon: FileText },
       { to: '/employees/transfer', label: 'Employee Transfer', icon: ArrowRightLeft },
@@ -93,6 +93,15 @@ const roleLabel: Record<string, string> = {
 const isGroup = (e: NavEntry): e is NavGroup => 'items' in e
 
 const pathsFor = (item: NavItem) => item.to.split('?')[0]
+
+const isItemActive = (item: NavItem, pathname: string, search: string) => {
+  const [path, query] = item.to.split('?')
+  if (pathname !== path) return false
+  if (!query) return search === ''
+  const want = new URLSearchParams(query)
+  const have = new URLSearchParams(search)
+  return [...want.entries()].every(([k, v]) => have.get(k) === v)
+}
 
 function useCrumb(locationPath: string): Crumb[] {
   const groups = NAV_GROUPS
@@ -192,15 +201,12 @@ function GlobalSearch({ onNavigate }: { onNavigate: () => void }) {
 // ---------- Sidebar ----------
 function SubmenuNav({ entry, collapsed, onNavigate }: { entry: NavSubmenu; collapsed: boolean; onNavigate: () => void }) {
   const location = useLocation()
-  const [open, setOpen] = useState(false)
-  const active = entry.submenu.some((it) => {
-    const to = pathsFor(it)
-    return location.pathname === to || location.pathname.startsWith(to + '/')
-  })
-  const isOpen = open || (!collapsed && active)
+  const active = entry.submenu.some((it) => isItemActive(it, location.pathname, location.search))
+  const [open, setOpen] = useState(active)
+  const isOpen = collapsed ? false : open
 
   useEffect(() => {
-    if (active) setOpen(true)
+    setOpen(active)
   }, [active])
 
   return (
@@ -233,9 +239,11 @@ function SubmenuNav({ entry, collapsed, onNavigate }: { entry: NavSubmenu; colla
               key={item.to}
               to={item.to}
               end={item.end}
-              className={({ isActive }) =>
+              className={() =>
                 `group flex items-center gap-2.5 h-7 pl-8 pr-2.5 rounded-sm text-[12.5px] transition-colors relative ${
-                  isActive ? 'bg-white/10 text-white' : 'text-white/55 hover:text-white hover:bg-white/5'
+                  isItemActive(item, location.pathname, location.search)
+                    ? 'bg-white/10 text-white'
+                    : 'text-white/55 hover:text-white hover:bg-white/5'
                 }`
               }
               onClick={onNavigate}
@@ -327,7 +335,7 @@ function SidebarFooter({ collapsed }: { collapsed: boolean }) {
 }
 
 // ---------- Header ----------
-function TopBar({ onMenu, breadcrumb }: { onMenu: () => void; breadcrumb: Crumb[] }) {
+function TopBar({ onToggleSidebar, breadcrumb }: { onToggleSidebar: () => void; breadcrumb: Crumb[] }) {
   const { user } = useAuth()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const { data: settings } = useQuery({ queryKey: ['app-shell-settings'], queryFn: () => settingsApi.get(), staleTime: 5 * 60 * 1000 })
@@ -337,11 +345,16 @@ function TopBar({ onMenu, breadcrumb }: { onMenu: () => void; breadcrumb: Crumb[
 
   return (
     <header className="h-13 shrink-0 bg-white border-b border-hairline flex items-center gap-3 px-4">
-      <button onClick={onMenu} className="lg:hidden p-1 -ml-1 rounded-sm hover:bg-canvas-soft text-ink" aria-label="Open navigation">
+      <button onClick={onToggleSidebar} className="lg:hidden p-1 -ml-1 rounded-sm hover:bg-canvas-soft text-ink" aria-label="Open navigation">
         <Menu className="w-5 h-5" />
       </button>
 
-      <div className="hidden lg:block min-w-0"><Breadcrumbs items={breadcrumb} /></div>
+      <div className="hidden lg:flex min-w-0 items-center gap-2">
+        <button onClick={onToggleSidebar} className="p-1.5 -ml-1 rounded-sm hover:bg-canvas-soft text-mute hover:text-ink transition-colors" aria-label="Toggle sidebar">
+          <PanelLeft className="w-4.5 h-4.5" />
+        </button>
+        <Breadcrumbs items={breadcrumb} />
+      </div>
       <div className="flex-1" />
 
       {user?.role !== 'employee' && <GlobalSearch onNavigate={() => {}} />}
@@ -395,43 +408,39 @@ function TopBar({ onMenu, breadcrumb }: { onMenu: () => void; breadcrumb: Crumb[
 // ---------- Layout root ----------
 export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [collapsed, setCollapsed] = useState(() => {
-    try { return localStorage.getItem('staffsway_sidebar_collapsed') === '1' } catch { return false }
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try { return localStorage.getItem('staffsway_sidebar_open') !== '0' } catch { return true }
   })
   const location = useLocation()
   const crumb = useCrumb(location.pathname)
 
   useEffect(() => {
-    try { localStorage.setItem('staffsway_sidebar_collapsed', collapsed ? '1' : '0') } catch { /* noop */ }
-  }, [collapsed])
+    try { localStorage.setItem('staffsway_sidebar_open', sidebarOpen ? '1' : '0') } catch { /* noop */ }
+  }, [sidebarOpen])
 
   useEffect(() => {
     setMobileOpen(false)
   }, [location.pathname])
 
+  const toggleSidebar = () => {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) setSidebarOpen((v) => !v)
+    else setMobileOpen(true)
+  }
+
   return (
     <div className="h-screen flex overflow-hidden bg-canvas-soft">
       {/* Desktop sidebar */}
-      <aside className={`hidden lg:flex shrink-0 flex-col bg-navy transition-[width] duration-200 ${collapsed ? 'w-16' : 'w-60'}`}>
-        <div className={`px-3 h-13 border-b border-white/10 flex items-center ${collapsed ? 'justify-center' : 'justify-between'} gap-2 shrink-0`}>
-          {!collapsed && (
+      {sidebarOpen && (
+        <aside className="hidden lg:flex shrink-0 flex-col bg-navy w-60">
+          <div className="px-3 h-13 border-b border-white/10 flex items-center justify-between gap-2 shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
               <img src="/images/logo.png" alt="Staffsway" className="h-12 w-auto max-w-[210px] object-contain shrink-0" />
             </div>
-          )}
-          {collapsed && <img src="/images/logo.png" alt="Staffsway" className="w-9 h-9 rounded-xs object-contain" />}
-          <button
-            onClick={() => setCollapsed((v) => !v)}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={collapsed ? 'Expand' : 'Collapse'}
-            className="p-1.5 rounded-sm text-white/40 hover:text-white hover:bg-white/5"
-          >
-            {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-          </button>
-        </div>
-        <SidebarNav collapsed={collapsed} onNavigate={() => {}} />
-        <SidebarFooter collapsed={collapsed} />
-      </aside>
+          </div>
+          <SidebarNav collapsed={false} onNavigate={() => {}} />
+          <SidebarFooter collapsed={false} />
+        </aside>
+      )}
 
       {/* Mobile drawer */}
       {mobileOpen && (
@@ -454,7 +463,7 @@ export default function AppLayout() {
 
       {/* Main area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar onMenu={() => setMobileOpen(true)} breadcrumb={crumb} />
+        <TopBar onToggleSidebar={toggleSidebar} breadcrumb={crumb} />
         <main className="flex-1 overflow-y-auto scrollbar-thin px-4 py-5 lg:px-6 lg:py-6">
           <Outlet />
         </main>
