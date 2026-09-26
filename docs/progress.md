@@ -5,6 +5,106 @@ deployed (GitHub Actions → Cloudflare Workers + Pages) unless noted.
 
 ---
 
+## 2026-09-27 — Referrer registration intake (commit `7d84a55`)
+
+Public URL for candidates: **`https://staffsway.pages.dev/apply`**
+(also served at `/`; admin at `/referrers`).
+
+### A. Model decision
+Replaced the in-progress **supplier**/application model with a plain **referrer**
+flow after user clarification:
+
+- Referrer = **contact only**: name, code, contact person, phone, email, active flag.
+  No day rate, agreement ref, GST no., address/city/state/pincode, or notes.
+- One **shared public link** (not per-referrer). The person filling the form states
+  which referrer sent them; HR verifies it at approval. Self-asserted by design.
+- Spelling is **referrer** (two r's) everywhere, per user instruction.
+
+### B. DB — migration `0029_referrer_registrations.sql`
+- New tables `referrers`, `referrer_applications` (renamed from the supplier design).
+- `employees` gains `source`, `referrer_id`, `referrer_application_id`.
+- Unique Aadhaar: global on `employees(aadhaar)`, plus a **partial** unique index on
+  `referrer_applications(aadhaar) WHERE status='pending'` so a pending duplicate is
+  blocked but a historical approved record never blocks a re-apply.
+- Additive + backward compatible. **Applied to remote D1 after checking for
+  duplicate Aadhaar** (12 live employees, all unique, no blanks) because the global
+  unique index would have failed the migration otherwise.
+
+### C. Backend
+- `routes/publicReferrers.ts` — `GET /options` (active referrers only),
+  `POST /check-aadhaar` (existence probe), `POST /` (submit). Unauthenticated.
+  Anti-spam: rate limit, honeypot field, and a **minimum fill time checked only on
+  submit** (an earlier version checked it on the Aadhaar probe, which blocked fast
+  typists and had to be removed).
+- `routes/referrers.ts` — referrer CRUD (deactivate instead of delete), registration
+  review, reject, and approve. Approve requires joining date + site + designation +
+  a **positive** basic salary, then creates the employee and flips the application to
+  `approved` with `employee_id` back-linked.
+- `services/employeeCreation.ts` (**new**) — single writer for the `employees` row and
+  everything hanging off it (salary structure, statutory, documents, onboarding tasks).
+  Direct add, recruitment join, and referrer approval now share it, so they can no
+  longer drift apart.
+- `utils/throttle.ts` (**new**) — the login limiter extracted out of `routes/auth.ts`
+  so the public intake can reuse it; `auth.ts` now just wraps it.
+- `utils/aadhaar.ts` (**new**) — normalise (strip spaces/dashes) + 12-digit validation.
+- Role guards: referrer writes = `super_admin` / `admin` / `hr`; delete = `super_admin` / `admin`.
+
+### D. Frontend
+- `features/referrers/ReferrerApplyPage.tsx` (**new**) — 3-step public form
+  (Aadhaar → personal details → referrer + review). Deliberately **omits** salary,
+  designation, department, site, and joining date; those are HR's call at approval.
+- `features/referrers/ReferrerApplicationsPage.tsx` (**new**) — tabs
+  *Registrations* / *Referrers*; approval form enforces the required fields.
+- `components/ui/AadhaarBoxes.tsx` (**new**) — a11y: digit-grouped Aadhaar input
+  (4-4-4) shared by the public and admin forms, replacing plain text boxes.
+- `App.tsx` public `/apply` + protected `/referrers`; `AppLayout` nav entry **Referrers**.
+
+### E. The 500 behind "something went wrong" (user-reported on Approve)
+`D1_ERROR: 50 values for 48 columns`. The writer had a hand-maintained `VALUES` list
+with 50 `?` for 48 columns, so **every** employee insert failed — referrer approval,
+direct Add Employee, *and* recruitment join. Fixed by generating the placeholders from
+the `EMPLOYEE_COLUMNS` array, binding an aligned `values` array, and adding a
+length guard so the two can never silently drift again.
+
+### Verification
+- Typecheck clean (backend `tsc --noEmit`, frontend `tsc -b --noEmit`); frontend build OK.
+- Full migration chain re-applied from a wiped local D1; seed regenerated and applied.
+- Approve tested end-to-end locally: application `990102` → employee `SW0039` with
+  `source='referrer'`, correct `referrer_id` + `referrer_application_id`, 1 salary
+  structure, 1 statutory record, 8 onboarding tasks. Direct Add Employee also OK.
+  **Test rows were deleted afterwards** and the application reset to `pending`.
+- Live: `/apply` HTTP 200; deployed bundle has 21 `Referrer` and **0** `Supplier`
+  mentions; `GET /api/public/referrers/options` 200; `check-aadhaar` 200.
+- Approval was **not** exercised against production on purpose — it writes a real employee.
+
+### Deployment facts (corrected)
+- `.github/workflows/deploy.yml` applies D1 migrations **and** deploys both the Worker
+  and Pages on every push to `main`. The push of `7d84a55` ran green (43s) and the
+  newest worker version is from that run, so the live worker is the git version —
+  backend changes do **not** need a manual `wrangler deploy`.
+- Frontend build bakes `VITE_API_URL=https://staffsway-backend.pulpbit.workers.dev/api`
+  from `frontend/.env.production`.
+- Production D1 `staffsway-demo` is **real data** (12 employees), not a demo copy.
+
+### Open items (next session)
+1. **Blocking real use — production `referrers` table is empty.** `/apply` currently
+   shows "No referrers are registered yet". Add referrers at `/referrers` → *Referrers*.
+2. **Security before real submissions.** Backend CORS is still `origin: '*'` on an
+   unauthenticated write endpoint. The rate limit is in-memory per Worker isolate, so
+   it is weak in practice. Plan: restrict CORS to `staffsway.pages.dev` + add
+   Cloudflare Turnstile.
+3. Recruitment Join modal does not yet expose the employee-type / shift / statutory
+   options the backend accepts; review shared-writer statutory defaults for omitted values.
+4. Attendance parity: the employee quick-action still opens the **latest recorded**
+   month instead of the currently selected month.
+5. Optional: custom domain (e.g. `apply.staffsway.in`) instead of `pages.dev`.
+6. `docs/payroll-rules.md` still documents the legacy (non payable-days) formula —
+   carried over from the previous entry, still open.
+- Closed from the previous entry: `docs/database.md` now documents both `0027`
+  attendance tables and `0029` referrer tables.
+
+---
+
 ## 2026-09-21 — Attendance module + follow-up fixes
 
 ### A. Attendance redesign (commit `64a5817`)
