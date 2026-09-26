@@ -5,6 +5,13 @@ import type { Env } from '../types'
 import { getDb } from '../utils/db'
 import { r2 } from '../utils/money'
 import { nextEmployeeCode, padCode } from '../utils/employeeCode'
+import { normalizeAadhaar } from '../utils/aadhaar'
+import {
+  createEmployee,
+  EmployeeConflictError,
+  splitName,
+  syncIdentityDocuments,
+} from '../services/employeeCreation'
 
 const listSchema = z.object({
   search: z.string().optional(),
@@ -108,14 +115,6 @@ const employeeBase = {
 
 const createSchema = z.object(employeeBase)
 const updateSchema = z.object(employeeBase).partial()
-
-function splitName(full: string): { first: string; last: string } {
-  const t = (full || '').trim()
-  const parts = t.split(/\s+/).filter(Boolean)
-  const first = parts[0] || ''
-  const last = parts.slice(1).join(' ')
-  return { first, last }
-}
 
 const statutorySchema = z.object({
   pf_applicable: z.boolean(),
@@ -258,8 +257,12 @@ employeeRoutes.get('/next-code', async (c) => {
   return c.json({ data: { code } })
 })
 
+// Authenticated variant used by the Employee Master form. Returns the matched
+// record so HR can see who already holds the number. The PUBLIC referrer intake
+// deliberately does not use this: routes/publicReferrers.ts returns only a
+// status enum, never the employee.
 employeeRoutes.get('/check-aadhaar', async (c) => {
-  const aadhaar = (c.req.query('aadhaar') || '').trim()
+  const aadhaar = normalizeAadhaar(c.req.query('aadhaar'))
   if (!aadhaar) return c.json({ error: { code: 'validation_error', message: 'Aadhaar number is required.' } }, 400)
   const db = getDb(c.env)
   const employee = await db.prepare(`${employeeSelect} WHERE e.aadhaar = ?`).bind(aadhaar).first()
@@ -379,23 +382,8 @@ employeeRoutes.delete('/:id/documents/:docId', async (c) => {
 // Keep the Aadhaar Card and PAN Card document records in sync with the identity
 // fields captured on the employee form. Present value -> create/update record;
 // explicit null -> remove the record; absent -> leave unchanged.
-async function syncIdentityDocuments(db: D1Database, employeeId: number, aadhaar?: string | null, pan?: string | null) {
-  const syncOne = async (type: string, value?: string | null) => {
-    const num = value ? String(value).trim() : ''
-    if (num) {
-      const existing = await db.prepare('SELECT id FROM employee_documents WHERE employee_id = ? AND document_type = ? LIMIT 1').bind(employeeId, type).first()
-      if (existing) {
-        await db.prepare('UPDATE employee_documents SET document_number = ?, updated_at = datetime(\'now\') WHERE id = ? AND employee_id = ?').bind(num, Number(existing.id), employeeId).run()
-      } else {
-        await db.prepare('INSERT INTO employee_documents (employee_id, document_type, document_number) VALUES (?,?,?)').bind(employeeId, type, num).run()
-      }
-    } else if (value === null) {
-      await db.prepare('DELETE FROM employee_documents WHERE employee_id = ? AND document_type = ?').bind(employeeId, type).run()
-    }
-  }
-  await syncOne('Aadhaar Card', aadhaar)
-  await syncOne('PAN Card', pan)
-}
+// Implementation now lives in services/employeeCreation.ts so the update and
+// import paths here and the create paths elsewhere share one copy.
 
 employeeRoutes.post('/', async (c) => {
   const body = await c.req.json().catch(() => null)
@@ -405,84 +393,16 @@ employeeRoutes.post('/', async (c) => {
   }
   const d = parsed.data
   const db = getDb(c.env)
-  const siteId = d.site_id ?? null
-  const code = await nextEmployeeCode(db, siteId)
-  const { first, last } = splitName(d.full_name)
 
-  // Reject duplicate email
-  if (d.email) {
-    const dup = await db.prepare('SELECT id FROM employees WHERE email = ?').bind(d.email).first()
-    if (dup) return c.json({ error: { code: 'conflict', message: 'An employee with this email already exists.' } }, 409)
+  let employeeId: number
+  try {
+    employeeId = await createEmployee(db, { ...d, source: 'direct' })
+  } catch (err) {
+    if (err instanceof EmployeeConflictError) {
+      return c.json({ error: { code: 'conflict', message: err.message } }, 409)
+    }
+    throw err
   }
-
-  // Reject duplicate Aadhaar
-  if (d.aadhaar) {
-    const dup = await db.prepare('SELECT id FROM employees WHERE aadhaar = ?').bind(d.aadhaar).first()
-    if (dup) return c.json({ error: { code: 'conflict', message: 'An employee with this Aadhaar already exists.' } }, 409)
-  }
-
-  const info = await db
-    .prepare(
-      `INSERT INTO employees (employee_code, first_name, last_name, father_name, spouse_name, gender, dob, marital_status, nationality, mobile, alternate_mobile, email, aadhaar, address, state, district, pincode, permanent_same_as_present, permanent_address, permanent_state, permanent_district, permanent_pincode, emergency_contact_name, emergency_contact_phone, emergency_contact_relation, bank_name, bank_holder_name, bank_account, bank_ifsc, pan, uan, esi_number, ctc, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, working_days_week, notice_period_days, site_id, status)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .bind(
-      code, first, last, d.father_name ?? null, d.spouse_name ?? null, d.gender ?? null, d.dob ?? null, d.marital_status ?? null, d.nationality ?? 'Indian',
-      d.mobile ?? null, d.alternate_mobile ?? null, d.email || null,
-      d.aadhaar ?? null,
-      d.address ?? null, d.state ?? null, d.district ?? null, d.pincode ?? null,
-      d.permanent_same_as_present ? 1 : 0, d.permanent_address ?? null, d.permanent_state ?? null, d.permanent_district ?? null, d.permanent_pincode ?? null,
-      d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null, d.emergency_contact_relation ?? null,
-      d.bank_name ?? null, d.bank_holder_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null, d.esi_number ?? null, d.ctc ?? null,
-      d.joining_date ?? null, d.designation ?? null, d.department ?? null,
-      d.grade ?? null, d.reporting_manager ?? null, d.previous_employment ?? null,
-      d.employee_type ?? 'permanent',
-      d.shift_type ?? null, d.working_days_week ?? 6, d.notice_period_days ?? null, siteId, d.status ?? 'active'
-    )
-    .run()
-
-  const employeeId = Number(info.meta.last_row_id)
-  const salary = d.salary || { basic: 0 }
-  await db
-    .prepare(
-      `INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, other_allowance_label, overtime_rate, working_hours, pf_applicable, esic_applicable, other_deduction)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
-    )
-    .bind(
-      employeeId, d.joining_date || new Date().toISOString().slice(0, 10),
-      salary.basic || 0, salary.hra || 0, salary.conveyance || 0, salary.other_allowance || 0,
-      salary.other_allowance_label ?? null,
-      salary.overtime_rate || 0, salary.working_hours || 8, salary.pf_applicable === false ? 0 : 1, salary.esic_applicable === false ? 0 : 1,
-      salary.other_deduction || 0
-    )
-    .run()
-
-  // Statutory applicability: per-employee, never assumed. Falls back to the
-  // salary-structure PF/ESI flags for backwards compatibility with the demo UI.
-  const st = d.statutory
-  await db
-    .prepare(
-      `INSERT INTO employee_statutory (employee_id, pf_applicable, esi_applicable, lwf_applicable, pt_applicable, tds_applicable)
-       VALUES (?,?,?,?,?,?)`
-    )
-    .bind(
-      employeeId,
-      st?.pf_applicable === undefined ? (salary.pf_applicable === false ? 0 : 1) : st.pf_applicable ? 1 : 0,
-      st?.esi_applicable === undefined ? (salary.esic_applicable === false ? 0 : 1) : st.esi_applicable ? 1 : 0,
-      st?.lwf_applicable ? 1 : 0,
-      st?.pt_applicable === false ? 0 : 1,
-      st?.tds_applicable ? 1 : 0
-    )
-    .run()
-
-  // Nominee (single record per spec)
-  if (d.nominee?.name) {
-    await db
-      .prepare('INSERT INTO employee_nominees (employee_id, name, relation, share, contact) VALUES (?,?,?,?,?)')
-      .bind(employeeId, d.nominee.name, d.nominee.relation ?? null, d.nominee.share ?? 0, d.nominee.contact ?? null)
-      .run()
-  }
-
-  await syncIdentityDocuments(db, employeeId, d.aadhaar, d.pan)
 
   const created = await db.prepare(`${employeeSelect} WHERE e.id = ?`).bind(employeeId).first()
   return c.json({ data: created }, 201)

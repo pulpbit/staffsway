@@ -70,8 +70,8 @@ add('')
 
 // ---------- Settings ----------
 const S = SETTINGS
-add(`INSERT OR IGNORE INTO settings (id, company_name, company_tagline, address, city, state, pincode, phone, email, website, gstin, pan, cin, currency, financial_year_start, salary_basis_days, pf_rate, pf_cap, pf_eligibility, esic_rate, esic_eligibility, professional_tax_amount, professional_tax_min_gross, default_ot_rate, attendance_lock_enabled, lwf_employee_amount, lwf_employer_amount, tds_percent)
-VALUES (1, '${S.company_name}', '${S.company_tagline}', '${S.address}', '${S.city}', '${S.state}', '${S.pincode}', '${S.phone}', '${S.email}', '${S.website}', '${S.gstin}', '${S.pan}', '${S.cin}', '${S.currency}', ${S.financial_year_start}, ${S.salary_basis_days}, ${S.pf_rate}, ${S.pf_cap}, ${S.pf_eligibility}, ${S.esic_rate}, ${S.esic_eligibility}, ${S.professional_tax_amount}, ${S.professional_tax_min_gross}, ${S.default_ot_rate}, 1, ${S.lwf_employee_amount}, ${S.lwf_employer_amount}, ${S.tds_percent});`)
+add(`INSERT OR IGNORE INTO settings (id, company_name, company_tagline, address, state, pincode, phone, email, website, gstin, pan, cin, currency, financial_year_start, salary_basis_days, pf_rate, pf_cap, pf_eligibility, esic_rate, esic_eligibility, professional_tax_amount, professional_tax_min_gross, default_ot_rate, attendance_lock_enabled, lwf_employee_amount, lwf_employer_amount, tds_percent)
+VALUES (1, '${S.company_name}', '${S.company_tagline}', '${S.address}', '${S.state}', '${S.pincode}', '${S.phone}', '${S.email}', '${S.website}', '${S.gstin}', '${S.pan}', '${S.cin}', '${S.currency}', ${S.financial_year_start}, ${S.salary_basis_days}, ${S.pf_rate}, ${S.pf_cap}, ${S.pf_eligibility}, ${S.esic_rate}, ${S.esic_eligibility}, ${S.professional_tax_amount}, ${S.professional_tax_min_gross}, ${S.default_ot_rate}, 1, ${S.lwf_employee_amount}, ${S.lwf_employer_amount}, ${S.tds_percent});`)
 add('')
 
 // ---------- Leave types ----------
@@ -136,8 +136,10 @@ for (const e of employees) {
   const sup = siteSup.get(e.siteId)
   const repMgr = sup && !`${e.first} ${e.last}`.includes(sup.split(' ')[0]) ? sup : null
   const prevEmp = e.empType !== 'permanent' ? `Previously at ${PREV_EMP[e.id % PREV_EMP.length]} (${(e.id % 5) + 1} yrs)` : null
-  add(`INSERT OR IGNORE INTO employees (id, employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, city, state, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
-VALUES (${e.id}, '${code}', '${e.first}', '${e.last}', '${father}', '${e.gender}', '${e.dob}', '${e.mobile}', '${email}', '${e.aadhaar}', '${address}', '${e.city}', '${e.state}', '${e.pincode}', '${emgName}', '${emgPhone}', '${e.bank}', '${e.account}', '${e.ifsc}', '${e.pan}', '${e.uan}', '${e.joining}', '${e.designation}', '${e.department}', '${gradeOf(sal.b)}', ${repMgr ? `'${repMgr}'` : 'NULL'}, ${prevEmp ? `'${prevEmp}'` : 'NULL'}, '${e.empType}', '${e.shift}', ${e.siteId}, '${e.status}');`)
+  // `city` is folded into the address string above rather than stored: migration
+// 0024 dropped the city column from employees, clients, sites and settings.
+add(`INSERT OR IGNORE INTO employees (id, employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, state, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
+VALUES (${e.id}, '${code}', '${e.first}', '${e.last}', '${father}', '${e.gender}', '${e.dob}', '${e.mobile}', '${email}', '${e.aadhaar}', '${address}', '${e.state}', '${e.pincode}', '${emgName}', '${emgPhone}', '${e.bank}', '${e.account}', '${e.ifsc}', '${e.pan}', '${e.uan}', '${e.joining}', '${e.designation}', '${e.department}', '${gradeOf(sal.b)}', ${repMgr ? `'${repMgr}'` : 'NULL'}, ${prevEmp ? `'${prevEmp}'` : 'NULL'}, '${e.empType}', '${e.shift}', ${e.siteId}, '${e.status}');`)
   add(`INSERT OR IGNORE INTO salary_structures (id, employee_id, effective_from, basic, hra, conveyance, other_allowance, overtime_rate, pf_applicable, esic_applicable, other_deduction)
 VALUES (${e.id}, ${e.id}, '${eff}', ${sal.b}, ${sal.h}, ${sal.c}, ${sal.o}, ${sal.ot}, ${sal.pf}, ${sal.esic}, ${sal.od});`)
   // Statutory applicability is stored per employee (never assumed). Demo rows
@@ -250,6 +252,22 @@ add(`INSERT OR IGNORE INTO interviews (id, candidate_id, round, scheduled_at, in
   (${970003}, ${960003}, 1, '2026-07-28 11:00', 'Sunil Pawar', 'in_person', 'passed', NULL),
   (${970004}, ${960005}, 1, '2026-08-18 16:00', 'Anand Kumar', 'phone', 'passed', 'Technical round pending'),
   (${970005}, ${960004}, 1, '2026-07-25 12:00', 'Sunil Pawar', 'phone', 'failed', 'Did not meet attendance expectations');`)
+
+// ---------- Referrers & public intake demo ----------
+// Aadhaars here use a 7900 prefix so they can never collide with the employee
+// seed, which generates 7896 + a zero-padded employee id (seed-data.mjs).
+add('-- Referrers: public staff registrations')
+add(`INSERT OR IGNORE INTO referrers (id, referrer_code, name, contact_person, phone, email, status) VALUES
+  (${980001}, 'REF0001', 'Metro Facilities Services', 'Ravi Menon', '98400 11223', 'ops@metrofacilities.in', 'active'),
+  (${980002}, 'REF0002', 'SecureHands Manpower', 'Fatima Sheikh', '98400 33445', 'deploy@securehands.in', 'active'),
+  (${980003}, 'REF0003', 'Anna Mobile Labour Pool', 'Karthik Raj', '98400 55667', 'karthik@annapool.in', 'inactive');`)
+add(`INSERT OR IGNORE INTO referrer_applications (id, referrer_id, full_name, aadhaar, father_name, gender, dob, mobile, email, address, state, district, pincode, permanent_same_as_present, experience, previous_employment, status, created_at) VALUES
+  (${990101}, ${980001}, 'Suresh Pandian', '790000000101', 'Chinnappa Pandian', 'Male', '1994-07-18', '98700 10101', 'suresh.p@example.in', '12 Gandhi Street, T. Nagar', 'Tamil Nadu', 'Chennai', '600017', 1, '5 yrs', 'Earlier with Sunrise Housekeeping', 'pending', '2026-09-20 10:12:00'),
+  (${990102}, ${980002}, 'Mohammed Irfan', '790000000102', 'Abdul Irfan', 'Male', '1998-02-03', '98700 20202', NULL, '45 Mosque Road, Royapettah', 'Tamil Nadu', 'Chennai', '600014', 1, '2 yrs', NULL, 'pending', '2026-09-22 15:40:00'),
+  (${990103}, ${980001}, 'Lakshmi Narayanan', '790000000103', 'Venkataraman Narayanan', 'Female', '1996-11-25', '98700 30303', 'lakshmi.n@example.in', '8 LB Road, Adyar', 'Tamil Nadu', 'Chennai', '600020', 1, '3 yrs', NULL, 'rejected', '2026-09-12 09:05:00'),
+  (${990104}, ${980002}, 'Vinay Kumar', '790000000104', 'Selvam Kumar', 'Male', '1992-05-30', '98700 40404', 'vinay.k@example.in', '30 Anna Salai', 'Tamil Nadu', 'Chennai', '600002', 1, '7 yrs', 'Ex-Indian Air Force', 'approved', '2026-09-05 11:30:00');`)
+
+add(`UPDATE referrer_applications SET rejection_reason = 'Aadhaar number did not match the PAN records on file.' WHERE id = ${990103} AND rejection_reason IS NULL;`)
 
 // ---------- Loan demo ----------
 add(`INSERT OR IGNORE INTO employee_loans (id, employee_id, principal, emi_amount, outstanding, start_month, start_year, remarks) VALUES

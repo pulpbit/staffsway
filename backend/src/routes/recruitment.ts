@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Env } from '../types'
 import { getDb } from '../utils/db'
 import { nextEmployeeCode } from '../utils/employeeCode'
+import { createEmployee, EmployeeConflictError, onboardingChecklistFor } from '../services/employeeCreation'
 
 const openingBase = {
   title: z.string().min(1).max(150),
@@ -47,18 +48,18 @@ const joinSchema = z.object({
   conveyance: z.number().min(0).optional(),
   other_allowance: z.number().min(0).optional(),
   working_hours: z.number().min(1).max(24).optional(),
+  // These three were hard-coded before the shared-writer refactor. They are
+  // optional so the existing Join modal keeps working unchanged.
+  employee_type: z.enum(['permanent', 'contract', 'daily_wages']).optional(),
+  shift_type: z.string().max(50).optional().nullable(),
+  pf_applicable: z.boolean().optional(),
+  esi_applicable: z.boolean().optional(),
+  pt_applicable: z.boolean().optional(),
 })
 
-const ONBOARDING_CHECKLIST = [
-  'Appointment letter issued & signed',
-  'Joining form completed',
-  'Aadhaar card collected',
-  'PAN card collected',
-  'Bank account details recorded',
-  'Police verification / background check',
-  'Uniform & ID card issued',
-  'ESIC / UAN registration initiated',
-]
+// Direct-hire checklist. Owned by services/employeeCreation.ts so the referrer
+// intake path and this one cannot drift apart.
+const ONBOARDING_CHECKLIST = onboardingChecklistFor('recruitment')
 
 const openingSelect = `SELECT o.*, s.name AS site_name, c.name AS client_name,
   (SELECT COUNT(*) FROM candidates cd WHERE cd.opening_id = o.id AND cd.status = 'joined') AS filled_count
@@ -241,33 +242,74 @@ recruitmentRoutes.post('/candidates/:id/join', async (c) => {
   const db = getDb(c.env)
   const cand: any = await db.prepare('SELECT * FROM candidates WHERE id = ?').bind(id).first()
   if (!cand) return c.json({ error: { code: 'not_found', message: 'Candidate not found.' } }, 404)
-  if (cand.status === 'joined' && cand.joined_employee_id) return c.json({ error: { code: 'conflict', message: 'Candidate already joined.' } }, 409)
+  // Guard on joined_employee_id alone. The old check required
+  // status='joined' AND a non-null id, so a candidate whose status was patched
+  // to 'joined' without an id (which is exactly the state of seeded candidate
+  // 960003) could be joined a second time, orphaning a real employee.
+  if (cand.joined_employee_id) return c.json({ error: { code: 'conflict', message: 'Candidate already joined.' } }, 409)
 
   const opening: any = cand.opening_id ? await db.prepare('SELECT * FROM job_openings WHERE id = ?').bind(cand.opening_id).first() : null
-  const code = await nextEmployeeCode(db, opening?.site_id ?? null)
-  const [firstName, ...rest] = cand.full_name.split(' ')
-  const lastName = rest.join(' ') || '-'
 
-  const info = await db
-    .prepare(`INSERT INTO employees (employee_code, first_name, last_name, mobile, email, joining_date, designation, department, employee_type, shift_type, site_id, status)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,'active')`)
-    .bind(code, firstName, lastName, cand.mobile ?? null, cand.email ?? null,
-      d.joining_date, d.designation ?? opening?.title ?? null, d.department ?? opening?.department ?? null,
-      'permanent', 'General', opening?.site_id ?? null)
-    .run()
-  const employeeId = Number(info.meta.last_row_id)
-
-  await db.prepare('INSERT INTO salary_structures (employee_id, effective_from, basic, hra, conveyance, other_allowance, working_hours) VALUES (?,?,?,?,?,?,?)')
-    .bind(employeeId, d.joining_date, d.basic, d.hra ?? 0, d.conveyance ?? 0, d.other_allowance ?? 0, d.working_hours ?? 8).run()
-  await db.prepare('INSERT OR IGNORE INTO employee_statutory (employee_id, pf_applicable, esi_applicable, pt_applicable) VALUES (?,1,1,1)').bind(employeeId).run()
-
-  for (const task of ONBOARDING_CHECKLIST) {
-    await db.prepare('INSERT INTO onboarding_tasks (employee_id, task) VALUES (?,?)').bind(employeeId, task).run()
+  // Full employee record via the shared writer. This used to be a local
+  // 12-column INSERT that dropped address, bank, statutory and document data
+  // and hard-coded employee_type/shift_type — so anyone joined from this screen
+  // ended up with a materially poorer employee than one added via Employee
+  // Master. Candidate data is still thin (the candidates table has no aadhaar,
+  // father_name, bank or emergency contact columns), so those stay NULL; that
+  // is a real data gap, but it is no longer hidden by a bespoke INSERT.
+  let employeeId: number
+  let code: string
+  try {
+    code = await nextEmployeeCode(db, opening?.site_id ?? null)
+    employeeId = await createEmployee(db, {
+      employee_code: code,
+      full_name: cand.full_name,
+      mobile: cand.mobile ?? null,
+      email: cand.email ?? null,
+      previous_employment: cand.experience ?? null,
+      joining_date: d.joining_date,
+      designation: d.designation ?? opening?.title ?? null,
+      department: d.department ?? opening?.department ?? null,
+      employee_type: d.employee_type ?? 'permanent',
+      shift_type: d.shift_type ?? 'General',
+      site_id: opening?.site_id ?? null,
+      status: 'active',
+      source: 'recruitment',
+      salary: {
+        basic: d.basic,
+        hra: d.hra ?? 0,
+        conveyance: d.conveyance ?? 0,
+        other_allowance: d.other_allowance ?? 0,
+        working_hours: d.working_hours ?? 8,
+      },
+      // No statutory block from this form, so the service falls back to the
+      // salary-structure flags. Previously this hard-coded pf=esi=pt=1 for
+      // every joined candidate, which contradicted the per-employee
+      // applicability rule in 0002_statutory.sql.
+      statutory: {
+        pf_applicable: d.pf_applicable,
+        esi_applicable: d.esi_applicable,
+        pt_applicable: d.pt_applicable,
+      },
+      onboarding_tasks: ONBOARDING_CHECKLIST,
+    })
+  } catch (err) {
+    if (err instanceof EmployeeConflictError) {
+      return c.json({ error: { code: 'conflict', message: err.message } }, 409)
+    }
+    throw err
   }
-  await db.prepare("UPDATE candidates SET status = 'joined', joined_employee_id = ?, updated_at = datetime('now') WHERE id = ?").bind(employeeId, id).run()
-  if (opening) {
-    await db.prepare("UPDATE job_openings SET status = CASE WHEN (SELECT COUNT(*) FROM candidates WHERE opening_id = ? AND status = 'joined') >= positions_required THEN 'fulfilled' ELSE status END, updated_at = datetime('now') WHERE id = ?").bind(opening.id, opening.id).run()
-  }
+
+  await db.batch([
+    db.prepare("UPDATE candidates SET status = 'joined', joined_employee_id = ?, updated_at = datetime('now') WHERE id = ?").bind(employeeId, id),
+    ...(opening
+      ? [
+          db
+            .prepare("UPDATE job_openings SET status = CASE WHEN (SELECT COUNT(*) FROM candidates WHERE opening_id = ? AND status = 'joined') >= positions_required THEN 'fulfilled' ELSE status END, updated_at = datetime('now') WHERE id = ?")
+            .bind(opening.id, opening.id),
+        ]
+      : []),
+  ])
 
   const employee = await db.prepare('SELECT * FROM employees WHERE id = ?').bind(employeeId).first()
   return c.json({ data: { employee, employee_id: employeeId }, message: `Joined as ${code}. Onboarding checklist created.` }, 201)

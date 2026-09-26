@@ -21,6 +21,8 @@ import { assetRoutes } from './routes/assets'
 import { trainingRoutes } from './routes/training'
 import { separationRoutes } from './routes/separation'
 import { helpdeskRoutes } from './routes/helpdesk'
+import { publicReferrerRoutes } from './routes/publicReferrers'
+import { referrerRoutes } from './routes/referrers'
 import { authMiddleware, requireRole } from './middleware/auth'
 
 const app = new Hono<{ Bindings: Env }>()
@@ -31,6 +33,11 @@ app.get('/api/health', (c) => c.json({ data: { status: 'ok' } }))
 
 // Public routes
 app.route('/api/auth', authRoutes)
+// Public referrer registration intake. MUST stay above the auth middleware
+// below: this is the shared public link that referrers open without a login. It
+// is a write endpoint, so it carries its own rate limit, honeypot and
+// fill-time guard.
+app.route('/api/public/referrers', publicReferrerRoutes)
 
 // Everything else requires auth
 app.use('/api/*', authMiddleware)
@@ -40,7 +47,7 @@ app.use('/api/*', authMiddleware)
 const MASTERDATA_WRITE = ['super_admin', 'admin', 'hr'] as const
 const ATTENDANCE_WRITE = ['super_admin', 'admin', 'hr', 'payroll'] as const
 const PAYROLL_WRITE = ['super_admin', 'admin', 'payroll'] as const
-for (const base of ['/api/employees', '/api/clients', '/api/sites']) {
+for (const base of ['/api/employees', '/api/clients', '/api/sites', '/api/referrers']) {
   app.on(['POST', 'PUT', 'PATCH'], [base, `${base}/*`], requireRole(...MASTERDATA_WRITE))
   app.on('DELETE', [base, `${base}/*`], requireRole('super_admin', 'admin'))
 }
@@ -91,6 +98,7 @@ app.route('/api/assets', assetRoutes)
 app.route('/api/training', trainingRoutes)
 app.route('/api/separation', separationRoutes)
 app.route('/api/helpdesk', helpdeskRoutes)
+app.route('/api/referrers', referrerRoutes)
 
 // 404 for unknown API routes
 app.all('/api/*', (c) => c.json({ error: { code: 'not_found', message: 'API route not found.' } }, 404))

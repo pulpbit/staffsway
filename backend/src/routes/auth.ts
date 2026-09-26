@@ -5,6 +5,7 @@ import { getDb } from '../utils/db'
 import { verifyPassword, hashPassword, needsRehash } from '../utils/hash'
 import { signJwt, getSecret } from '../utils/jwt'
 import { authMiddleware } from '../middleware/auth'
+import { throttle as globalThrottle, clearThrottle as clearThrottleGlobal } from '../utils/throttle'
 
 const loginSchema = z.object({
   email: z.string().email().max(191),
@@ -34,32 +35,10 @@ function dobDdmmyy(dob: string | null): string {
 const WINDOW_MS = 5 * 60 * 1000
 const MAX_ATTEMPTS = 10
 
-type Bucket = { count: number; resetAt: number }
-const attempts = new Map<string, Bucket>()
-
-function pruneExpired(now: number): void {
-  if (attempts.size < 500) return
-  for (const [k, b] of attempts) if (b.resetAt < now) attempts.delete(k)
-}
-
-function throttle(key: string): { blocked: boolean; retryAfterSec: number } {
-  const now = Date.now()
-  pruneExpired(now)
-  const b = attempts.get(key)
-  if (!b || b.resetAt < now) {
-    attempts.set(key, { count: 1, resetAt: now + WINDOW_MS })
-    return { blocked: false, retryAfterSec: 0 }
-  }
-  b.count += 1
-  if (b.count > MAX_ATTEMPTS) {
-    return { blocked: true, retryAfterSec: Math.ceil((b.resetAt - now) / 1000) }
-  }
-  return { blocked: false, retryAfterSec: 0 }
-}
-
-function clearThrottle(key: string): void {
-  attempts.delete(key)
-}
+// Throttle implementation now lives in utils/throttle.ts so the public referrer
+// intake endpoint can reuse the same limiter.
+const throttle = (key: string) => globalThrottle(key, MAX_ATTEMPTS, WINDOW_MS)
+const clearThrottle = clearThrottleGlobal
 
 export const authRoutes = new Hono<{ Bindings: Env }>()
 

@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import AppLayout from '@/layouts/AppLayout'
 import LoginPage from '@/features/auth/LoginPage'
+import ReferrerApplyPage from '@/features/referrers/ReferrerApplyPage'
+import ReferrerApplicationsPage from '@/features/referrers/ReferrerApplicationsPage'
 import { LoadingState } from '@/components/ui/state'
 
 import ManagementDashboardPage from '@/features/dashboard/ManagementDashboardPage'
@@ -43,6 +45,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      {/* Public staff-registration intake. Deliberately outside ProtectedRoute:
+          referrers have no login. One shared link for everyone. */}
+      <Route path="/apply" element={<ReferrerApplyPage />} />
       <Route
         element={
           <ProtectedRoute>
@@ -58,6 +63,7 @@ export default function App() {
         <Route path="attendance" element={<AttendancePage />} />
         <Route path="attendance/report" element={<AttendanceReportPage />} />
         <Route path="recruitment" element={<RecruitmentPage />} />
+        <Route path="referrers" element={<ReferrerApplicationsPage />} />
         <Route path="leaves" element={<LeavesPage />} />
         <Route path="payroll" element={<PayrollPage />} />
         <Route path="slips" element={<SalarySlipsPage />} />

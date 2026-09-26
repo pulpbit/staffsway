@@ -1,6 +1,6 @@
 -- Demo seed (idempotent): safe to run multiple times; never deletes existing records.
 
-INSERT OR IGNORE INTO users (id, name, email, password_hash, role, status) VALUES (1, 'System Administrator', 'admin@staffsway.in', 'pbkdf2$100000$Ztb22XBz5Xe7PLazO6USrg$5z3w-VMqdk-RVpMrYab7VLbbud_qIWcPvow3wbp3P6Y', 'admin', 'active');
+INSERT OR IGNORE INTO users (id, name, email, password_hash, role, status) VALUES (1, 'System Administrator', 'admin@staffsway.in', 'pbkdf2$100000$gPf05ZCf4e3JvOjRNrIGJQ$7S7h_mPwezPZv1nBbhcfxwd_WYGl9Kw2HF9oa1Ui6RQ', 'admin', 'active');
 
 INSERT OR IGNORE INTO settings (id, company_name, company_tagline, address, state, pincode, phone, email, website, gstin, pan, cin, currency, financial_year_start, salary_basis_days, pf_rate, pf_cap, pf_eligibility, esic_rate, esic_eligibility, professional_tax_amount, professional_tax_min_gross, default_ot_rate, attendance_lock_enabled, lwf_employee_amount, lwf_employer_amount, tds_percent)
 VALUES (1, 'Staffsway', 'Manpower Staffing & HRMS', '501 Corporate Tower, Andheri East', 'Maharashtra', '400069', '+91 22 4890 2200', 'info@staffsway.in', 'https://staffsway.in', '27AABCP8892Q1Z5', 'AABCP8892Q', 'U74900MH2014PTC284110', 'INR', 4, 26, 12, 1800, 15000, 0.75, 21000, 200, 10000, 80, 1, 100, 100, 2);
@@ -28,23 +28,23 @@ INSERT OR IGNORE INTO shift_types (id, name, start_time, end_time) VALUES
   (5, 'Rotational', NULL, NULL),
   (6, 'Split', '10:00', '14:00');
 
-INSERT OR IGNORE INTO clients (id, client_code, name, primary_contact_person, hr_contact_person, company_email, address_line1, address_line2, state, district, pincode, gst_no, company_pan, payroll_cycle, salary_calculation, overtime_enabled, leave_policy_enabled, arrears_enabled, advance_loan_enabled, bank_name, bank_account, bank_ifsc, bank_account_holder, status) VALUES
-  (1, 'AFS', 'ABC Facility Services', 'Anil Kapoor', 'Meena Kapoor', 'accounts@abcfacilities.in', '210 Trade Centre', 'Andheri East', 'Maharashtra', 'Mumbai Suburban', '400069', '27AABCV1234F1Z5', 'AABCV1234F', 'monthly', 'calendar_days', 1, 1, 1, 1, 'HDFC Bank', '60010000000001', 'HDFC0000401', 'ABC Facility Services', 'active'),
-  (2, 'MMM', 'Metro Mall Management', 'Priya Nair', 'Ravi Kumar', 'ops@metromalls.in', '4-1-20 Metro House', 'Banjara Hills', 'Telangana', 'Hyderabad', '500034', '36AAACMM1234P1Z2', 'AAACMM1234P', 'monthly', 'calendar_days', 1, 1, 0, 1, 'ICICI Bank', '40010000000002', 'ICIC0001234', 'Metro Mall Management', 'active'),
-  (3, 'SI', 'SecureTech Industries', 'Rajesh Menon', 'Lakshmi Iyer', 'hr@securetech.in', 'Plot 12, Industrial Estate', 'Ambattur', 'Tamil Nadu', 'Chennai', '600058', '33AABCS1234F1Z3', 'AABCS1234F', 'monthly', 'calendar_days', 0, 1, 1, 0, 'State Bank of India', '80010000000003', 'SBIN0009988', 'SecureTech Industries', 'active'),
-  (4, 'GH', 'Greenfield Hospital', 'Dr. Sunita Rao', 'Dr. K. Shah', 'admin@greenfieldhosp.in', '5 Andheri West', 'Andheri', 'Maharashtra', 'Mumbai Suburban', '400053', '27AACFG1234H1Z4', 'AACFG1234H', 'monthly', 'working_days', 1, 1, 1, 1, 'Axis Bank', '90010000000004', 'UTIB0000444', 'Greenfield Hospital', 'active');
+INSERT OR IGNORE INTO clients (id, name, contact_person, phone, email, address, contract_start, contract_end, status) VALUES
+  (1, 'ABC Facility Services', 'Anil Kapoor', '98220 11001', 'accounts@abcfacilities.in', '210 Trade Centre, Andheri East, Mumbai, Maharashtra 400069', '2025-01-01', '2027-12-31', 'active'),
+  (2, 'Metro Mall Management', 'Priya Nair', '98330 22002', 'ops@metromalls.in', '4-1-20 Metro House, Banjara Hills, Hyderabad, Telangana 500034', '2025-04-01', '2026-12-31', 'active'),
+  (3, 'SecureTech Industries', 'Rajesh Menon', '98440 33003', 'hr@securetech.in', 'Plot 12, Industrial Estate, Ambattur, Chennai, Tamil Nadu 600058', '2025-02-15', '2027-02-14', 'active'),
+  (4, 'Greenfield Hospital', 'Dr. Sunita Rao', '98550 44004', 'admin@greenfieldhosp.in', '5 Andheri West, Mumbai, Maharashtra 400053', '2024-11-01', '2026-10-31', 'active');
 
-INSERT OR IGNORE INTO sites (id, client_id, name, status, address_line1, address_line2, state, district, pincode, site_incharge, site_incharge_designation, site_incharge_contact, site_incharge_email, shift_type, overtime_enabled, payroll_applicable, leave_policy_enabled, arrears_enabled, pf_applicable, pf_percent, esic_applicable, esic_percent, lwf_applicable, lwf_percent, pt_applicable, pt_amount, tds_applicable, tds_percent, gratuity_applicable) VALUES
-  (1, 1, 'Corporate Park Chennai', 'active', '1 Highfield Road', 'Corporate Park, Guindy', 'Tamil Nadu', 'Chennai', '600028', 'R. Subramaniam', 'Site Incharge', '98400 11001', 'rcs@corporatepark.in', 'General', 1, 1, 1, 1, 1, 12, 1, 0.75, 1, 0.5, 1, 200, 1, 2, 1),
-  (2, 1, 'Highland Towers Mumbai', 'active', '22 Marine Drive', 'Highland Towers', 'Maharashtra', 'Mumbai', '400002', 'V. Kulkarni', 'Site Supervisor', '98400 11002', 'vk@highlandtowers.in', 'Rotational', 1, 1, 1, 0, 1, 12, 1, 0.75, 0, 0.5, 1, 200, 1, 2, 1),
-  (3, 1, 'Riverside Tech Hub Bengaluru', 'active', '88 Koramangala', 'Riverside Tech Hub', 'Karnataka', 'Bengaluru Urban', '560095', 'M. Narayan', 'Facility Manager', '98400 11003', 'mn@riversidetech.in', 'General', 1, 1, 1, 1, 1, 12, 1, 0.75, 1, 0.5, 1, 200, 1, 2, 1),
-  (4, 2, 'City Centre Mall Pune', 'active', '45 FC Road', 'City Centre Mall', 'Maharashtra', 'Pune', '411004', 'A. Deshpande', 'Security Supervisor', '98400 11004', 'ad@citycentremall.in', 'Morning', 1, 1, 1, 1, 1, 12, 1, 0.75, 0, 0.5, 1, 200, 1, 2, 1),
-  (5, 2, 'Grand Galleria Mall Hyderabad', 'active', '7 Banjara Hills', 'Grand Galleria Mall', 'Telangana', 'Hyderabad', '500034', 'P. Varma', 'Site Incharge', '98400 11005', 'pv@grandgalleria.in', 'Rotational', 1, 1, 1, 0, 1, 12, 1, 0.75, 1, 0.5, 1, 200, 1, 2, 1),
-  (6, 2, 'Urban Square Mall Delhi', 'active', '101 Connaught Place', 'Urban Square Mall', 'Delhi', 'Central Delhi', '110001', 'S. Khanna', 'Security Head', '98400 11006', 'sk@urbansquare.in', 'Rotational', 1, 1, 1, 1, 1, 12, 1, 0.75, 0, 0.5, 1, 200, 1, 2, 1),
-  (7, 3, 'Alpha Industrial Estate Chennai', 'active', '33 Ambattur Industrial Estate', 'Alpha Industrial Estate', 'Tamil Nadu', 'Chennai', '600058', 'R. Venkatesan', 'Site Incharge', '98400 11007', 'rv@alphaindustrial.in', 'Night', 1, 1, 1, 1, 1, 12, 1, 0.75, 1, 0.5, 1, 200, 1, 2, 1),
-  (8, 3, 'Sigma Electronics Park Bengaluru', 'active', '12 Whitefield', 'Sigma Electronics Park', 'Karnataka', 'Bengaluru Urban', '560066', 'T. Prabhakar', 'Security Supervisor', '98400 11008', 'tp@sigmapark.in', 'General', 1, 1, 1, 0, 1, 12, 1, 0.75, 0, 0.5, 1, 200, 1, 2, 1),
-  (9, 4, 'Greenfield Main Hospital Mumbai', 'active', '5 Andheri West', 'Greenfield Main Hospital', 'Maharashtra', 'Mumbai Suburban', '400053', 'Dr. K. Shah', 'Security Incharge', '98400 11009', 'ks@greenfieldhosp.in', 'Rotational', 1, 1, 1, 1, 1, 12, 1, 0.75, 1, 0.5, 1, 200, 1, 2, 1),
-  (10, 4, 'Greenfield Annex Clinic Pune', 'active', '118 Kothrud', 'Greenfield Annex Clinic', 'Maharashtra', 'Pune', '411038', 'Dr. A. Joshi', 'Site Incharge', '98400 11010', 'aj@greenfieldhosp.in', 'General', 1, 1, 1, 1, 1, 12, 1, 0.75, 0, 0.5, 1, 200, 1, 2, 1);
+INSERT OR IGNORE INTO sites (id, client_id, name, location, supervisor_name, shift_type, status) VALUES
+  (1, 1, 'Corporate Park Chennai', '1 Highfield Road, Chennai, Tamil Nadu 600028', 'R. Subramaniam', 'General', 'active'),
+  (2, 1, 'Highland Towers Mumbai', '22 Marine Drive, Mumbai, Maharashtra 400002', 'V. Kulkarni', 'Rotational', 'active'),
+  (3, 1, 'Riverside Tech Hub Bengaluru', '88 Koramangala, Bengaluru, Karnataka 560095', 'M. Narayan', 'General', 'active'),
+  (4, 2, 'City Centre Mall Pune', '45 FC Road, Pune, Maharashtra 411004', 'A. Deshpande', 'Morning', 'active'),
+  (5, 2, 'Grand Galleria Mall Hyderabad', '7 Banjara Hills, Hyderabad, Telangana 500034', 'P. Varma', 'Rotational', 'active'),
+  (6, 2, 'Urban Square Mall Delhi', '101 Connaught Place, New Delhi, Delhi 110001', 'S. Khanna', 'Rotational', 'active'),
+  (7, 3, 'Alpha Industrial Estate Chennai', '33 Ambattur Industrial Estate, Chennai, Tamil Nadu 600058', 'R. Venkatesan', 'Night', 'active'),
+  (8, 3, 'Sigma Electronics Park Bengaluru', '12 Whitefield, Bengaluru, Karnataka 560066', 'T. Prabhakar', 'General', 'active'),
+  (9, 4, 'Greenfield Main Hospital Mumbai', '5 Andheri West, Mumbai, Maharashtra 400053', 'Dr. K. Shah', 'Rotational', 'active'),
+  (10, 4, 'Greenfield Annex Clinic Pune', '118 Kothrud, Pune, Maharashtra 411038', 'Dr. A. Joshi', 'General', 'active');
 
 INSERT OR IGNORE INTO employees (id, employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, state, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
 VALUES (1, 'SW0001', 'Rahul', 'Sharma', 'Suresh Sharma', 'Male', '1988-04-12', '98100 10001', 'rahul.sharma@staffsway.in', '789600000001', 'Chennai, Tamil Nadu 600028', 'Tamil Nadu', '600028', 'Ajay Sharma', '9820000137', 'HDFC Bank', '60010000000001', 'HDFC0000401', 'AABPC0001K', '101000000001', '2023-01-10', 'Security Supervisor', 'Security', 'B', NULL, NULL, 'permanent', 'General', 1, 'active');
@@ -747,6 +747,17 @@ INSERT OR IGNORE INTO interviews (id, candidate_id, round, scheduled_at, intervi
   (970003, 960003, 1, '2026-07-28 11:00', 'Sunil Pawar', 'in_person', 'passed', NULL),
   (970004, 960005, 1, '2026-08-18 16:00', 'Anand Kumar', 'phone', 'passed', 'Technical round pending'),
   (970005, 960004, 1, '2026-07-25 12:00', 'Sunil Pawar', 'phone', 'failed', 'Did not meet attendance expectations');
+-- Referrers: public staff registrations
+INSERT OR IGNORE INTO referrers (id, referrer_code, name, contact_person, phone, email, status) VALUES
+  (980001, 'REF0001', 'Metro Facilities Services', 'Ravi Menon', '98400 11223', 'ops@metrofacilities.in', 'active'),
+  (980002, 'REF0002', 'SecureHands Manpower', 'Fatima Sheikh', '98400 33445', 'deploy@securehands.in', 'active'),
+  (980003, 'REF0003', 'Anna Mobile Labour Pool', 'Karthik Raj', '98400 55667', 'karthik@annapool.in', 'inactive');
+INSERT OR IGNORE INTO referrer_applications (id, referrer_id, full_name, aadhaar, father_name, gender, dob, mobile, email, address, state, district, pincode, permanent_same_as_present, experience, previous_employment, status, created_at) VALUES
+  (990101, 980001, 'Suresh Pandian', '790000000101', 'Chinnappa Pandian', 'Male', '1994-07-18', '98700 10101', 'suresh.p@example.in', '12 Gandhi Street, T. Nagar', 'Tamil Nadu', 'Chennai', '600017', 1, '5 yrs', 'Earlier with Sunrise Housekeeping', 'pending', '2026-09-20 10:12:00'),
+  (990102, 980002, 'Mohammed Irfan', '790000000102', 'Abdul Irfan', 'Male', '1998-02-03', '98700 20202', NULL, '45 Mosque Road, Royapettah', 'Tamil Nadu', 'Chennai', '600014', 1, '2 yrs', NULL, 'pending', '2026-09-22 15:40:00'),
+  (990103, 980001, 'Lakshmi Narayanan', '790000000103', 'Venkataraman Narayanan', 'Female', '1996-11-25', '98700 30303', 'lakshmi.n@example.in', '8 LB Road, Adyar', 'Tamil Nadu', 'Chennai', '600020', 1, '3 yrs', NULL, 'rejected', '2026-09-12 09:05:00'),
+  (990104, 980002, 'Vinay Kumar', '790000000104', 'Selvam Kumar', 'Male', '1992-05-30', '98700 40404', 'vinay.k@example.in', '30 Anna Salai', 'Tamil Nadu', 'Chennai', '600002', 1, '7 yrs', 'Ex-Indian Air Force', 'approved', '2026-09-05 11:30:00');
+UPDATE referrer_applications SET rejection_reason = 'Aadhaar number did not match the PAN records on file.' WHERE id = 990103 AND rejection_reason IS NULL;
 INSERT OR IGNORE INTO employee_loans (id, employee_id, principal, emi_amount, outstanding, start_month, start_year, remarks) VALUES
   (990001, 5, 40000, 4000, 40000, 8, 2026, 'Salary advance loan — 10 month recovery');
 INSERT OR IGNORE INTO holidays (date, name) VALUES
@@ -761,7 +772,7 @@ INSERT OR IGNORE INTO leave_requests (id, employee_id, leave_type_id, start_date
   (980002, 9, 3, '2026-08-12', '2026-08-12', 1.0, 'Fever', 'pending_hr', 'approved', 'admin@staffsway.in', '2026-08-11 18:00:00', 'pending', NULL, NULL, 'admin@staffsway.in'),
   (980003, 12, 4, '2026-08-20', '2026-08-21', 2.0, 'Personal travel (unpaid)', 'pending_manager', 'pending', NULL, NULL, 'pending', NULL, NULL, 'admin@staffsway.in');
 INSERT OR IGNORE INTO users (id, name, email, password_hash, role, status, employee_id)
-VALUES (7, 'Amit Verma', 'amit.verma@staffsway.in', 'pbkdf2$100000$3feWcswJ08_aTXhowm5Bdw$kncTUIy8GG5uRfB9ZyW2lSTgXCsuIF856TEHVsuczMg', 'employee', 'active', 2);
+VALUES (7, 'Amit Verma', 'amit.verma@staffsway.in', 'pbkdf2$100000$gPf05ZCf4e3JvOjRNrIGJQ$7S7h_mPwezPZv1nBbhcfxwd_WYGl9Kw2HF9oa1Ui6RQ', 'employee', 'active', 2);
 INSERT OR IGNORE INTO minimum_wages (state, category, basic_monthly, va_monthly, effective_from) VALUES
   ('Haryana', 'Unskilled', 11000, 500, '2026-01-01'),
   ('Haryana', 'Semi-skilled', 12500, 550, '2026-01-01'),
@@ -799,10 +810,10 @@ INSERT OR IGNORE INTO compliance_records (id, obligation, year, month, due_date,
   (995026, 'ESI', 2026, 7, '2026-08-15', 'done', 'Filed on time', 'admin@staffsway.in', '2026-08-15 12:00:00'),
   (995027, 'PT', 2026, 7, '2026-08-15', 'done', 'Filed on time', 'admin@staffsway.in', '2026-08-15 12:00:00'),
   (995028, 'TDS', 2026, 7, '2026-08-07', 'done', 'Filed on time', 'admin@staffsway.in', '2026-08-07 12:00:00'),
-  (995029, 'PF', 2026, 8, '2026-09-15', 'pending', NULL, NULL, NULL),
-  (995030, 'ESI', 2026, 8, '2026-09-15', 'pending', NULL, NULL, NULL),
-  (995031, 'PT', 2026, 8, '2026-09-15', 'pending', NULL, NULL, NULL),
-  (995032, 'TDS', 2026, 8, '2026-09-07', 'pending', NULL, NULL, NULL),
+  (995029, 'PF', 2026, 8, '2026-09-15', 'done', 'Filed on time', 'admin@staffsway.in', '2026-09-15 12:00:00'),
+  (995030, 'ESI', 2026, 8, '2026-09-15', 'done', 'Filed on time', 'admin@staffsway.in', '2026-09-15 12:00:00'),
+  (995031, 'PT', 2026, 8, '2026-09-15', 'done', 'Filed on time', 'admin@staffsway.in', '2026-09-15 12:00:00'),
+  (995032, 'TDS', 2026, 8, '2026-09-07', 'done', 'Filed on time', 'admin@staffsway.in', '2026-09-07 12:00:00'),
   (995033, 'LWF', 2026, 6, '2026-07-31', 'done', 'Half-yearly return filed', 'admin@staffsway.in', '2026-07-28 11:00:00'),
   (995034, 'BONUS', 2026, 3, '2026-11-30', 'pending', NULL, NULL, NULL);
 

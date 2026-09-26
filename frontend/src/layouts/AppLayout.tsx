@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Menu, X, LayoutDashboard, Users, Building2, MapPin, CalendarCheck, UserPlus, CalendarDays, IndianRupee,
   FileText, BarChart3, Settings, LogOut, ChevronDown, ShieldCheck, UserRound, Target, FolderOpen, Package,
-  GraduationCap, UserMinus, HeadphonesIcon, Search as SearchIcon, Building2 as OrgIcon,
+  GraduationCap, UserMinus, HeadphonesIcon, Search as SearchIcon, Building2 as OrgIcon, UserCheck,
   Loader2, User as UserIcon, ArrowRightLeft, Upload, ChevronRight, PanelLeft,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -39,6 +39,7 @@ const NAV_GROUPS: NavEntry[] = [
     label: 'People',
     items: [
       { to: '/recruitment', label: 'Recruitment', icon: UserPlus },
+      { to: '/referrers', label: 'Referrers', icon: UserCheck },
       { to: '/performance', label: 'Performance', icon: Target },
       { to: '/separation', label: 'Exit Management', icon: UserMinus },
       { to: '/helpdesk', label: 'HR Helpdesk', icon: HeadphonesIcon },

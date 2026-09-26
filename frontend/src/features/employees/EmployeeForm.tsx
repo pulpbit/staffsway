@@ -4,6 +4,7 @@ import { employeeApi, clientApi, siteApi } from '@/services/api'
 import { Button, Input, Select, Textarea, FormSection, FormGrid, FormDivider, Toggle } from '@/components/ui/fields'
 import { LoadingState } from '@/components/ui/state'
 import { FieldErrorsDialog, useFormValidation, type FieldRule } from '@/components/ui/validation'
+import { AadhaarBoxes } from '@/components/ui/AadhaarBoxes'
 import { toast } from 'sonner'
 import { IdCard, User, Phone, Briefcase, Wallet, Landmark, FileText, HeartHandshake, Siren, CheckCircle2, AlertTriangle } from 'lucide-react'
 
@@ -455,60 +456,6 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
       )}
 
       <FieldErrorsDialog open={popupOpen} labels={invalidLabels(EMPLOYEE_RULES)} onClose={closePopup} />
-    </div>
-  )
-}
-
-function AadhaarBoxes({ value, onChange }: { value: string; onChange: (digits: string) => void }) {
-  const refs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
-  const digits = (value || '').replace(/\D/g, '').slice(0, 12)
-
-  const handleChange = (i: number, e: ChangeEvent<HTMLInputElement>) => {
-    const part = e.target.value.replace(/\D/g, '').slice(0, 4)
-    const next = (digits.slice(0, i * 4) + part + digits.slice((i + 1) * 4)).slice(0, 12)
-    onChange(next)
-    if (part.length === 4 && i < 2) refs[i + 1].current?.focus()
-  }
-
-  const handleKeyDown = (i: number, e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && i > 0 && e.currentTarget.value === '') {
-      e.preventDefault()
-      const prev = refs[i - 1].current
-      prev?.focus()
-      prev?.select()
-    }
-  }
-
-  const handlePaste = (_i: number, e: ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault()
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 12)
-    if (!pasted) return
-    onChange(pasted)
-    requestAnimationFrame(() => {
-      const nextIdx = Math.min(Math.floor(pasted.length / 4), 2)
-      refs[nextIdx].current?.focus()
-    })
-  }
-
-  return (
-    <div className="flex items-center gap-1.5">
-      {[0, 1, 2].map((i) => (
-        <input
-          key={i}
-          ref={refs[i]}
-          value={digits.slice(i * 4, (i + 1) * 4)}
-          onChange={(e) => handleChange(i, e)}
-          onKeyDown={(e) => handleKeyDown(i, e)}
-          onPaste={(e) => handlePaste(i, e)}
-          onFocus={(e) => e.target.select()}
-          inputMode="numeric"
-          autoComplete="off"
-          maxLength={4}
-          placeholder="____"
-          aria-label={`Aadhaar digits ${i + 1} of 3`}
-          className="w-[74px] h-10 px-2 text-center text-[15px] tracking-[0.25em] font-mono bg-white border border-hairline rounded-sm outline-none transition-colors placeholder:text-mute focus:border-navy-mid"
-        />
-      ))}
     </div>
   )
 }

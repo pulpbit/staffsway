@@ -225,6 +225,78 @@ export const recruitmentApi = {  openings: () => api.get<JobOpening[]>('/recruit
   toggleOnboardingTask: (taskId: number, done: boolean) => api.patch<unknown>(`/recruitment/onboarding/${taskId}`, { done }),
 }
 
+// Referrers. A referrer refers staff to Staffsway and registers them on the
+// company's behalf — contact details only, nothing commercial.
+export interface ReferrerOption { id: number; name: string; referrer_code: string }
+export interface ReferrerRow {
+  id: number; referrer_code: string; name: string
+  contact_person?: string | null; phone?: string | null; email?: string | null
+  status: 'active' | 'inactive'
+  application_count?: number; pending_count?: number; employee_count?: number; active_employees?: number
+}
+export interface ReferrerApplication {
+  id: number; referrer_id?: number | null; referrer_name?: string | null; referrer_code?: string | null
+  full_name: string; aadhaar: string; father_name?: string | null; gender?: string | null
+  dob?: string | null; marital_status?: string | null; nationality?: string | null
+  mobile: string; alternate_mobile?: string | null; email?: string | null
+  address?: string | null; state?: string | null; district?: string | null; pincode?: string | null
+  permanent_same_as_present?: number; permanent_address?: string | null
+  permanent_state?: string | null; permanent_district?: string | null; permanent_pincode?: string | null
+  emergency_contact_name?: string | null; emergency_contact_phone?: string | null; emergency_contact_relation?: string | null
+  bank_name?: string | null; bank_holder_name?: string | null; bank_account?: string | null; bank_ifsc?: string | null
+  pan?: string | null; uan?: string | null; esi_number?: string | null
+  experience?: string | null; previous_employment?: string | null
+  status: 'pending' | 'approved' | 'rejected'; rejection_reason?: string | null
+  reviewer_name?: string | null; reviewed_at?: string | null
+  employee_id?: number | null; employee_code?: string | null
+  created_at: string; updated_at?: string
+}
+export interface AadhaarAvailability { available: boolean; reason: 'employee' | 'pending' | null }
+
+export const referrerApi = {
+  list: (params?: Record<string, string>) => {
+    const q = params ? `?${new URLSearchParams(params).toString()}` : ''
+    return api.get<ReferrerRow[]>(`/referrers${q}`)
+  },
+  get: (id: number) => api.get<ReferrerRow & { applications?: ReferrerApplication[]; employees?: unknown[] }>(`/referrers/${id}`),
+  create: (data: Partial<ReferrerRow>) => api.post<ReferrerRow>('/referrers', data),
+  update: (id: number, data: Partial<ReferrerRow>) => api.put<ReferrerRow>(`/referrers/${id}`, data),
+  deactivate: (id: number) => api.delete(`/referrers/${id}`),
+  applications: (params?: Record<string, string>) => {
+    const q = params ? `?${new URLSearchParams(params).toString()}` : ''
+    return api.get<ReferrerApplication[]>(`/referrers/applications${q}`)
+  },
+  application: (id: number) => api.get<ReferrerApplication>(`/referrers/applications/${id}`),
+  approve: (id: number, data: Record<string, unknown>) =>
+    api.post<{ employee: { employee_code: string }; employee_id: number; referrer_name?: string | null }>(`/referrers/applications/${id}/approve`, data),
+  reject: (id: number, reason: string) => api.post<{ ok: boolean }>(`/referrers/applications/${id}/reject`, { reason }),
+}
+
+/**
+ * Public, unauthenticated referrer intake. Deliberately does not go through
+ * `api`/`request`, which attaches the staffsway_token and bounces 401s by
+ * clearing it — neither is wanted by a visitor with no session, and a public
+ * page should not be able to disturb an existing login.
+ */
+async function publicRequest<T>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const res = await fetch(`${API}${path}`, { ...options, headers })
+  const json = await res.json().catch(() => ({ error: { code: 'network_error', message: 'Could not connect to the server.' } }))
+  if (!res.ok) throw json as ApiError
+  return json as ApiResponse<T>
+}
+
+export const publicReferrerApi = {
+  options: () => publicRequest<ReferrerOption[]>('/public/referrers/options'),
+  checkAadhaar: (aadhaar: string, startedAt?: number) =>
+    publicRequest<AadhaarAvailability>('/public/referrers/check-aadhaar', {
+      method: 'POST',
+      body: JSON.stringify({ aadhaar, started_at: startedAt, website: '' }),
+    }),
+  submit: (payload: Record<string, unknown>) =>
+    publicRequest<{ id: number; reference: string }>('/public/referrers', { method: 'POST', body: JSON.stringify(payload) }),
+}
+
 // Leave Management
 export interface LeaveRequestRow {
   id: number; employee_id: number; leave_type_id?: number | null
