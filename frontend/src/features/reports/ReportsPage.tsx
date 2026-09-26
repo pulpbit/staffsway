@@ -479,7 +479,7 @@ export default function ReportsPage() {
               <NativeSelect className="w-40" value={filters.site_id || ''} onChange={v => set('site_id', v)} options={[{ value: '', label: 'All Sites' }, ...siteOptions.map((s: any) => ({ value: String(s.id), label: s.name }))]} />
             )}
             {def.statusFilter && (
-              <NativeSelect className="w-36" value={filters.status || ''} onChange={v => set('status', v)} options={[{ value: '', label: 'All Status' }, ...['active', 'inactive', 'resigned', 'terminated'].map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))]} />
+              <NativeSelect className="w-36" value={filters.status || ''} onChange={v => set('status', v)} options={[{ value: '', label: 'All Status' }, ...['active', 'inactive', 'exited'].map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))]} />
             )}
             {def.periodFilter && (
               <input value={filters.period || ''} onChange={e => set('period', e.target.value)} placeholder="Period e.g. Q1 2026" className="h-9 w-40 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid placeholder:text-mute" />

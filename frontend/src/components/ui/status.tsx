@@ -48,6 +48,8 @@ export function statusTone(status: string | null | undefined): Tone {
   if (['rejected', 'inactive', 'terminated', 'resigned', 'unpaid', 'absent', 'failed', 'overdue', 'expired', 'missing', 'lost', 'cancelled', 'canceled', 'notcompliant', 'failedcompliance', 'short', 'no'].includes(s)) return 'danger'
   if (['onleave', 'halfday', 'onsite', 'training', 'interview', 'inreview', 'underreview', 'leave', 'weeklyoff', 'holiday', 'maternity', 'break'].includes(s)) return 'info'
   if (['activeyes', 'applicable'].includes(s)) return 'success'
+  // An exit is a normal terminal outcome, not a problem — deliberately neutral.
+  if (['exited', 'relieved', 'separated'].includes(s)) return 'neutral'
   return 'neutral'
 }
 

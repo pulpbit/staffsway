@@ -1,4 +1,4 @@
-import type { ApiError, ApiResponse, PaginationMeta } from '@/types/api'
+import type { ApiError, ApiResponse, EmployeeTransfer, PaginationMeta } from '@/types/api'
 
 const API = import.meta.env.VITE_API_URL || '/api'
 
@@ -67,7 +67,7 @@ export const employeeApi = {
     const q = new URLSearchParams(params).toString()
     return api.get<unknown[] & { meta: PaginationMeta }>(`/employees?${q}`)
   },
-  stats: () => api.get<{ total: number; active: number; inactive: number; joined_this_month: number; exit_this_month: number; on_leave_today: number }>('/employees/stats'),
+  stats: () => api.get<{ total: number; active: number; inactive: number; exited: number; joined_this_month: number; exit_this_month: number; on_leave_today: number }>('/employees/stats'),
   get: (id: number) => api.get<import('@/types/api').Employee>(`/employees/${id}`),
   checkAadhaar: (aadhaar: string) => api.get<{ exists: boolean; employee: import('@/types/api').Employee | null }>(`/employees/check-aadhaar?aadhaar=${encodeURIComponent(aadhaar)}`),
   nextCode: (siteId?: number | string) => api.get<{ code: string }>(`/employees/next-code${siteId ? `?site_id=${siteId}` : ''}`),
@@ -78,8 +78,11 @@ export const employeeApi = {
   addDocument: (id: number, data: unknown) => api.post<unknown[]>(`/employees/${id}/documents`, data),
   deleteDocument: (id: number, docId: number) => api.delete<unknown[]>(`/employees/${id}/documents/${docId}`),
   verifyDocument: (id: number, docId: number, verified: boolean) => api.patch<unknown[]>(`/employees/${id}/documents/${docId}/verify`, { verified }),
-  setStatus: (id: number, status: string) => api.patch<import('@/types/api').Employee>(`/employees/${id}/status`, { status }),
-  revisions: (id: number) => api.get<unknown[]>(`/employees/${id}/revisions`),
+  setStatus: (id: number, status: 'active' | 'inactive', deactivated_at?: string) =>
+    api.patch<import('@/types/api').Employee>(`/employees/${id}/status`, { status, ...(deactivated_at ? { deactivated_at } : {}) }),
+  transfers: (id: number) => api.get<EmployeeTransfer[]>(`/employees/${id}/transfers`),
+  transfer: (id: number, data: { site_id: number | null; designation?: string | null; department?: string | null; effective_date: string; reason?: string | null; remarks?: string | null }) =>
+    api.post<import('@/types/api').Employee>(`/employees/${id}/transfer`, data),  revisions: (id: number) => api.get<unknown[]>(`/employees/${id}/revisions`),
   createRevision: (id: number, data: { effective_from: string; reason: 'increment' | 'promotion' | 'revision' | 'correction'; basic: number; hra?: number; conveyance?: number; other_allowance?: number; overtime_rate?: number; working_hours?: number; designation?: string; remarks?: string }) =>
     api.post<import('@/types/api').Employee>(`/employees/${id}/revision`, data),
   delete: (id: number) => api.delete(`/employees/${id}`),
@@ -135,7 +138,10 @@ export const attendanceApi = {
     api.post<{ saved: number }>('/attendance/marks', { month, year, items }),
   update: (id: number, data: unknown) => api.put<import('@/types/api').AttendanceRow>(`/attendance/${id}`, data),
   finalize: (month: number, year: number, locked?: boolean) => api.post<{ updated: number; status: string }>('/attendance/finalize', { month, year, locked }),
-  months: () => api.get<unknown[]>('/attendance/months'),
+  months: (params?: Record<string, string>) => {
+    const q = params ? `?${new URLSearchParams(params).toString()}` : ''
+    return api.get<unknown[]>(`/attendance/months${q}`)
+  },
 }
 
 // Payroll
@@ -516,6 +522,7 @@ export const separationApi = {
   update: (id: number, data: unknown) => api.patch<import('@/types/api').Separation>(`/separation/${id}`, data),
   approve: (id: number, data?: { last_working_date?: string; remarks?: string }) => api.patch<import('@/types/api').Separation>(`/separation/${id}/approve`, data || {}),
   reject: (id: number, reason?: string) => api.patch<import('@/types/api').Separation>(`/separation/${id}/reject`, { reason }),
+  reinstate: (id: number) => api.patch<import('@/types/api').Separation>(`/separation/${id}/reinstate`),
   // Exit Interview
   saveInterview: (sepId: number, data: unknown) => api.post<import('@/types/api').ExitInterview>(`/separation/${sepId}/interview`, data),
   // Clearance

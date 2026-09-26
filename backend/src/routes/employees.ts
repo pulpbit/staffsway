@@ -8,7 +8,7 @@ import { nextEmployeeCode, padCode } from '../utils/employeeCode'
 
 const listSchema = z.object({
   search: z.string().optional(),
-  status: z.enum(['active', 'inactive', 'resigned', 'terminated', '']).optional(),
+  status: z.enum(['active', 'inactive', 'exited', '']).optional(),
   client_id: z.string().optional(),
   site_id: z.string().optional(),
   designation: z.string().optional(),
@@ -78,7 +78,9 @@ const employeeBase = {
   employee_type: z.enum(['permanent', 'contract', 'daily_wages']).optional(),
   shift_type: z.string().max(50).optional().nullable(),
   site_id: z.number().int().positive().optional().nullable(),
-  status: z.enum(['active', 'inactive', 'resigned', 'terminated']).optional(),
+  // Permanent exit is not set here — it goes through the Exit/Separation
+  // process, which is the only writer of exit_date and exit_reason.
+  status: z.enum(['active', 'inactive']).optional(),
   salary: z
     .object({
       basic: z.number().min(0),
@@ -132,12 +134,7 @@ const employeeSelect = `
     c.name AS client_name,
     st.basic, st.hra, st.conveyance, st.other_allowance, st.effective_from AS salary_effective_from,
     st.working_hours,
-    COALESCE(
-      (SELECT COALESCE(sep.last_working_date, sep.resignation_date)
-       FROM separations sep WHERE sep.employee_id = e.id AND sep.status = 'approved'
-       ORDER BY sep.id DESC LIMIT 1),
-      e.deactivated_at
-    ) AS exit_date
+    e.exit_date, e.exit_reason
   FROM employees e
   LEFT JOIN sites s ON s.id = e.site_id
   LEFT JOIN clients c ON c.id = s.client_id
@@ -168,14 +165,8 @@ async function buildWhere(c: Context<{ Bindings: Env }>) {
   if (f.joined_from) { conditions.push('e.joining_date >= ?'); params.push(f.joined_from) }
   if (f.joined_to) { conditions.push('e.joining_date <= ?'); params.push(f.joined_to) }
   if (f.exited_from || f.exited_to) {
-    const clause = `COALESCE(
-      (SELECT COALESCE(sep.last_working_date, sep.resignation_date)
-       FROM separations sep WHERE sep.employee_id = e.id AND sep.status = 'approved'
-       ORDER BY sep.id DESC LIMIT 1),
-      e.deactivated_at
-    )`
-    if (f.exited_from) { conditions.push(`${clause} >= ?`); params.push(f.exited_from) }
-    if (f.exited_to) { conditions.push(`${clause} <= ?`); params.push(f.exited_to) }
+    if (f.exited_from) { conditions.push('e.exit_date >= ?'); params.push(f.exited_from) }
+    if (f.exited_to) { conditions.push('e.exit_date <= ?'); params.push(f.exited_to) }
   }
   return { ok: true as const, conditions, params, filters: f }
 }
@@ -233,23 +224,13 @@ employeeRoutes.get('/stats', async (c) => {
   const now = new Date()
   const mm = String(now.getMonth() + 1).padStart(2, '0')
   const yyyy = now.getFullYear()
-  const [total, active, inactive, joinedThisMonth, exitedThisMonth, onLeaveToday] = await Promise.all([
+  const [total, active, inactive, exited, joinedThisMonth, exitedThisMonth, onLeaveToday] = await Promise.all([
     db.prepare('SELECT COUNT(*) AS c FROM employees').first(),
     db.prepare("SELECT COUNT(*) AS c FROM employees WHERE status = 'active'").first(),
-    db.prepare("SELECT COUNT(*) AS c FROM employees WHERE status IN ('inactive','resigned','terminated')").first(),
+    db.prepare("SELECT COUNT(*) AS c FROM employees WHERE status = 'inactive'").first(),
+    db.prepare("SELECT COUNT(*) AS c FROM employees WHERE status = 'exited'").first(),
     db.prepare(`SELECT COUNT(*) AS c FROM employees WHERE joining_date LIKE ? || '%'`).bind(`${yyyy}-${mm}`).first(),
-    db.prepare(`
-      SELECT COUNT(*) AS c FROM (
-        SELECT e.id,
-          COALESCE(
-            (SELECT COALESCE(sep.last_working_date, sep.resignation_date)
-             FROM separations sep WHERE sep.employee_id = e.id AND sep.status = 'approved'
-             ORDER BY sep.id DESC LIMIT 1),
-            e.deactivated_at
-          ) AS exit_dt
-        FROM employees e WHERE e.status IN ('inactive','resigned','terminated')
-      ) WHERE exit_dt LIKE ? || '%'
-    `).bind(`${yyyy}-${mm}`).first(),
+    db.prepare("SELECT COUNT(*) AS c FROM employees WHERE exit_date LIKE ? || '%'").bind(`${yyyy}-${mm}`).first(),
     db.prepare(`SELECT COUNT(*) AS c FROM leave_requests WHERE status = 'approved' AND date('now') BETWEEN start_date AND end_date`).first(),
   ])
   const n = (v: { c?: number } | null | undefined): number => Number(v?.c || 0)
@@ -258,6 +239,7 @@ employeeRoutes.get('/stats', async (c) => {
       total: n(total),
       active: n(active),
       inactive: n(inactive),
+      exited: n(exited),
       joined_this_month: n(joinedThisMonth),
       exit_this_month: n(exitedThisMonth),
       on_leave_today: n(onLeaveToday),
@@ -571,7 +553,7 @@ function coerceImportRow(raw: Record<string, unknown>): Record<string, unknown> 
   if (gender !== undefined) r.gender = gender
   const empType = optionVal(raw.employee_type, ['permanent', 'contract', 'daily_wages'])
   if (empType !== undefined) r.employee_type = empType
-  const status = optionVal(raw.status, ['active', 'inactive', 'resigned', 'terminated'])
+  const status = optionVal(raw.status, ['active', 'inactive'])
   if (status !== undefined) r.status = status
   if ('site_id' in raw && raw.site_id !== null && raw.site_id !== undefined && raw.site_id !== '') {
     const n = numVal(raw.site_id)
@@ -881,9 +863,11 @@ employeeRoutes.put('/:id', async (c) => {
   const d = parsed.data
   const db = getDb(c.env)
 
-  const existing = await db.prepare('SELECT id FROM employees WHERE id = ?').bind(id).first()
+  const existing = await db.prepare('SELECT id, status FROM employees WHERE id = ?').bind(id).first()
   if (!existing) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
-
+  if ((existing as { status: string }).status === 'exited') {
+    return c.json({ error: { code: 'conflict', message: 'This employee has permanently exited. Details cannot be edited — reverse the exit from the Exit module first.' } }, 409)
+  }
   if (d.email) {
     const dup = await db.prepare('SELECT id FROM employees WHERE email = ? AND id != ?').bind(d.email, id).first()
     if (dup) return c.json({ error: { code: 'conflict', message: 'An employee with this email already exists.' } }, 409)
@@ -918,6 +902,12 @@ employeeRoutes.put('/:id', async (c) => {
   if ('site_id' in d && d.site_id !== undefined) {
     sets.push('site_id = ?')
     params.push(d.site_id ?? null)
+  }
+  // Stamp the deactivation / reactivation date whenever the status actually
+  // changes, so the date recorded here matches the one recorded by the
+  // status action in the profile drawer.
+  if (d.status && d.status !== (existing as { status: string }).status) {
+    sets.push(d.status === 'active' ? 'reactivated_at = date(\'now\')' : 'deactivated_at = date(\'now\')')
   }
   sets.push('updated_at = datetime(\'now\')')
   params.push(id)
@@ -1038,17 +1028,37 @@ employeeRoutes.post('/:id/revision', async (c) => {
   return c.json({ data: updated, message: `Salary revised (${d.reason}) from ${d.effective_from}.` }, 201)
 })
 
-employeeRoutes.patch('/:id/status', async (c) => {  const id = Number(c.req.param('id'))
+// Activate / deactivate. Permanent exit is deliberately NOT here: it is a
+// process (reason, last working date, notice, clearance) and lives in the
+// Exit module, which is the only writer of employees.exit_date / exit_reason.
+const statusSchema = z.object({
+  status: z.enum(['active', 'inactive']),
+  deactivated_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+})
+
+employeeRoutes.patch('/:id/status', async (c) => {
+  const id = Number(c.req.param('id'))
   const body = await c.req.json().catch(() => null)
-  const parsed = z.object({ status: z.enum(['active', 'inactive', 'resigned', 'terminated']) }).safeParse(body)
+  const parsed = statusSchema.safeParse(body)
   if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Invalid status.' } }, 400)
-  const status = parsed.data.status
+  const { status } = parsed.data
   const db = getDb(c.env)
-  const dateCol = status === 'active' ? 'reactivated_at' : 'deactivated_at'
-  const res = await db.prepare(`UPDATE employees SET status = ?, ${dateCol} = datetime('now'), updated_at = datetime('now') WHERE id = ?`).bind(status, id).run()
+  const existing = await db.prepare('SELECT id, status FROM employees WHERE id = ?').bind(id).first()
+  if (!existing) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+  if ((existing as { status: string }).status === 'exited') {
+    return c.json({ error: { code: 'conflict', message: 'This employee has permanently exited. Reverse the exit from the Exit module to change the status.' } }, 409)
+  }
+  // The deactivation date is a business fact the user may correct, so it is
+  // accepted as an explicit value; otherwise today is stamped.
+  const deactivatedOn = status === 'inactive' ? parsed.data.deactivated_at || new Date().toISOString().slice(0, 10) : null
+  const stamp = status === 'active' ? "reactivated_at = date('now')" : 'deactivated_at = ?'
+  const res = await db
+    .prepare(`UPDATE employees SET status = ?, ${stamp}, updated_at = datetime('now') WHERE id = ?`)
+    .bind(status, ...(deactivatedOn ? [deactivatedOn] : []), id)
+    .run()
   if (!res.meta.changes) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
   const updated = await db.prepare(`${employeeSelect} WHERE e.id = ?`).bind(id).first()
-  return c.json({ data: updated })
+  return c.json({ data: updated, message: status === 'active' ? 'Employee activated.' : 'Employee deactivated.' })
 })
 
 employeeRoutes.delete('/:id', async (c) => {
@@ -1057,4 +1067,85 @@ employeeRoutes.delete('/:id', async (c) => {
   const res = await db.prepare('DELETE FROM employees WHERE id = ?').bind(id).run()
   if (!res.meta.changes) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
   return c.json({ data: { ok: true } })
+})
+
+// ---------- Transfer between clients / sites ----------
+const transferSchema = z.object({
+  site_id: z.number().int().positive().nullable(),
+  designation: z.string().max(100).optional().nullable(),
+  department: z.string().max(100).optional().nullable(),
+  effective_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  reason: z.string().max(200).optional().nullable(),
+  remarks: z.string().max(1000).optional().nullable(),
+})
+
+employeeRoutes.get('/:id/transfers', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+  // Site names are denormalised onto the transfer row at write time, so the
+  // history stays readable even if a site is later renamed or removed.
+  const rows = await getDb(c.env)
+    .prepare('SELECT * FROM employee_transfers WHERE employee_id = ? ORDER BY effective_date DESC, id DESC')
+    .bind(id)
+    .all()
+  return c.json({ data: rows.results })
+})
+
+employeeRoutes.post('/:id/transfer', async (c) => {
+  const id = Number(c.req.param('id'))
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 400)
+  const body = await c.req.json().catch(() => null)
+  const parsed = transferSchema.safeParse(body)
+  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.', fields: parsed.error.flatten().fieldErrors } }, 400)
+  const d = parsed.data
+  const db = getDb(c.env)
+
+  const current: any = await db
+    .prepare(
+      `SELECT e.id, e.site_id, e.designation, e.department, e.status,
+        s.name AS site_name, c.id AS client_id, c.name AS client_name
+       FROM employees e
+       LEFT JOIN sites s ON s.id = e.site_id
+       LEFT JOIN clients c ON c.id = s.client_id
+       WHERE e.id = ?`
+    )
+    .bind(id)
+    .first()
+  if (!current) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+  if (current.status === 'exited') {
+    return c.json({ error: { code: 'conflict', message: 'An exited employee cannot be transferred.' } }, 409)
+  }
+
+  let target: any = null
+  if (d.site_id !== null && d.site_id !== undefined) {
+    target = await db.prepare('SELECT s.id, s.name AS site_name, c.id AS client_id, c.name AS client_name FROM sites s LEFT JOIN clients c ON c.id = s.client_id WHERE s.id = ?').bind(d.site_id).first()
+    if (!target) return c.json({ error: { code: 'validation_error', message: 'The selected site does not exist.' } }, 400)
+  }
+
+  const toSiteId = d.site_id ?? null
+  const toDesignation = d.designation === undefined ? current.designation : d.designation || null
+  const toDepartment = d.department === undefined ? current.department : d.department || null
+  if (toSiteId === current.site_id && toDesignation === current.designation && toDepartment === current.department) {
+    return c.json({ error: { code: 'validation_error', message: 'Nothing would change — the employee is already assigned to this site, designation and department.' } }, 400)
+  }
+
+  const ops: D1PreparedStatement[] = [
+    db.prepare('UPDATE employees SET site_id = ?, designation = ?, department = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .bind(toSiteId, toDesignation, toDepartment, id),
+    db.prepare(
+      `INSERT INTO employee_transfers (employee_id, from_client_id, from_client_name, from_site_id, from_site_name,
+        to_client_id, to_client_name, to_site_id, to_site_name, from_designation, to_designation,
+        from_department, to_department, effective_date, reason, remarks, transferred_by)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(
+      id, current.client_id ?? null, current.client_name ?? null, current.site_id ?? null, current.site_name ?? null,
+      target?.client_id ?? null, target?.client_name ?? null, toSiteId, target?.site_name ?? null,
+      current.designation ?? null, toDesignation ?? null, current.department ?? null, toDepartment ?? null,
+      d.effective_date, d.reason ?? null, d.remarks ?? null, c.get('user')?.email ?? null
+    ),
+  ]
+  await db.batch(ops)
+
+  const updated = await db.prepare(`${employeeSelect} WHERE e.id = ?`).bind(id).first()
+  return c.json({ data: updated, message: 'Employee transferred.' }, 201)
 })

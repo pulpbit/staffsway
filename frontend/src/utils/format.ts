@@ -27,8 +27,7 @@ export const statusColor = (status: string): string => {
   switch (status) {
     case 'active': return 'bg-success-soft text-success'
     case 'inactive': return 'bg-error-soft text-error-deep'
-    case 'resigned': return 'bg-warning-soft text-warning-deep'
-    case 'terminated': return 'bg-error-soft text-error-deep'
+    case 'exited': return 'bg-canvas-soft-2 text-mute'
     case 'draft': return 'bg-warning-soft text-warning-deep'
     case 'finalized': return 'bg-link-soft text-link-deep'
     case 'paid': return 'bg-success-soft text-success'
@@ -41,8 +40,7 @@ export const statusLabel = (status: string): string => {
   switch (status) {
     case 'active': return 'Active'
     case 'inactive': return 'Inactive'
-    case 'resigned': return 'Resigned'
-    case 'terminated': return 'Terminated'
+    case 'exited': return 'Exited'
     case 'draft': return 'Draft'
     case 'finalized': return 'Finalized'
     case 'paid': return 'Paid'

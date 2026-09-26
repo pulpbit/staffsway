@@ -53,8 +53,19 @@ export interface Column<T> {
   sortable?: boolean
   className?: string
   hideSm?: boolean
-  sticky?: boolean
+  /** 'left' pins the column to the leading edge, 'right' to the trailing edge. */
+  sticky?: 'left' | 'right'
 }
+
+// 'left' mirrors the row background; 'right' adds a hairline so the pinned
+// edge reads as a boundary while the body scrolls underneath it.
+const stickyClass = (side: 'left' | 'right', stripe: boolean) =>
+  side === 'left'
+    ? `sticky left-0 z-10 ${stripe ? 'bg-canvas-soft' : 'bg-white'}`
+    : `sticky right-0 z-10 ${stripe ? 'bg-canvas-soft' : 'bg-white'} shadow-[-1px_0_0_0_rgba(1,27,63,0.08)]`
+
+const stickyHeadClass = (side: 'left' | 'right') =>
+  side === 'left' ? 'sticky left-0 z-20 bg-canvas-soft' : 'sticky right-0 z-20 bg-canvas-soft shadow-[-1px_0_0_0_rgba(1,27,63,0.08)]'
 
 // ---------- Table ----------
 interface TableProps<T> {
@@ -124,7 +135,7 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-3 py-2.5 text-left text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em] select-none whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-ink' : ''} ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? 'sticky left-0 z-20 bg-canvas-soft' : ''} ${col.className || ''}`}
+                  className={`px-3 py-2.5 text-left text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em] select-none whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-ink' : ''} ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyHeadClass(col.sticky) : ''} ${col.className || ''}`}
                   onClick={() => col.sortable && onSort?.(col.key)}
                 >
                   <span className="inline-flex items-center gap-1">
@@ -148,7 +159,7 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
                 <Fragment key={keyFn(row)}>
                   <tr onClick={() => rowClick?.(row)} className={`border-b border-hairline transition-colors ${rowClick ? 'cursor-pointer' : ''} ${idx % 2 === 1 ? 'bg-canvas-soft/40' : 'bg-white'} ${expandedKey === keyFn(row) ? 'bg-canvas-soft/60' : ''} hover:bg-canvas-soft/70`}>
                     {columns.map((col) => (
-                      <td key={col.key} className={`px-3 py-2.5 text-[13px] align-middle ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? `sticky left-0 z-10 ${idx % 2 === 1 ? 'bg-canvas-soft' : 'bg-white'}` : ''} ${col.className || ''}`}>
+                      <td key={col.key} className={`px-3 py-2.5 text-[13px] align-middle ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyClass(col.sticky, idx % 2 === 1) : ''} ${col.className || ''}`}>
                         {col.render ? col.render(row, idx) : String((row as Record<string, unknown>)[col.key] ?? '')}
                       </td>
                     ))}

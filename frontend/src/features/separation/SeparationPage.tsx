@@ -26,9 +26,12 @@ export default function SeparationPage() {
   const qc = useQueryClient()
 
   const { data: summary } = useQuery({ queryKey: ['sep-summary'], queryFn: () => separationApi.summary() })
-  const { data: empData } = useQuery({ queryKey: ['employees-select'], queryFn: () => employeeApi.list({ page: '1', page_size: '200', status: 'active' }) })
+  const { data: empData } = useQuery({ queryKey: ['employees-select'], queryFn: () => employeeApi.list({ page: '1', page_size: '200' }) })
   const employees = (empData?.data || []) as any[]
   const empOptions = employees.map((e: any) => ({ value: String(e.id), label: `${e.employee_code} - ${fullName(e.first_name, e.last_name)}` }))
+  // An employee who has already exited cannot start another exit. Inactive
+  // employees can — deactivation and exit are separate steps.
+  const exitCandidates = employees.filter((e: any) => e.status !== 'exited')
 
   const params: Record<string, string> = {}
   if (tab === 'pending') params.status = 'pending'
@@ -39,14 +42,45 @@ export default function SeparationPage() {
   // Create Separation
   const [form, setForm] = useState({ employee_id: '', separation_type: 'resignation', resignation_date: new Date().toISOString().slice(0, 10), last_working_date: '', notice_period_days: '30', notice_served_days: '0', notice_buyout: '0', reason: '' })
   const createMut = useMutation({
-    mutationFn: () => separationApi.create({ ...form, employee_id: Number(form.employee_id), notice_period_days: Number(form.notice_period_days), notice_served_days: Number(form.notice_served_days), notice_buyout: Number(form.notice_buyout), last_working_date: form.last_working_date || undefined }),
-    onSuccess: () => { setShowForm(false); qc.invalidateQueries({ queryKey: ['separations'] }); qc.invalidateQueries({ queryKey: ['sep-summary'] }); toast.success('Separation request created.') },
+    mutationFn: () => separationApi.create({ ...form, employee_id: Number(form.employee_id), notice_period_days: Number(form.notice_period_days), notice_served_days: Number(form.notice_served_days), notice_buyout: Number(form.notice_buyout) }),
+    onSuccess: () => { setShowForm(false); qc.invalidateQueries({ queryKey: ['separations'] }); qc.invalidateQueries({ queryKey: ['sep-summary'] }); toast.success('Exit request created.') },
+    onError: (e: any) => toast.error(e?.error?.message || 'Failed.'),
+  })
+
+  // Approving writes the employee's exit state, so the employee list is stale too.
+  const approveMut = useMutation({
+    mutationFn: (id: number) => separationApi.approve(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['separations'] })
+      qc.invalidateQueries({ queryKey: ['sep-summary'] })
+      qc.invalidateQueries({ queryKey: ['employees'] })
+      qc.invalidateQueries({ queryKey: ['employees-stats'] })
+      toast.success('Exit approved — the employee is now marked as exited.')
+    },
+    onError: (e: any) => toast.error(e?.error?.message || 'Failed.'),
+  })
+
+  const rejectMut = useMutation({
+    mutationFn: (id: number) => separationApi.reject(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['separations'] }); qc.invalidateQueries({ queryKey: ['sep-summary'] }); toast.success('Rejected.') },
+    onError: (e: any) => toast.error(e?.error?.message || 'Failed.'),
+  })
+
+  const reinstateMut = useMutation({
+    mutationFn: (id: number) => separationApi.reinstate(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['separations'] })
+      qc.invalidateQueries({ queryKey: ['sep-summary'] })
+      qc.invalidateQueries({ queryKey: ['employees'] })
+      qc.invalidateQueries({ queryKey: ['employees-stats'] })
+      toast.success('Exit reversed — the employee is now inactive.')
+    },
     onError: (e: any) => toast.error(e?.error?.message || 'Failed.'),
   })
 
   return (
     <div>
-      <PageHeader title="Separation / Exit Management" subtitle="Resignation, clearance & exit workflow" actions={<Button onClick={() => { setForm({ employee_id: '', separation_type: 'resignation', resignation_date: new Date().toISOString().slice(0, 10), last_working_date: '', notice_period_days: '30', notice_served_days: '0', notice_buyout: '0', reason: '' }); setShowForm(true) }}><Plus className="w-3.5 h-3.5" /> New Request</Button>} />
+      <PageHeader title="Exit Management" subtitle="Resignation, clearance & exit workflow" actions={<Button onClick={() => { setForm({ employee_id: '', separation_type: 'resignation', resignation_date: new Date().toISOString().slice(0, 10), last_working_date: '', notice_period_days: '30', notice_served_days: '0', notice_buyout: '0', reason: '' }); setShowForm(true) }}><Plus className="w-3.5 h-3.5" /> New Exit Request</Button>} />
 
       {summary?.data && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
@@ -70,7 +104,7 @@ export default function SeparationPage() {
       <div className="bg-white card-shadow rounded-md p-4 mt-4">
         {isLoading ? <LoadingState /> :
          error ? <PageError onRetry={() => refetch()} /> :
-         (sepData?.data || []).length === 0 ? <EmptyState title="No separation requests" description="Create a resignation or exit request to start the workflow." /> : (
+         (sepData?.data || []).length === 0 ? <EmptyState title="No exit requests" description="Create a resignation or exit request to start the workflow." /> : (
           <Table
             columns={[
               { key: 'employee', header: 'Employee', render: (r: any) => <div><p className="text-[13px] font-medium text-ink">{fullName(r.first_name, r.last_name)}</p><p className="text-[11px] text-mute">{r.employee_code} · {r.designation || '—'}</p></div> },
@@ -83,9 +117,25 @@ export default function SeparationPage() {
                 <div className="flex gap-1">
                   <button onClick={() => setDetailFor(r)} className="px-1.5 py-0.5 text-[11px] text-link hover:bg-link-soft rounded-xs">View</button>
                   {r.status === 'pending' && <>
-                    <button onClick={() => separationApi.approve(r.id).then(() => { qc.invalidateQueries({ queryKey: ['separations'] }); toast.success('Approved.') })} className="px-1.5 py-0.5 text-[11px] text-success hover:bg-success-soft rounded-xs">Approve</button>
-                    <button onClick={() => separationApi.reject(r.id).then(() => { qc.invalidateQueries({ queryKey: ['separations'] }); toast.success('Rejected.') })} className="px-1.5 py-0.5 text-[11px] text-error hover:bg-error-soft rounded-xs">Reject</button>
+                    <button
+                      onClick={() => approveMut.mutate(r.id)}
+                      disabled={approveMut.isPending}
+                      className="px-1.5 py-0.5 text-[11px] text-success hover:bg-success-soft rounded-xs disabled:opacity-40"
+                    >Approve</button>
+                    <button
+                      onClick={() => rejectMut.mutate(r.id)}
+                      disabled={rejectMut.isPending}
+                      className="px-1.5 py-0.5 text-[11px] text-error hover:bg-error-soft rounded-xs disabled:opacity-40"
+                    >Reject</button>
                   </>}
+                  {r.status === 'approved' && (
+                    <button
+                      onClick={() => reinstateMut.mutate(r.id)}
+                      disabled={reinstateMut.isPending}
+                      className="px-1.5 py-0.5 text-[11px] text-warning-deep hover:bg-warning-soft rounded-xs disabled:opacity-40"
+                      title="Reverse this exit and bring the employee back as inactive"
+                    >Reverse exit</button>
+                  )}
                 </div>
               )},
             ]}
@@ -99,12 +149,26 @@ export default function SeparationPage() {
       {/* Create Modal */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title="New Separation Request" size="md">
         <div className="space-y-3">
-          <Select label="Employee" options={[{ value: '', label: 'Select employee...' }, ...empOptions]} value={form.employee_id} onChange={e => setForm(f => ({ ...f, employee_id: e.target.value }))} />
+          <Select
+            label="Employee"
+            required
+            options={[{ value: '', label: 'Select employee...' }, ...exitCandidates.map((e: any) => ({ value: String(e.id), label: `${e.employee_code} - ${fullName(e.first_name, e.last_name)}${e.status === 'inactive' ? ' (inactive)' : ''}` }))]}
+            value={form.employee_id}
+            onChange={e => setForm(f => ({ ...f, employee_id: e.target.value }))}
+          />
           <Select label="Type" options={Object.entries(SEP_TYPES).map(([v, l]) => ({ value: v, label: l }))} value={form.separation_type} onChange={e => setForm(f => ({ ...f, separation_type: e.target.value }))} />
           <div className="grid grid-cols-2 gap-3">
             <Input label="Resignation Date" type="date" value={form.resignation_date} onChange={e => setForm(f => ({ ...f, resignation_date: e.target.value }))} />
-            <Input label="Last Working Date" type="date" value={form.last_working_date} onChange={e => setForm(f => ({ ...f, last_working_date: e.target.value }))} />
+            <Input
+              label="Last Working Date"
+              type="date"
+              required
+              value={form.last_working_date}
+              onChange={e => setForm(f => ({ ...f, last_working_date: e.target.value }))}
+              error={form.last_working_date && form.last_working_date < form.resignation_date ? 'Cannot be before the resignation date.' : undefined}
+            />
           </div>
+          <p className="text-[11px] text-mute -mt-1">The last working day becomes the employee&apos;s permanent exit date.</p>
           <div className="grid grid-cols-3 gap-3">
             <Input label="Notice Period (days)" type="number" value={form.notice_period_days} onChange={e => setForm(f => ({ ...f, notice_period_days: e.target.value }))} />
             <Input label="Notice Served (days)" type="number" value={form.notice_served_days} onChange={e => setForm(f => ({ ...f, notice_served_days: e.target.value }))} />
@@ -113,7 +177,7 @@ export default function SeparationPage() {
           <Textarea label="Reason" value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
           <div className="flex justify-end gap-2 pt-2 border-t border-hairline">
             <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button loading={createMut.isPending} onClick={() => createMut.mutate()}>Create</Button>
+            <Button loading={createMut.isPending} onClick={() => createMut.mutate()} disabled={!form.employee_id || !form.last_working_date || form.last_working_date < form.resignation_date}>Create</Button>
           </div>
         </div>
       </Modal>

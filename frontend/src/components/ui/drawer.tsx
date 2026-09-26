@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { useScrollLock } from './scrollLock'
 
 interface DrawerProps {
   open: boolean
@@ -10,11 +11,7 @@ interface DrawerProps {
 }
 
 export function Drawer({ open, onClose, title, children, footer }: DrawerProps) {
-  useEffect(() => {
-    if (!open) return
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = '' }
-  }, [open])
+  useScrollLock(open)
 
   if (!open) return null
 

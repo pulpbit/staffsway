@@ -28,7 +28,9 @@ const separationSchema = z.object({
   employee_id: z.number().int().positive(),
   separation_type: z.enum(['resignation', 'termination', 'retirement', 'end_of_contract', 'other']).default('resignation'),
   resignation_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  last_working_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  // The last working day IS the employee's exit date, so it is required up
+  // front rather than defaulted later.
+  last_working_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notice_period_days: z.number().int().min(0).default(30),
   notice_served_days: z.number().int().min(0).default(0),
   notice_buyout: z.number().int().min(0).default(0),
@@ -37,10 +39,12 @@ const separationSchema = z.object({
 
 separationRoutes.get('/', async (c) => {
   const status = c.req.query('status')
+  const employeeId = c.req.query('employee_id')
   const db = getDb(c.env)
-  let sql = 'SELECT s.*, e.first_name, e.last_name, e.employee_code, e.designation, e.department FROM separations s JOIN employees e ON e.id = s.employee_id WHERE 1=1'
+  let sql = 'SELECT s.*, e.first_name, e.last_name, e.employee_code, e.designation, e.department, e.exit_date, e.exit_reason FROM separations s JOIN employees e ON e.id = s.employee_id WHERE 1=1'
   const params: (string | number)[] = []
   if (status) { sql += ' AND s.status = ?'; params.push(status) }
+  if (employeeId && /^\d+$/.test(employeeId)) { sql += ' AND s.employee_id = ?'; params.push(Number(employeeId)) }
   sql += ' ORDER BY s.created_at DESC'
   const rows = await db.prepare(sql).bind(...params).all()
   return c.json({ data: rows.results })
@@ -101,15 +105,21 @@ separationRoutes.post('/', async (c) => {
   if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.', fields: parsed.error.flatten().fieldErrors } }, 400)
   const d = parsed.data
   const db = getDb(c.env)
-  const emp = await db.prepare('SELECT id, status FROM employees WHERE id = ?').bind(d.employee_id).first() as any
+  const emp = await db.prepare('SELECT id, status, joining_date FROM employees WHERE id = ?').bind(d.employee_id).first() as any
   if (!emp) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
-  if (emp.status === 'inactive') return c.json({ error: { code: 'conflict', message: 'Employee is already inactive.' } }, 409)
+  if (emp.status === 'exited') return c.json({ error: { code: 'conflict', message: 'This employee has already exited.' } }, 409)
+  if (d.last_working_date < d.resignation_date) {
+    return c.json({ error: { code: 'validation_error', message: 'Last working date cannot be before the resignation date.' } }, 400)
+  }
+  if (emp.joining_date && d.last_working_date < String(emp.joining_date).slice(0, 10)) {
+    return c.json({ error: { code: 'validation_error', message: 'Last working date cannot be before the joining date.' } }, 400)
+  }
   const existing = await db.prepare('SELECT id FROM separations WHERE employee_id = ? AND status IN (\'pending\', \'approved\')').bind(d.employee_id).first()
   if (existing) return c.json({ error: { code: 'conflict', message: 'Employee already has an active separation request.' } }, 409)
 
   const info = await db
     .prepare('INSERT INTO separations (employee_id, separation_type, resignation_date, last_working_date, notice_period_days, notice_served_days, notice_buyout, reason) VALUES (?,?,?,?,?,?,?,?)')
-    .bind(d.employee_id, d.separation_type, d.resignation_date, d.last_working_date ?? null, d.notice_period_days, d.notice_served_days, d.notice_buyout, d.reason ?? null)
+    .bind(d.employee_id, d.separation_type, d.resignation_date, d.last_working_date, d.notice_period_days, d.notice_served_days, d.notice_buyout, d.reason ?? null)
     .run()
 
   // Create default clearance checklist
@@ -133,9 +143,14 @@ separationRoutes.patch('/:id/approve', async (c) => {
   if (sep.status !== 'pending') return c.json({ error: { code: 'conflict', message: 'Can only approve pending requests.' } }, 409)
 
   const lwd = parsed.data.last_working_date || sep.last_working_date || new Date().toISOString().slice(0, 10)
+  // Approving an exit is the one place employees.status / exit_date /
+  // exit_reason are written. exit_reason records the separation type
+  // (resignation, termination, retirement, ...) so the exit itself stays a
+  // single state.
   await db.batch([
     db.prepare('UPDATE separations SET status = \'approved\', approved_by = ?, approved_at = datetime(\'now\'), last_working_date = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(c.get('user')?.email ?? null, lwd, id),
-    db.prepare('UPDATE employees SET status = \'resigned\', updated_at = datetime(\'now\') WHERE id = ?').bind(sep.employee_id),
+    db.prepare('UPDATE employees SET status = \'exited\', exit_date = ?, exit_reason = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .bind(lwd, sep.separation_type, sep.employee_id),
   ])
   const updated = await db.prepare('SELECT * FROM separations WHERE id = ?').bind(id).first()
   return c.json({ data: updated })
@@ -153,6 +168,30 @@ separationRoutes.patch('/:id/reject', async (c) => {
   await db.prepare('UPDATE separations SET status = \'rejected\', rejection_reason = ?, updated_at = datetime(\'now\') WHERE id = ?').bind(parsed.data.reason ?? null, id).run()
   const updated = await db.prepare('SELECT * FROM separations WHERE id = ?').bind(id).first()
   return c.json({ data: updated })
+})
+
+// Reinstate: undo an approved exit so the employee becomes active again.
+separationRoutes.patch('/:id/reinstate', async (c) => {
+  const id = Number(c.req.param('id'))
+  const db = getDb(c.env)
+  const sep = await db.prepare('SELECT * FROM separations WHERE id = ?').bind(id).first() as any
+  if (!sep) return c.json({ error: { code: 'not_found', message: 'Record not found.' } }, 404)
+  if (sep.status !== 'approved') {
+    return c.json({ error: { code: 'conflict', message: 'Only an approved exit can be reinstated.' } }, 409)
+  }
+  const emp: any = await db.prepare('SELECT status, exit_date FROM employees WHERE id = ?').bind(sep.employee_id).first()
+  if (!emp) return c.json({ error: { code: 'not_found', message: 'Employee not found.' } }, 404)
+  if (emp.exit_date !== sep.last_working_date) {
+    return c.json({ error: { code: 'conflict', message: 'A later exit has superseded this one — reinstate that record instead.' } }, 409)
+  }
+  await db.batch([
+    db.prepare('UPDATE separations SET status = \'rejected\', rejection_reason = ?, updated_at = datetime(\'now\') WHERE id = ?')
+      .bind('Exit reinstated.', id),
+    db.prepare('UPDATE employees SET status = \'inactive\', exit_date = NULL, exit_reason = NULL, updated_at = datetime(\'now\') WHERE id = ?')
+      .bind(sep.employee_id),
+  ])
+  const updated = await db.prepare('SELECT * FROM separations WHERE id = ?').bind(id).first()
+  return c.json({ data: updated, message: 'Exit reversed. The employee is now inactive and can be reactivated.' })
 })
 
 separationRoutes.patch('/:id', async (c) => {

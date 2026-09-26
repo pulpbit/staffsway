@@ -72,6 +72,10 @@ export interface Employee {
   status: string
   deactivated_at?: string | null
   reactivated_at?: string | null
+  /** Set when the employee has permanently exited via the Exit module. */
+  exit_date?: string | null
+  /** Why they exited (resignation, termination, retirement, ...). */
+  exit_reason?: string | null
   client_name?: string
   site_name?: string
   salary?: SalaryStructure | null
@@ -79,6 +83,28 @@ export interface Employee {
   documents?: EmployeeDocument[]
   nominees?: EmployeeNominee[]
   site?: Site | null
+}
+
+export interface EmployeeTransfer {
+  id: number
+  employee_id: number
+  from_site_id: number | null
+  to_site_id: number | null
+  from_site_name?: string | null
+  to_site_name?: string | null
+  from_client_id?: number | null
+  from_client_name?: string | null
+  to_client_id?: number | null
+  to_client_name?: string | null
+  from_designation?: string | null
+  to_designation?: string | null
+  from_department?: string | null
+  to_department?: string | null
+  effective_date: string
+  reason?: string | null
+  remarks?: string | null
+  transferred_by?: string | null
+  created_at: string
 }
 
 export interface EmployeeNominee {
@@ -244,6 +270,8 @@ export interface AttendanceSheetRow {
   monthly_earnings: number
   working_hours: number
   joining_date?: string | null
+  /** Present after the employee has permanently exited. Days beyond it are locked to X. */
+  exit_date?: string | null
   attendance_id: number | null
   attendance_status: string | null
   // Editable grid mode: full day marks + live totals.
@@ -894,6 +922,9 @@ export interface Separation {
   employee_code?: string
   designation?: string
   department?: string
+  /** Mirrored from the employee row once the exit is approved. */
+  exit_date?: string | null
+  exit_reason?: string | null
   interview?: ExitInterview | null
   clearance?: ClearanceItem[]
   asset_returns?: AssetReturnItem[]

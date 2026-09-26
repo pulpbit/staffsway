@@ -55,7 +55,7 @@ export const IMPORT_COLUMNS: ImportColumn[] = [
   { key: 'employee_type', label: 'employee_type', type: 'enum', options: ['permanent', 'contract', 'temporary', 'probation'] },
   { key: 'shift_type', label: 'shift_type', type: 'text', hint: 'e.g. General, Morning, Evening, Night, Rotational, Split' },
   { key: 'site_name', label: 'site_name', type: 'text', hint: 'Must match an existing site; leave blank if unassigned' },
-  { key: 'status', label: 'status', type: 'enum', options: ['active', 'inactive', 'resigned', 'terminated'] },
+    { key: 'status', label: 'status', type: 'enum', options: ['active', 'inactive'] },
   { key: 'basic', label: 'basic', type: 'number', hint: 'Basic salary (monthly)' },
   { key: 'hra', label: 'hra', type: 'number' },
   { key: 'conveyance', label: 'conveyance', type: 'number' },

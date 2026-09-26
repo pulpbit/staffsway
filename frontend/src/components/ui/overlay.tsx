@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { useScrollLock } from './scrollLock'
 
 interface ModalProps {
   open: boolean
@@ -10,21 +11,35 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
+  useScrollLock(open)
+
+  // Escape closes the topmost modal. A modal is now reachable from a quick
+  // action while the drawer stays open behind it, so dismissing one must not
+  // require reaching for the X and must never take the drawer down with it.
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden'
-      return () => { document.body.style.overflow = '' }
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose() }
     }
-  }, [open])
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
 
   if (!open) return null
 
   const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
 
+  // z-[60] sits above Drawer (z-50) so a modal opened from a quick action
+  // layers on top of the drawer instead of behind it.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
       <div className="fixed inset-0 bg-black/30" onClick={onClose} />
-      <div className={`relative w-full ${sizes[size]} max-h-[85vh] flex flex-col bg-white rounded-md modal-shadow z-10`}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title || 'Dialog'}
+        className={`relative w-full ${sizes[size]} max-h-[85vh] flex flex-col bg-white rounded-md modal-shadow z-10`}
+      >
         {title && (
           <div className="flex shrink-0 items-center justify-between px-5 py-3.5 border-b border-hairline">
             <h3 className="text-[15px] font-semibold text-ink tracking-[-0.02em]">{title}</h3>

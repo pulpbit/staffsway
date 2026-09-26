@@ -32,7 +32,6 @@ const NAV_GROUPS: NavEntry[] = [
       { to: '/employees/new', label: 'Add New Employee', icon: UserPlus },
       { to: '/employees', label: 'Employee Master', icon: Users, end: true },
       { to: '/documents', label: 'Employee Docs', icon: FileText },
-      { to: '/employees/transfer', label: 'Employee Transfer', icon: ArrowRightLeft },
       { to: '/employees?import=1', label: 'Bulk Import', icon: Upload },
     ],
   },
@@ -41,7 +40,7 @@ const NAV_GROUPS: NavEntry[] = [
     items: [
       { to: '/recruitment', label: 'Recruitment', icon: UserPlus },
       { to: '/performance', label: 'Performance', icon: Target },
-      { to: '/separation', label: 'Separation', icon: UserMinus },
+      { to: '/separation', label: 'Exit Management', icon: UserMinus },
       { to: '/helpdesk', label: 'HR Helpdesk', icon: HeadphonesIcon },
     ],
   },

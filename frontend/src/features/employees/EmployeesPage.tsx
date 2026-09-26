@@ -14,12 +14,17 @@ import { fullName, dateShort, money } from '@/utils/format'
 import { downloadCsv } from '@/utils/csv'
 import { stateShort } from '@/utils/states'
 import { toast } from 'sonner'
-import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download, ScrollText } from 'lucide-react'
+import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download, ScrollText, CalendarCheck } from 'lucide-react'
 import EmployeeForm from './EmployeeForm'
 import JoiningFormModal from './JoiningFormModal'
 import SalaryRevisionModal from './SalaryRevisionModal'
 import BulkEmployeeImport from './BulkEmployeeImport'
 import EmployeeProfileDrawer from './EmployeeProfileDrawer'
+import EmployeeAttendanceModal from './EmployeeAttendanceModal'
+import EmployeePayslipModal from './EmployeePayslipModal'
+import EmployeeTransferModal from './EmployeeTransferModal'
+import EmployeeApplyLeaveModal from './EmployeeApplyLeaveModal'
+import EmployeeExitModal from './EmployeeExitModal'
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState('')
@@ -41,6 +46,11 @@ export default function EmployeesPage() {
   const [revFor, setRevFor] = useState<any>(null)
   const [joiningFor, setJoiningFor] = useState<number | null>(null)
   const [viewRow, setViewRow] = useState<any>(null)
+  const [attFor, setAttFor] = useState<any>(null)
+  const [payslipFor, setPayslipFor] = useState<any>(null)
+  const [transferFor, setTransferFor] = useState<any>(null)
+  const [leaveFor, setLeaveFor] = useState<any>(null)
+  const [exitFor, setExitFor] = useState<any>(null)
   const queryClient = useQueryClient()
 
   const openEdit = (id: number, field?: string) => {
@@ -114,7 +124,7 @@ export default function EmployeesPage() {
   })
 
   const statusMut = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) => employeeApi.setStatus(id, status),
+    mutationFn: ({ id, status }: { id: number; status: 'active' | 'inactive' }) => employeeApi.setStatus(id, status),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['employees'] }); queryClient.invalidateQueries({ queryKey: ['employees-stats'] }); toast.success('Status updated.'); },
     onError: (e: any) => toast.error(e?.error?.message || 'Failed to update status.'),
   })
@@ -127,7 +137,7 @@ export default function EmployeesPage() {
 
   const employees = (data?.data || []) as any[]
   const meta: any = data?.meta || { total: 0, page: 1, page_size: 10, total_pages: 0 }
-  const stat = stats?.data || { total: 0, active: 0, inactive: 0, joined_this_month: 0, exit_this_month: 0, on_leave_today: 0 }
+  const stat = stats?.data || { total: 0, active: 0, inactive: 0, exited: 0, joined_this_month: 0, exit_this_month: 0, on_leave_today: 0 }
   const departments = filterMeta?.data?.departments || []
   const designations = filterMeta?.data?.designations || []
   const employeeTypes = filterMeta?.data?.employee_types || []
@@ -171,7 +181,7 @@ export default function EmployeesPage() {
   }
 
   const columns: Column<any>[] = [
-    { key: 'employee_code', header: 'Emp. ID', sticky: true, sortable: true, className: 'w-24', render: (r) => <span className="font-mono text-[12px] font-medium text-ink whitespace-nowrap">{r.employee_code}</span> },
+    { key: 'employee_code', header: 'Emp. ID', sticky: 'left', sortable: true, className: 'w-24', render: (r) => <span className="font-mono text-[12px] font-medium text-ink whitespace-nowrap">{r.employee_code}</span> },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
     { key: 'name', header: 'Employee Name', sortable: true, render: (r) => (
       <span className="flex items-center gap-2.5 min-w-0">
@@ -195,13 +205,16 @@ export default function EmployeesPage() {
     { key: 'bank_ifsc', header: 'IFSC', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.bank_ifsc || '—'}</span> },
     { key: 'uan', header: 'UAN', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.uan || '—'}</span> },
     { key: 'esi_number', header: 'ESIC No.', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.esi_number || '—'}</span> },
-    { key: 'actions', header: '', className: 'w-24', render: (r) => (
+    { key: 'actions', header: 'Actions', sticky: 'right', className: 'w-32', render: (r) => (
       <div className="flex items-center gap-1">
         <button onClick={() => openView(r)} title="View profile" aria-label="View profile" className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer">
           <Eye className="w-4 h-4" />
         </button>
-        <button onClick={() => openEdit(r.id)} title="Edit employee" aria-label="Edit employee" className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer">
+        <button onClick={() => openEdit(r.id)} title="Edit employee" aria-label="Edit employee" disabled={r.status === 'exited'} className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent">
           <Pencil className="w-4 h-4" />
+        </button>
+        <button onClick={() => setAttFor(r)} title="View attendance" aria-label="View attendance" className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer">
+          <CalendarCheck className="w-4 h-4" />
         </button>
         <button onClick={() => setJoiningFor(r.id)} title="Generate joining form" aria-label="Generate joining form" className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer">
           <ScrollText className="w-4 h-4" />
@@ -214,8 +227,7 @@ export default function EmployeesPage() {
     { value: '', label: 'All Status' },
     { value: 'active', label: 'Active' },
     { value: 'inactive', label: 'Inactive' },
-    { value: 'resigned', label: 'Resigned' },
-    { value: 'terminated', label: 'Terminated' },
+    { value: 'exited', label: 'Exited' },
   ]
 
   const typeOptions = [
@@ -224,6 +236,10 @@ export default function EmployeesPage() {
   ]
 
   const viewRowOf = viewRow ? (employees.find((e) => e.id === viewRow.id) || viewRow) : null
+
+  /** Quick-action targets resolve against the current page first, then fall back
+      to the row the drawer is showing, so a stale list cannot break a modal. */
+  const rowFor = (id: number) => employees.find((e) => e.id === id) || (viewRow?.id === id ? viewRow : null)
 
   return (
     <div className="flex flex-col h-full min-h-0 gap-4">
@@ -241,7 +257,7 @@ export default function EmployeesPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-        <StatCard icon={Users} label="Total Employees" value={stat.total} sub={<>Active <b className="text-ink">{stat.active}</b> · Inactive <b className="text-ink">{stat.inactive}</b></>} />
+        <StatCard icon={Users} label="Total Employees" value={stat.total} sub={<>Active <b className="text-ink">{stat.active}</b> · Inactive <b className="text-ink">{stat.inactive}</b> · Exited <b className="text-ink">{stat.exited}</b></>} />
         <StatCard icon={UserPlus} label="Joined This Month" value={stat.joined_this_month} />
         <StatCard icon={LogOut} label="Exited This Month" value={stat.exit_this_month} />
         <StatCard icon={CalendarDays} label="On Leave Today" value={stat.on_leave_today} />
@@ -412,6 +428,41 @@ export default function EmployeesPage() {
 
       <JoiningFormModal employeeId={joiningFor} onClose={() => setJoiningFor(null)} />
 
+      <EmployeeAttendanceModal
+        open={!!attFor}
+        onClose={() => setAttFor(null)}
+        employeeId={attFor?.id ?? null}
+        employeeName={attFor ? fullName(attFor.first_name, attFor.last_name) : undefined}
+        employeeCode={attFor?.employee_code}
+        joiningDate={attFor?.joining_date}
+        status={attFor?.status}
+      />
+
+      <EmployeePayslipModal
+        open={!!payslipFor}
+        onClose={() => setPayslipFor(null)}
+        employeeId={payslipFor?.id ?? null}
+        employeeName={payslipFor ? fullName(payslipFor.first_name, payslipFor.last_name) : undefined}
+      />
+
+      <EmployeeTransferModal
+        open={!!transferFor}
+        onClose={() => setTransferFor(null)}
+        employee={transferFor}
+      />
+
+      <EmployeeApplyLeaveModal
+        open={!!leaveFor}
+        onClose={() => setLeaveFor(null)}
+        employee={leaveFor}
+      />
+
+      <EmployeeExitModal
+        open={!!exitFor}
+        onClose={() => setExitFor(null)}
+        employee={exitFor}
+      />
+
       <ConfirmDialog
         open={!!deleteId}
         onClose={() => setDeleteId(null)}
@@ -422,18 +473,26 @@ export default function EmployeesPage() {
         loading={deleteMut.isPending}
       />
 
+      {/* Quick actions keep this drawer mounted — the action's modal or pane
+          renders on top of it. Only Delete closes it, since it navigates away
+          via the confirm dialog. */}
       <EmployeeProfileDrawer
         open={!!viewRow}
         employeeId={viewRow?.id ?? null}
         name={viewRowOf ? fullName(viewRowOf.first_name, viewRowOf.last_name) : undefined}
         code={viewRowOf?.employee_code}
         onClose={closeView}
-        onEdit={(id, field) => { setViewRow(null); openEdit(id, field) }}
-        onRevise={(id) => { setViewRow(null); setRevFor(employees.find((e) => e.id === id) || null) }}
-        onOnboarding={(id) => { setViewRow(null); setOnbFor(employees.find((e) => e.id === id) || null) }}
-        onJoiningForm={(id) => { setViewRow(null); setJoiningFor(id) }}
+        onEdit={(id, field) => openEdit(id, field)}
+        onRevise={(id) => setRevFor(rowFor(id))}
+        onOnboarding={(id) => setOnbFor(rowFor(id))}
+        onJoiningForm={(id) => setJoiningFor(id)}
         onToggleStatus={(id, status) => statusMut.mutate({ id, status })}
         onDelete={(id) => { setViewRow(null); setDeleteId(id) }}
+        onViewAttendance={(id) => setAttFor(rowFor(id))}
+        onGeneratePayslip={(id) => setPayslipFor(rowFor(id))}
+        onTransfer={(id) => setTransferFor(rowFor(id))}
+        onApplyLeave={(id) => setLeaveFor(rowFor(id))}
+        onExit={(id) => setExitFor(rowFor(id))}
       />
     </div>
   )

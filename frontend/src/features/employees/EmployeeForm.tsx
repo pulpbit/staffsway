@@ -357,7 +357,14 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
               <Select label="Notice Period" options={[{ value: '', label: 'Not applicable' }, ...NOTICE_PERIODS]} value={form.notice_period_days} onChange={e => update('notice_period_days', e.target.value)} />
               <Input label="Working Hours / Day" type="number" min={1} max={24} step={1} value={form.working_hours} onChange={e => update('working_hours', e.target.value)} />
               {isEdit && (
-                <Select label="Status" options={['active', 'inactive', 'resigned', 'terminated'].map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))} value={form.status} onChange={e => update('status', e.target.value)} />
+                // Exiting is not a status you set here — it is a dated process
+                // run from Exit Management, so only active/inactive are offered.
+                <Select
+                  label="Status"
+                  options={['active', 'inactive'].map(s => ({ value: s, label: s === 'active' ? 'Active' : 'Inactive' }))}
+                  value={form.status}
+                  onChange={e => update('status', e.target.value)}
+                />
               )}
             </FormGrid>
           </FormSection>

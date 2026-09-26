@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import { Save, Lock, Download, CalendarCheck, CalendarX2, CalendarDays, Palmtree, Sun, Moon, BadgeCheck, IndianRupee } from 'lucide-react'
 import { monthYear, money } from '@/utils/format'
 import type { AttendanceSheetRow, AttendanceMark } from '@/types/api'
-import { MARK_ORDER, MARK_LABEL, MARK_CHIP, WEEKDAY_DOW, defaultMark, isPreJoining, computeSummary, r2 } from './attendanceGrid'
+import { MARK_ORDER, MARK_LABEL, MARK_CHIP, WEEKDAY_DOW, defaultMark, isPreJoining, effectiveMark, buildGridMarks, summarizeGrid, isOutsideEmployment, computeSummary, r2 } from './attendanceGrid'
 
 const MARK_TEXT = { P: 'P', A: 'A', R: 'R', HD: 'HD', HF: 'HF', L: 'L', X: 'X' } as const
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -100,20 +100,34 @@ export default function AttendancePage() {
     const c = getChange(row.employee_id)
     return c?.ot_hours !== undefined ? c.ot_hours : (row.ot_hours ?? 0)
   }
-  const markFor = (row: AttendanceSheetRow, date: string): AttendanceMark => {
-    if (isPreJoining(date, row.joining_date)) return 'X'
-    const c = getChange(row.employee_id)
-    if (c?.marks?.[date]) return c.marks[date]
-    if (row.marks?.[date]) return row.marks[date]
-    return defaultMark(date, WEEKDAY_DOW[row.weekly_off] ?? 0, holidaySet, row.joining_date)
-  }
+  // Stored mark, else an unsaved override, else the default for that day.
+  // Shared with the employee quick-action view so both show the same record.
+  const markFor = (row: AttendanceSheetRow, date: string): AttendanceMark =>
+    effectiveMark(date, row.marks, getChange(row.employee_id)?.marks?.[date], {
+      weeklyOffDow: WEEKDAY_DOW[row.weekly_off] ?? 0,
+      holidays: holidaySet,
+      joiningDate: row.joining_date,
+      exitDate: row.exit_date,
+    })
   const isGridRow = (_row: AttendanceSheetRow) => true
 
-  const gridSummary = (row: AttendanceSheetRow) => {
-    const marks: Record<string, AttendanceMark> = {}
-    for (const d of days) marks[d.date] = markFor(row, d.date)
-    return computeSummary(marks, holidaySet, WEEKDAY_DOW[row.weekly_off] ?? 0, row.monthly_earnings, row.working_hours, otFor(row), totalDays)
-  }
+  const gridSummary = (row: AttendanceSheetRow) =>
+    summarizeGrid(
+      buildGridMarks(days.map((d) => d.date), row.marks, getChange(row.employee_id)?.marks, {
+        weeklyOffDow: WEEKDAY_DOW[row.weekly_off] ?? 0,
+        holidays: holidaySet,
+        joiningDate: row.joining_date,
+        exitDate: row.exit_date,
+      }),
+      {
+        weeklyOffDow: WEEKDAY_DOW[row.weekly_off] ?? 0,
+        holidays: holidaySet,
+        monthlyEarnings: row.monthly_earnings,
+        workingHours: row.working_hours,
+        otHours: otFor(row),
+        totalDays,
+      }
+    )
 
   const rowSummary = (row: AttendanceSheetRow) => {
     if (isGridRow(row)) return gridSummary(row)

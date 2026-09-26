@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
 import { employeeApi } from '@/services/api'
 import type { Employee, EmployeeDocument } from '@/types/api'
 import { Drawer } from '@/components/ui/drawer'
 import { Avatar } from '@/components/ui/actions'
-import { StatusBadge } from '@/components/ui/status'
+import { StatusBadge, formatStatus } from '@/components/ui/status'
 import { Button } from '@/components/ui/fields'
 import { LoadingState } from '@/components/ui/state'
 import { fullName, dateShort, money } from '@/utils/format'
@@ -14,7 +13,8 @@ import { stateShort } from '@/utils/states'
 import {
   CalendarCheck, Upload, CalendarDays, Pencil, FileText, ArrowRightLeft,
   Plus, Trash2, Check, CircleAlert, Phone, Mail, MapPin,
-  TrendingUp, ClipboardCheck, Printer, SquareUserRound,
+  TrendingUp, ClipboardCheck, Printer,
+  LogOut, CircleCheck, CirclePause,
 } from 'lucide-react'
 
 const DOC_TYPES = ['Aadhaar Card', 'PAN Card', 'Bank Proof', 'Joining Form', 'Education Certificate', 'Address Proof', 'Other']
@@ -48,15 +48,19 @@ interface EmployeeProfileDrawerProps {
   onRevise?: (id: number) => void
   onOnboarding?: (id: number) => void
   onJoiningForm?: (id: number) => void
-  onToggleStatus?: (id: number, status: string) => void
+  onToggleStatus?: (id: number, status: 'active' | 'inactive') => void
   onDelete?: (id: number) => void
+  onViewAttendance?: (id: number) => void
+  onGeneratePayslip?: (id: number) => void
+  onTransfer?: (id: number) => void
+  onApplyLeave?: (id: number) => void
+  onExit?: (id: number) => void
 }
 
-export default function EmployeeProfileDrawer({ open, employeeId, name, code, onClose, onEdit, onRevise, onOnboarding, onJoiningForm, onToggleStatus, onDelete }: EmployeeProfileDrawerProps) {
+export default function EmployeeProfileDrawer({ open, employeeId, name, code, onClose, onEdit, onRevise, onOnboarding, onJoiningForm, onToggleStatus, onDelete, onViewAttendance, onGeneratePayslip, onTransfer, onApplyLeave, onExit }: EmployeeProfileDrawerProps) {
   const [tab, setTab] = useState<Tab>('info')
   const [docForm, setDocForm] = useState({ document_type: DOC_TYPES[0], document_name: '', document_number: '' })
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
 
   const { data, isLoading } = useQuery({
     queryKey: ['employee', employeeId],
@@ -91,13 +95,15 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
     return PENDING_FIELDS.filter((f) => f.tab === t && isPending(emp[f.key as keyof Employee]))
   }
 
+  const exited = emp?.status === 'exited'
+
   const quickActions = [
-    { label: 'View Attendance', icon: CalendarCheck, to: '/attendance' },
+    { label: 'View Attendance', icon: CalendarCheck, action: () => employeeId && onViewAttendance?.(employeeId) },
     { label: 'Upload Documents', icon: Upload, action: () => setTab('documents') },
-    { label: 'Apply Leave', icon: CalendarDays, to: '/leaves' },
+    { label: 'Apply Leave', icon: CalendarDays, action: () => employeeId && onApplyLeave?.(employeeId) },
     { label: 'Update Details', icon: Pencil, action: () => employeeId && onEdit(employeeId) },
-    { label: 'Generate Payslip', icon: FileText, to: '/slips' },
-    { label: 'Transfer Employee', icon: ArrowRightLeft, to: '/employees/transfer' },
+    { label: 'Generate Payslip', icon: FileText, action: () => employeeId && onGeneratePayslip?.(employeeId) },
+    { label: 'Transfer Employee', icon: ArrowRightLeft, action: () => employeeId && onTransfer?.(employeeId) },
     { label: 'Revise Salary', icon: TrendingUp, action: () => employeeId && onRevise?.(employeeId) },
     { label: 'Onboarding Checklist', icon: ClipboardCheck, action: () => employeeId && onOnboarding?.(employeeId) },
     { label: 'Joining Form', icon: Printer, action: () => employeeId && onJoiningForm?.(employeeId) },
@@ -217,7 +223,8 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
                 </FieldGroup>
                 <FieldGroup title="Status & Exit">
                   <Info label="Status" value={emp.status || ''} />
-                  <Info label="Exit Date" value={(emp as any).exit_date ? dateShort((emp as any).exit_date) : ''} />
+                  <Info label="Exit Date" value={emp.exit_date ? dateShort(emp.exit_date) : ''} />
+                  <Info label="Exit Reason" value={emp.exit_reason ? formatStatus(emp.exit_reason) : ''} />
                   <Info label="Deactivated On" value={dateShort(emp.deactivated_at)} />
                   <Info label="Reactivated On" value={dateShort(emp.reactivated_at)} />
                 </FieldGroup>
@@ -285,10 +292,10 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
                     pending={!emp.joining_date}
                     onEdit={() => onEdit(emp.id, 'joining_date')}
                   />
-                  {(emp as any).exit_date && <TimelineItem title="Exited" date={dateShort((emp as any).exit_date)} tone="danger" />}
+                  {emp.exit_date && <TimelineItem title="Exited" date={dateShort(emp.exit_date)} meta={emp.exit_reason ? formatStatus(emp.exit_reason) : undefined} tone="danger" />}
                   {emp.deactivated_at && <TimelineItem title="Deactivated" date={dateShort(emp.deactivated_at)} tone="danger" />}
                   {emp.reactivated_at && <TimelineItem title="Reactivated" date={dateShort(emp.reactivated_at)} tone="success" />}
-                  {!emp.joining_date && !(emp as any).exit_date && !emp.deactivated_at && !emp.reactivated_at && (
+                  {!emp.joining_date && !emp.exit_date && !emp.deactivated_at && !emp.reactivated_at && (
                     <p className="text-[13px] text-mute py-2 text-center">No timeline events recorded yet.</p>
                   )}
                 </FieldGroup>
@@ -322,7 +329,9 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
                 {quickActions.map((a) => (
                   <button
                     key={a.label}
-                    onClick={() => { onClose(); if (a.action) a.action(); else if (a.to) navigate(a.to) }}
+                    // The drawer deliberately stays open: in-tab actions switch
+                    // a pane in place, and modal-backed actions layer on top.
+                    onClick={a.action}
                     className="flex items-center gap-2 px-2.5 py-2 text-[12px] font-medium text-body bg-white border border-hairline rounded-sm hover:bg-canvas-soft hover:text-ink transition-colors text-left cursor-pointer"
                   >
                     <a.icon className="w-3.5 h-3.5 text-mute shrink-0" />
@@ -333,19 +342,67 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
             </div>
             <div className="mt-2 flex items-center gap-2">
               <button
-                onClick={() => onToggleStatus?.(emp.id, emp.status === 'active' ? 'inactive' : 'active')}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-[12px] font-medium text-body bg-white border border-hairline rounded-sm hover:bg-canvas-soft hover:text-ink transition-colors cursor-pointer"
-              >
-                <SquareUserRound className="w-3.5 h-3.5 text-mute shrink-0" />
-                {emp.status === 'active' ? 'Deactivate' : 'Activate'}
-              </button>
-              <button
                 onClick={() => onDelete?.(emp.id)}
                 className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-[12px] font-medium text-error bg-error-soft/40 border border-error/20 rounded-sm hover:bg-error-soft transition-colors cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5 shrink-0" />
-                Delete
+                Delete record
               </button>
+            </div>
+
+            {/* Status control. Deactivation is reversible and keeps the
+                employee on record; a permanent exit is routed through the
+                Exit process and records a real exit date. */}
+            <div className="mt-3 pt-3 border-t border-hairline">
+              <p className="mono-label mb-2">Employment Status</p>
+              {exited ? (
+                <div className="p-2.5 bg-canvas-soft rounded-sm">
+                  <p className="text-[12px] text-body leading-relaxed">
+                    Exited on <span className="font-medium text-ink">{dateShort(emp.exit_date)}</span>
+                    {emp.exit_reason ? <> &middot; {formatStatus(emp.exit_reason)}</> : null}.
+                  </p>
+                  <Button size="sm" variant="secondary" className="mt-2" onClick={() => onExit?.(emp.id)}>
+                    <LogOut className="w-3 h-3" /> Reverse exit
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => emp.status !== 'active' && onToggleStatus?.(emp.id, 'active')}
+                    disabled={emp.status === 'active'}
+                    className={`inline-flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium rounded-sm border transition-colors ${
+                      emp.status === 'active'
+                        ? 'bg-success-soft text-success border-success/30'
+                        : 'bg-white text-body border-hairline hover:bg-canvas-soft hover:text-ink cursor-pointer'
+                    }`}
+                  >
+                    <CircleCheck className="w-3.5 h-3.5" />
+                    Active
+                  </button>
+                  <button
+                    onClick={() => emp.status !== 'inactive' && onToggleStatus?.(emp.id, 'inactive')}
+                    disabled={emp.status === 'inactive'}
+                    className={`inline-flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium rounded-sm border transition-colors ${
+                      emp.status === 'inactive'
+                        ? 'bg-warning-soft text-warning-deep border-warning/30'
+                        : 'bg-white text-body border-hairline hover:bg-canvas-soft hover:text-ink cursor-pointer'
+                    }`}
+                  >
+                    <CirclePause className="w-3.5 h-3.5" />
+                    Deactivate
+                  </button>
+                  <button
+                    onClick={() => onExit?.(emp.id)}
+                    className="inline-flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium text-error bg-white border border-hairline rounded-sm hover:bg-error-soft transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    Exit
+                  </button>
+                </div>
+              )}
+              {emp.status === 'inactive' && emp.deactivated_at && (
+                <p className="mt-1.5 text-[11px] text-mute">Deactivated on {dateShort(emp.deactivated_at)}</p>
+              )}
             </div>
           </div>
         </div>

@@ -64,6 +64,37 @@ export const attendanceRoutes = new Hono<{ Bindings: Env }>()
 
 attendanceRoutes.get('/months', async (c) => {
   const db = getDb(c.env)
+  const employeeId = c.req.query('employee_id')
+
+  // Per-employee view: only the months this person actually has a record for,
+  // so a single-employee view can open on real data instead of an empty month.
+  if (employeeId) {
+    const mine = await db
+      .prepare(
+        `SELECT month, year, status,
+           (SELECT COUNT(*) FROM attendance_daily d
+             WHERE d.employee_id = m.employee_id
+               AND strftime('%Y-%m', d.date) = printf('%04d-%02d', m.year, m.month)) AS day_marks
+         FROM attendance_monthly m
+         WHERE m.employee_id = ?
+         ORDER BY m.year DESC, m.month DESC`
+      )
+      .bind(Number(employeeId))
+      .all()
+    return c.json({
+      data: (mine.results as any[]).map((r) => ({
+        month: Number(r.month),
+        year: Number(r.year),
+        status: r.status,
+        employee_count: 1,
+        total_present: null,
+        total_absent: null,
+        total_ot: null,
+        day_marks: Number(r.day_marks) || 0,
+      })),
+    })
+  }
+
   const rows = await db
     .prepare(
       `SELECT month, year, status, COUNT(*) AS employee_count,
@@ -75,9 +106,15 @@ attendanceRoutes.get('/months', async (c) => {
   return c.json({ data: rows.results })
 })
 
-async function fetchSheetRows(db: D1Database, month: number, year: number, opts: { client_id?: number | null; site_id?: number | null; search?: string }) {
-  const where: string[] = ['e.status = \'active\'']
+async function fetchSheetRows(db: D1Database, month: number, year: number, opts: { client_id?: number | null; site_id?: number | null; search?: string; employee_id?: number | null }) {
+  const where: string[] = []
   const params: (string | number)[] = []
+  // A specific employee is returned regardless of status, so a single
+  // employee's history stays viewable after they are deactivated or exit.
+  // Every other caller sees active employees only.
+  if (opts.employee_id) where.push('e.id = ?')
+  else where.push('e.status = \'active\'')
+  if (opts.employee_id) params.push(opts.employee_id)
   if (opts.site_id) { where.push('e.site_id = ?'); params.push(opts.site_id) }
   if (opts.client_id) { where.push('c.id = ?'); params.push(opts.client_id) }
   if (opts.search) { const t = `%${opts.search}%`; where.push('(e.first_name LIKE ? OR e.last_name LIKE ? OR e.employee_code LIKE ?)'); params.push(t, t, t) }
@@ -85,14 +122,16 @@ async function fetchSheetRows(db: D1Database, month: number, year: number, opts:
   const empRows = await db
     .prepare(
       `SELECT e.id AS employee_id, e.employee_code, e.first_name, e.last_name,
-        e.father_name, e.spouse_name, e.designation, e.status, e.joining_date,
+        e.father_name, e.spouse_name, e.designation, e.status, e.joining_date, e.exit_date,
         s.id AS site_id, s.name AS site_name,
         COALESCE(s.weekly_off, 'Sun') AS weekly_off,
         c.id AS client_id, c.name AS client_name,
         (COALESCE(st.basic,0) + COALESCE(st.hra,0) + COALESCE(st.conveyance,0) + COALESCE(st.other_allowance,0)) AS monthly_earnings,
         COALESCE(st.working_hours, 0) AS working_hours,
         am.id AS attendance_id,
-        am.present_days, am.absent_days, am.paid_leave, am.unpaid_leave, am.ot_hours, am.status AS attendance_status
+        am.present_days, am.absent_days, am.paid_leave, am.unpaid_leave, am.ot_hours, am.status AS attendance_status,
+        am.rest_days, am.holiday_days, am.leave_days, am.half_days,
+        am.payable_days, am.actual_salary, am.total_days, am.late_marks
        FROM employees e
        LEFT JOIN sites s ON s.id = e.site_id
        LEFT JOIN clients c ON c.id = s.client_id
@@ -146,7 +185,7 @@ async function fetchSheetRows(db: D1Database, month: number, year: number, opts:
       father_name: e.father_name || null, spouse_name: e.spouse_name || null, designation: e.designation, status: e.status,
       site_id: e.site_id, site_name: e.site_name, client_id: e.client_id, client_name: e.client_name,
       weekly_off: e.weekly_off, monthly_earnings: earnings, working_hours: workHrs,
-      joining_date: e.joining_date || null,
+      joining_date: e.joining_date || null, exit_date: e.exit_date || null,
       attendance_id: Number(e.attendance_id) || null, attendance_status: e.attendance_status || null,
     }
     if (stored) {
@@ -158,13 +197,46 @@ async function fetchSheetRows(db: D1Database, month: number, year: number, opts:
     const paid = Number(e.paid_leave) || 0
     const unpaid = Number(e.unpaid_leave) || 0
     const ot = Number(e.ot_hours) || 0
-    const payable = dim - absent - unpaid
-    const actual = earnings > 0 ? r2((earnings / dim) * Math.max(0, payable)) : 0
+
+    /* A month recorded only as a summary has no `attendance_daily` rows, so map
+       the summary columns onto the grid chips. Getting this wrong is very
+       visible: `paid_leave` is NOT a half day, and rest days are their own
+       thing, so folding paid leave into `hd` showed every weekly off as a
+       half day and reported R = 0. Each chip prefers its own stored column and
+       only falls back when that column was never filled in. */
+    const numOr = (v: unknown): number | null => (v === null || v === undefined || v === '' ? null : Number(v) || 0)
+    const restStored = numOr(e.rest_days)
+    const holidayStored = numOr(e.holiday_days)
+    const leaveStored = numOr(e.leave_days)
+    const halfStored = numOr(e.half_days)
+
+    // A month with no summary row at all is simply unrecorded; every chip stays
+    // zero rather than being back-filled with a guess.
+    const hasRecord = e.attendance_id != null
+
+    // Holidays are known from the calendar, so an unfilled column still counts.
+    const holidayDays = hasRecord
+      ? (holidayStored ?? Array.from(holidays).filter((d) => d >= monthStart(month, year) && d <= monthEnd(month, year)).length)
+      : 0
+    /* Rest days are whatever the month has left once everything else is
+       counted — but only when a record actually exists. With no row at all the
+       remainder would be the whole month, inventing 30 rest days out of thin
+       air. */
+    const restDays = hasRecord
+      ? (restStored ?? Math.max(0, dim - present - absent - unpaid - (leaveStored ?? paid) - (halfStored ?? 0) - holidayDays))
+      : 0
+    const leaveDays = hasRecord ? (leaveStored ?? paid) : 0
+    const halfDays = hasRecord ? (halfStored ?? 0) : 0
+
+    const payable = numOr(e.payable_days) ?? Math.max(0, dim - absent - unpaid)
+    const actualStored = numOr(e.actual_salary)
+    const actual = actualStored ?? (earnings > 0 ? r2((earnings / dim) * Math.max(0, payable)) : 0)
     return {
       ...base, legacy: !stored,
       marks: null,
       present_days: present, absent_days: absent, paid_leave: paid, unpaid_leave: unpaid, ot_hours: ot,
-      p: present, a: absent + unpaid, r: 0, hd: paid, hf: 0, l: unpaid, ot_days: 0,
+      p: present, a: absent + unpaid, r: restDays, hd: holidayDays, hf: halfDays, l: leaveDays,
+      ot_days: Number(e.ot_days) || 0,
       payable_days: Math.max(0, payable), actual_salary: actual, total_days: dim,
     }
   })
@@ -180,9 +252,10 @@ attendanceRoutes.get('/sheet', async (c) => {
   const { month, year } = parsed.data
   const clientId = q.client_id && q.client_id !== '' ? Number(q.client_id) : null
   const siteId = q.site_id && q.site_id !== '' ? Number(q.site_id) : null
+  const employeeId = q.employee_id && /^\d+$/.test(q.employee_id) ? Number(q.employee_id) : null
   const search = q.search
 
-  const data = await fetchSheetRows(getDb(c.env), Number(month), Number(year), { client_id: clientId, site_id: siteId, search })
+  const data = await fetchSheetRows(getDb(c.env), Number(month), Number(year), { client_id: clientId, site_id: siteId, search, employee_id: employeeId })
 
   const finalizable = await getDb(c.env)
     .prepare('SELECT COUNT(*) AS n FROM attendance_monthly WHERE month = ? AND year = ? AND status = \'finalized\'')
@@ -383,14 +456,13 @@ attendanceRoutes.post('/marks', async (c) => {
     if (existing?.status === 'finalized') continue
 
     // Validate the grid covers every day of the month.
-    const marks = it.marks
     const misses: string[] = []
     for (let d = 1; d <= dim; d++) {
       const date = dateStr(month, year, d)
-      if (!marks[date]) misses.push(date)
+      if (!it.marks[date]) misses.push(date)
     }
     if (misses.length) {
-      return c.json({ error: { code: 'validation_error', message: `Complete day grid required â€” missing ${misses.length} date(s).` } }, 400)
+      return c.json({ error: { code: 'validation_error', message: `Complete day grid required — ${misses.length} date(s) missing.` } }, 400)
     }
 
     const salary = await db
@@ -403,11 +475,29 @@ attendanceRoutes.post('/marks', async (c) => {
     const earnings = Number((salary as any)?.monthly_earnings) || 0
     const workHrs = Number((salary as any)?.working_hours) || 8
 
+    const empWindow: any = await db
+      .prepare('SELECT joining_date, exit_date, status FROM employees WHERE id = ?')
+      .bind(it.employee_id)
+      .first()
+    if (!empWindow) continue
+    const joinDate = empWindow.joining_date ? String(empWindow.joining_date).slice(0, 10) : null
+    const exitDate = empWindow.exit_date ? String(empWindow.exit_date).slice(0, 10) : null
+
     const siteWeek = await db
       .prepare(`SELECT COALESCE(weekly_off,'Sun') AS weekly_off FROM sites WHERE id = (SELECT site_id FROM employees WHERE id = ?)`)
       .bind(it.employee_id)
       .first()
     const weeklyOffDow = WEEKDAY_DOW[(siteWeek as any)?.weekly_off || 'Sun'] ?? 0
+
+    // Days outside the employment window (before joining, after the exit date)
+    // are normalised to X server-side. The client is not trusted for this:
+    // it is what keeps the saved grid consistent with the employee's dates.
+    const marks: Record<string, string> = {}
+    for (let d = 1; d <= dim; d++) {
+      const date = dateStr(month, year, d)
+      const outside = (joinDate && date < joinDate) || (exitDate && date > exitDate)
+      marks[date] = outside ? 'X' : (it.marks[date] || defaultMark(date, weeklyOffDow, holidays, joinDate))
+    }
 
     // Full grid = sent marks (already the final grid the user saw).
     const counts = { P: 0, A: 0, R: 0, HD: 0, HF: 0, L: 0, X: 0 }
