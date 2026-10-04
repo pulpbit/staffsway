@@ -3,8 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom'
 import { employeeApi, clientApi, siteApi, recruitmentApi } from '@/services/api'
 import { Button } from '@/components/ui/fields'
-import { Table, Pagination, StatCard } from '@/components/ui/data'
-import type { Column } from '@/components/ui/data'
+import { Table, Pagination, StatCard, CardTable } from '@/components/ui/data'
+import type { Column, CardColumn } from '@/components/ui/data'
 import { PageHeader } from '@/components/ui/layout'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { StatusBadge } from '@/components/ui/status'
@@ -25,6 +25,7 @@ const permanentState = (r: any): string | null =>
   (r.permanent_same_as_present ? r.state : r.permanent_state) || r.state || null
 import { downloadCsv } from '@/utils/csv'
 import { stateShort } from '@/utils/states'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { toast } from 'sonner'
 import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download, ScrollText, CalendarCheck, Sparkles, FileSignature } from 'lucide-react'
 import EmployeeForm from './EmployeeForm'
@@ -38,6 +39,83 @@ import EmployeePayslipModal from './EmployeePayslipModal'
 import EmployeeTransferModal from './EmployeeTransferModal'
 import EmployeeApplyLeaveModal from './EmployeeApplyLeaveModal'
 import EmployeeExitModal from './EmployeeExitModal'
+
+/** Responsive table that shows CardTable on mobile (< lg) and Table on desktop (lg+) */
+function ResponsiveTable<T>({
+  columns,
+  data,
+  keyFn,
+  sortKey,
+  sortDir,
+  onSort,
+  emptyMessage,
+  emptyState,
+  loading,
+  rowClick,
+  minWidth,
+  expandedKey,
+  renderExpanded,
+  bare,
+  maxHeight,
+  cardRender,
+  cardColumns,
+}: {
+  columns: import('@/components/ui/data').Column<T>[]
+  data: T[]
+  keyFn: (row: T) => string | number
+  sortKey?: string
+  sortDir?: 'asc' | 'desc'
+  onSort?: (key: string) => void
+  emptyMessage?: string
+  emptyState?: React.ReactNode
+  loading?: boolean
+  rowClick?: (row: T) => void
+  minWidth?: string
+  expandedKey?: string | number | null
+  renderExpanded?: (row: T) => React.ReactNode
+  bare?: boolean
+  maxHeight?: string
+  cardRender?: (row: T, idx: number, columns: import('@/components/ui/data').CardColumn<T>[]) => React.ReactNode
+  cardColumns?: import('@/components/ui/data').CardColumn<T>[]
+}) {
+  const isMobile = useMediaQuery('(max-width: 1023px)')
+  
+  if (isMobile) {
+    return (
+      <CardTable
+        columns={cardColumns || columns.map(c => ({ ...c, priority: c.priority ?? 1 }))}
+        data={data}
+        keyFn={keyFn}
+        emptyMessage={emptyMessage}
+        emptyState={emptyState}
+        loading={loading}
+        rowClick={rowClick}
+        bare={bare}
+        cardRender={cardRender}
+      />
+    )
+  }
+  
+  return (
+    <Table
+      columns={columns}
+      data={data}
+      keyFn={keyFn}
+      sortKey={sortKey}
+      sortDir={sortDir}
+      onSort={onSort}
+      emptyMessage={emptyMessage}
+      emptyState={emptyState}
+      loading={loading}
+      rowClick={rowClick}
+      minWidth={minWidth}
+      expandedKey={expandedKey}
+      renderExpanded={renderExpanded}
+      bare={bare}
+      maxHeight={maxHeight}
+    />
+  )
+}
 
 export default function EmployeesPage() {
   const [search, setSearch] = useState('')
@@ -396,7 +474,7 @@ export default function EmployeesPage() {
         ) : (
           <>
             <div className="flex-1 min-h-[420px] flex flex-col">
-              <Table
+              <ResponsiveTable
                 bare
                 maxHeight="max-h-[calc(100vh-16rem)] min-h-[420px]"
                 columns={columns}
@@ -407,6 +485,7 @@ export default function EmployeesPage() {
                 onSort={handleSort}
                 emptyMessage="No employees match your search criteria."
                 minWidth="1500px"
+                cardColumns={columns.map(c => ({ ...c, priority: c.priority ?? 1 }))}
               />
             </div>
             {employees.length > 0 && meta.total_pages > 1 && (

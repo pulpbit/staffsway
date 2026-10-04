@@ -55,7 +55,12 @@ export interface Column<T> {
   sortable?: boolean
   className?: string
   hideSm?: boolean
+  hideMd?: boolean
   sticky?: 'left' | 'right'
+  /** 1 = always show (mobile), 2 = tablet+, 3 = desktop only */
+  priority?: 1 | 2 | 3
+  /** Custom card rendering for mobile card view */
+  cardRender?: (row: T, idx: number) => ReactNode
 }
 
 /** Sticky cells must be fully opaque, otherwise scrolled content bleeds through. */
@@ -346,3 +351,6 @@ export function Tabs({ tabs, active, onChange, variant = 'pill', scrollable = fa
     </div>
   )
 }
+
+export { CardTable } from './CardTable'
+export type { CardColumn } from './CardTable'
