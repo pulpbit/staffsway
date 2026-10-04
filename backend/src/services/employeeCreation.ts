@@ -68,6 +68,9 @@ export interface EmployeeCreateInput {
   dob?: string | null
   marital_status?: 'Single' | 'Married' | 'Divorced' | 'Widowed' | null
   nationality?: string | null
+  qualification?: string | null
+  experience_years?: number | null
+  experience_months?: number | null
   mobile?: string | null
   alternate_mobile?: string | null
   email?: string | null
@@ -231,7 +234,8 @@ export async function createEmployee(db: D1Database, input: EmployeeCreateInput)
   // with "N values for M columns".
   const EMPLOYEE_COLUMNS = [
     'employee_code', 'first_name', 'last_name', 'father_name', 'spouse_name', 'gender', 'dob',
-    'marital_status', 'nationality', 'mobile', 'alternate_mobile', 'email', 'aadhaar', 'address',
+    'marital_status', 'nationality', 'qualification', 'experience_years', 'experience_months',
+    'mobile', 'alternate_mobile', 'email', 'aadhaar', 'address',
     'state', 'district', 'pincode', 'permanent_same_as_present', 'permanent_address',
     'permanent_state', 'permanent_district', 'permanent_pincode', 'emergency_contact_name',
     'emergency_contact_phone', 'emergency_contact_relation', 'bank_name', 'bank_holder_name',
@@ -245,6 +249,7 @@ export async function createEmployee(db: D1Database, input: EmployeeCreateInput)
   const values = [
     code, first, last, d.father_name ?? null, d.spouse_name ?? null, d.gender ?? null, d.dob ?? null,
     d.marital_status ?? null, d.nationality ?? 'Indian',
+    d.qualification ?? null, d.experience_years ?? null, d.experience_months ?? null,
     d.mobile ?? null, d.alternate_mobile ?? null, email || null,
     aadhaar,
     d.address ?? null, d.state ?? null, d.district ?? null, d.pincode ?? null,

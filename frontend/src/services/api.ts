@@ -238,6 +238,7 @@ export interface ReferrerApplication {
   id: number; referrer_id?: number | null; referrer_name?: string | null; referrer_code?: string | null
   full_name: string; aadhaar: string; father_name?: string | null; gender?: string | null
   dob?: string | null; marital_status?: string | null; nationality?: string | null
+  qualification?: string | null; experience_years?: number | null; experience_months?: number | null
   mobile: string; alternate_mobile?: string | null; email?: string | null
   address?: string | null; state?: string | null; district?: string | null; pincode?: string | null
   permanent_same_as_present?: number; permanent_address?: string | null

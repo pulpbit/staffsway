@@ -63,6 +63,8 @@ interface Props {
 
 const GENDERS = ['Male', 'Female', 'Other']
 const MARITAL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed']
+// Ordered lowest to highest so the dropdown reads as a progression.
+const QUALIFICATIONS = ['Schooling', '10th', '12th', 'Diploma', 'ITI', 'Graduate', 'Masters', 'Doctorate']
 const EMP_TYPES = [
   { value: 'contract', label: 'Contract' },
   { value: 'permanent', label: 'Permanent' },
@@ -100,6 +102,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   const [match, setMatch] = useState<any>(null)
   const [form, setForm] = useState<Record<string, any>>({
     employee_code: '', full_name: '', father_name: '', spouse_name: '', gender: 'Male', dob: '', marital_status: 'Single', nationality: 'Indian',
+    qualification: '', experience_years: '', experience_months: '',
     mobile: '', alternate_mobile: '', email: '', aadhaar: '',
     address: '', state: '', district: '', pincode: '',
     permanent_same_as_present: false, permanent_address: '', permanent_state: '', permanent_district: '', permanent_pincode: '',
@@ -166,6 +169,8 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
       setForm(f => ({
         ...f,
         employee_code: e.employee_code || '', full_name: [e.first_name, e.last_name].filter(Boolean).join(' ').trim(), father_name: e.father_name || '', spouse_name: e.spouse_name || '', gender: e.gender || 'Male', dob: e.dob || '', marital_status: e.marital_status || 'Single', nationality: e.nationality || 'Indian',
+        qualification: e.qualification || '',
+        experience_years: e.experience_years ?? '', experience_months: e.experience_months ?? '',
         mobile: e.mobile || '', alternate_mobile: e.alternate_mobile || '', email: e.email || '', aadhaar: e.aadhaar || '',
         address: e.address || '', state: e.state || '', district: e.district || '', pincode: e.pincode || '',
         permanent_same_as_present: !!e.permanent_same_as_present, permanent_address: e.permanent_address || '', permanent_state: e.permanent_state || '', permanent_district: e.permanent_district || '', permanent_pincode: e.permanent_pincode || '',
@@ -228,6 +233,9 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
         full_name: form.full_name,
         father_name: form.father_name || null, spouse_name: form.spouse_name || null,
         gender: form.gender, dob: form.dob || null, marital_status: form.marital_status || null, nationality: form.nationality || 'Indian',
+        qualification: form.qualification || null,
+        experience_years: form.experience_years === '' ? null : Number(form.experience_years),
+        experience_months: form.experience_months === '' ? null : Number(form.experience_months),
         mobile: form.mobile || null, alternate_mobile: form.alternate_mobile || null, email: form.email || null, aadhaar: form.aadhaar || null,
         address: form.address || null, state: form.state || null, district: form.district || null, pincode: form.pincode || null,
         permanent_same_as_present: permOn,
@@ -349,33 +357,66 @@ const checkedBanner = !isEdit && unlocked && (
           <StepTracker stages={FORM_STAGES} active={activeStage} onJump={jumpToStage} />
 
           <FormSection icon={User} title="Basic Details" subtitle="Personal information as per identity documents" className="mb-4" anchor="stage-personal">
+{/* Field order follows the data-entry sequence HR works in:
+                identity name -> parent name -> DOB -> demographics -> code.
+                Father/Spouse moved up from below a divider because it is read
+                straight off the same identity document as Full Name and DOB. */}
             <FormGrid cols={3}>
               <Input label="Full Name" value={form.full_name} onChange={e => update('full_name', e.target.value)} error={errors.full_name} />
+              <div className="min-w-0">
+                <Toggle
+                  label="Father's / Spouse Name"
+                  hint={parentType === 'father' ? "Recording father's name" : 'Recording spouse name'}
+                  checked={parentType === 'father'}
+                  onChange={v => { setParentType(v ? 'father' : 'spouse'); if (v) update('spouse_name', ''); else update('father_name', '') }}
+                />
+                <div className="mt-2">
+                  {parentType === 'father' ? (
+                    <Input label="Father's Name" value={form.father_name} onChange={e => update('father_name', e.target.value)} ref={fieldRefs.father_name} />
+                  ) : (
+                    <Input label="Husband / Spouse Name" value={form.spouse_name} onChange={e => update('spouse_name', e.target.value)} />
+                  )}
+                </div>
+              </div>
               <Input label="Date of Birth" type="date" value={form.dob} onChange={e => update('dob', e.target.value)} ref={fieldRefs.dob} />
-              <Select label="Gender" options={GENDERS.map(g => ({ value: g, label: g }))} value={form.gender} onChange={e => update('gender', e.target.value)} />
             </FormGrid>
             <FormGrid cols={3}>
+              <Select label="Gender" options={GENDERS.map(g => ({ value: g, label: g }))} value={form.gender} onChange={e => update('gender', e.target.value)} />
+              <Select label="Marital Status" options={MARITAL_STATUSES.map(m => ({ value: m, label: m }))} value={form.marital_status} onChange={e => update('marital_status', e.target.value)} />
               <div>
-                <Input label="Username (for My Space login)" readOnly value={isEdit ? form.employee_code : (nextCode || 'Auto-assigned')} />
+                <Input label="Emp. Code" readOnly value={isEdit ? form.employee_code : (nextCode || 'Auto-assigned')} />
                 <p className="text-[11px] text-slate-500 mt-1">Employee ID · My Space password = Date of Birth (DDMMYY).</p>
               </div>
-              <Select label="Marital Status" options={MARITAL_STATUSES.map(m => ({ value: m, label: m }))} value={form.marital_status} onChange={e => update('marital_status', e.target.value)} />
-              <Input label="Nationality" value={form.nationality} onChange={e => update('nationality', e.target.value)} />
             </FormGrid>
-            <FormDivider label="Father / Spouse" />
-            <Toggle
-              label="Record as Father's name"
-              hint={parentType === 'father' ? "Showing Father's name" : 'Toggled to spouse'}
-              checked={parentType === 'father'}
-              onChange={v => { setParentType(v ? 'father' : 'spouse'); if (v) update('spouse_name', ''); else update('father_name', '') }}
-            />
-            <div className="md:max-w-sm">
-              {parentType === 'father' ? (
-                <Input label="Father's Name" value={form.father_name} onChange={e => update('father_name', e.target.value)} ref={fieldRefs.father_name} />
-              ) : (
-                <Input label="Husband / Spouse Name" value={form.spouse_name} onChange={e => update('spouse_name', e.target.value)} />
-              )}
-            </div>
+            <FormGrid cols={3}>
+              <Input label="Nationality" value={form.nationality} onChange={e => update('nationality', e.target.value)} />
+              <Select
+                label="Qualification"
+                options={QUALIFICATIONS.map(q => ({ value: q, label: q }))}
+                value={form.qualification}
+                onChange={e => update('qualification', e.target.value)}
+              />
+              <div>
+                <span className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Experience</span>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number" min={0} max={60} placeholder="0"
+                    aria-label="Total experience in years"
+                    value={form.experience_years}
+                    onChange={e => update('experience_years', e.target.value)}
+                  />
+                  <span className="text-[12px] text-slate-500 shrink-0">Years</span>
+                  <Input
+                    type="number" min={0} max={11} placeholder="0"
+                    aria-label="Total experience in months"
+                    value={form.experience_months}
+                    onChange={e => update('experience_months', e.target.value)}
+                  />
+                  <span className="text-[12px] text-slate-500 shrink-0">Months</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">Total experience before joining. Months 0-11.</p>
+              </div>
+            </FormGrid>
           </FormSection>
 
           <FormSection icon={Phone} title="Contact Details" subtitle="Communication and address information" className="mb-4" anchor="stage-personal">

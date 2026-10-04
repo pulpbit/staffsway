@@ -50,6 +50,11 @@ const employeeBase = {
   spouse_name: z.string().max(100).optional().nullable(),
   marital_status: z.enum(['Single', 'Married', 'Divorced', 'Widowed']).optional().nullable(),
   nationality: z.string().max(50).optional().nullable(),
+  qualification: z.string().max(50).optional().nullable(),
+  // Total experience as two numbers rather than one "5 years 3 months" string,
+  // so it stays sortable. Distinct from previous_employment (free text).
+  experience_years: z.number().int().min(0).max(60).optional().nullable(),
+  experience_months: z.number().int().min(0).max(11).optional().nullable(),
   alternate_mobile: z.string().max(20).optional().nullable(),
   permanent_same_as_present: z.boolean().optional(),
   permanent_address: z.string().max(500).optional().nullable(),
@@ -450,8 +455,19 @@ const optionVal = (v: unknown, allowed: string[]): string | undefined => {
   return allowed.find((a) => a.toLowerCase() === s.toLowerCase()) ?? undefined
 }
 
+// Column list for the bulk-import INSERT. The placeholder string is derived
+// from this at the call site, so the two can never disagree.
+const IMPORT_EMPLOYEE_COLUMNS = [
+  'id', 'employee_code', 'first_name', 'last_name', 'father_name', 'qualification',
+  'experience_years', 'experience_months', 'gender', 'dob', 'mobile', 'email', 'aadhaar',
+  'address', 'state', 'district', 'pincode', 'emergency_contact_name', 'emergency_contact_phone',
+  'bank_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'joining_date', 'designation',
+  'department', 'grade', 'reporting_manager', 'previous_employment', 'employee_type',
+  'shift_type', 'site_id', 'status',
+] as const
+
 const IMPORT_STR_FIELDS = [
-  'full_name', 'first_name', 'last_name', 'employee_code', 'father_name', 'spouse_name', 'marital_status', 'nationality', 'dob', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
+  'full_name', 'first_name', 'last_name', 'employee_code', 'father_name', 'spouse_name', 'marital_status', 'nationality', 'qualification', 'dob', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
   'address', 'state', 'district', 'pincode', 'permanent_address', 'permanent_state', 'permanent_district', 'permanent_pincode',
   'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
   'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'joining_date', 'designation', 'department',
@@ -471,6 +487,12 @@ function coerceImportRow(raw: Record<string, unknown>): Record<string, unknown> 
   }
   const gender = genderVal(raw.gender)
   if (gender !== undefined) r.gender = gender
+  // Experience arrives as two loose columns; coerce and clamp so a bad cell
+  // cannot push a value the employeeBase zod schema would reject outright.
+  const expYears = numVal(raw.experience_years)
+  if (expYears !== undefined) r.experience_years = Math.max(0, Math.min(60, Math.trunc(expYears)))
+  const expMonths = numVal(raw.experience_months)
+  if (expMonths !== undefined) r.experience_months = Math.max(0, Math.min(11, Math.trunc(expMonths)))
   const empType = optionVal(raw.employee_type, ['permanent', 'contract', 'daily_wages'])
   if (empType !== undefined) r.employee_type = empType
   const status = optionVal(raw.status, ['active', 'inactive'])
@@ -634,22 +656,32 @@ employeeRoutes.post('/import', async (c) => {
       takenCodes.add(newCode)
       seenCodes.add(newCode)
 
+const bindValues = [
+        seq, newCode, first, last, d.father_name ?? null,
+        d.qualification ?? null, d.experience_years ?? null, d.experience_months ?? null,
+        d.gender ?? null, d.dob ?? null, d.mobile ?? null, d.email || null,
+        d.aadhaar ?? null,
+        d.address ?? null, d.state ?? null, d.district ?? null, d.pincode ?? null,
+        d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null,
+        d.bank_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null,
+        d.joining_date ?? null, d.designation ?? null, d.department ?? null,
+        d.grade ?? null, d.reporting_manager ?? null, d.previous_employment ?? null,
+        d.employee_type ?? 'permanent', d.shift_type ?? null, siteId, d.status ?? 'active',
+      ] as unknown[]
+      // Same guard as services/employeeCreation.ts. This route used to hard-code
+      // the VALUES list, which drifts the moment a column is added and only
+      // fails at runtime with "N values for M columns".
+      if (bindValues.length !== IMPORT_EMPLOYEE_COLUMNS.length) {
+        throw new Error(
+          `employees/import: ${bindValues.length} values for ${IMPORT_EMPLOYEE_COLUMNS.length} columns — the lists are out of sync.`
+        )
+      }
       ops.push(
         db
           .prepare(
-`INSERT INTO employees (id, employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, state, district, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+            `INSERT INTO employees (${IMPORT_EMPLOYEE_COLUMNS.join(', ')}) VALUES (${IMPORT_EMPLOYEE_COLUMNS.map(() => '?').join(',')})`
           )
-          .bind(
-            seq, newCode, first, last, d.father_name ?? null, d.gender ?? null, d.dob ?? null, d.mobile ?? null, d.email || null,
-            d.aadhaar ?? null,
-            d.address ?? null, d.state ?? null, d.district ?? null, d.pincode ?? null,
-            d.emergency_contact_name ?? null, d.emergency_contact_phone ?? null,
-            d.bank_name ?? null, d.bank_account ?? null, d.bank_ifsc ?? null, d.pan ?? null, d.uan ?? null,
-            d.joining_date ?? null, d.designation ?? null, d.department ?? null,
-            d.grade ?? null, d.reporting_manager ?? null, d.previous_employment ?? null,
-            d.employee_type ?? 'permanent', d.shift_type ?? null, siteId, d.status ?? 'active'
-          )
+          .bind(...bindValues)
       )
 
       const sal = d.salary || { basic: 0 }
@@ -798,7 +830,7 @@ employeeRoutes.put('/:id', async (c) => {
   }
 
   const fields = [
-    'father_name', 'spouse_name', 'gender', 'dob', 'marital_status', 'nationality', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
+    'father_name', 'spouse_name', 'gender', 'dob', 'marital_status', 'nationality', 'qualification', 'experience_years', 'experience_months', 'mobile', 'alternate_mobile', 'email', 'aadhaar',
     'address', 'state', 'district', 'pincode', 'permanent_same_as_present', 'permanent_address', 'permanent_state', 'permanent_district', 'permanent_pincode',
     'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
     'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'ctc', 'joining_date', 'designation', 'department',
