@@ -28,6 +28,15 @@ import {
   ChevronRight,
   Briefcase,
   AlertTriangle,
+  Bell,
+  Cake,
+  Shield,
+  DollarSign,
+  Users2,
+  ClipboardList,
+  CheckSquare,
+  Square,
+  TrendingUp as TrendingUpIcon,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -323,6 +332,168 @@ export default function ManagementDashboardPage() {
             <span>Sites: <strong className="text-white">{totalSites} Active</strong></span>
             <span>&bull;</span>
             <span>Coverage: <strong className="text-white">Pan-India</strong></span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* New Section: Reminders & Alerts, Pending Info, Tasks, Active Clients, Top Clients */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        
+        {/* Card: Reminders & Alerts */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+              <Bell className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">Reminders & Alerts</h3>
+          </div>
+          <div className="space-y-2">
+            {[
+              { label: 'Upcoming Birthdays', icon: Cake, color: 'bg-pink-100 text-pink-700', count: 3 },
+              { label: 'Labour Compliance', icon: Shield, color: 'bg-blue-100 text-blue-700', count: 2 },
+              { label: 'ESIC Return', icon: ShieldCheck, color: 'bg-emerald-100 text-emerald-700', count: 1 },
+              { label: 'PF Return', icon: DollarSign, color: 'bg-purple-100 text-purple-700', count: 1 },
+              { label: 'Salary Pending', icon: DollarSign, color: 'bg-amber-100 text-amber-700', count: 2 },
+            ].map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className={`w-7 h-7 rounded-lg ${item.color} flex items-center justify-center`}>
+                    <item.icon className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-800">{item.label}</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                  {item.count}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Card: Pending Information (Reminders) */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">Pending Information</h3>
+          </div>
+          <div className="space-y-1.5">
+            {[
+              'Father Name',
+              'DOB',
+              'Gender',
+              'Marital Status',
+              'Primary Contact',
+              'Present Address',
+              'Permanent Address',
+              'PF',
+              'ESIC',
+              'Bank Details',
+            ].map((field, idx) => (
+              <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100">
+                <span className="text-xs font-medium text-slate-700">{field}</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                  Missing
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Card: Tasks */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+              <ClipboardList className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">Tasks</h3>
+            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold">5</span>
+          </div>
+          <div className="space-y-2">
+            {[
+              { title: 'Review pending leave requests', status: 'pending' },
+              { title: 'Approve salary for October', status: 'pending' },
+              { title: 'Submit ESIC return', status: 'in_progress' },
+              { title: 'Process payroll for October', status: 'pending' },
+              { title: 'Update employee records', status: 'completed' },
+            ].map((task, idx) => (
+              <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100">
+                <div className="flex items-center gap-2 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={task.status === 'completed'}
+                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span className={`text-xs font-medium ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title}</span>
+                </div>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  task.status === 'pending' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                  task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                  'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                }`}>
+                  {task.status === 'pending' ? 'Pending' : task.status === 'in_progress' ? 'In Progress' : 'Done'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Card: Active Clients */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-green-100 text-green-600 flex items-center justify-center">
+              <Users2 className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">Active Clients</h3>
+            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold">12</span>
+          </div>
+          <div className="space-y-2">
+            {[
+              { name: 'ABC Manufacturing Ltd.', employees: 42, status: 'Active' },
+              { name: 'XYZ Services Pvt. Ltd.', employees: 28, status: 'Active' },
+              { name: 'Global Tech Solutions', employees: 22, status: 'Active' },
+              { name: 'Sunrise Industries', employees: 18, status: 'Active' },
+            ].map((client, idx) => (
+              <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100">
+                <div className="min-w-0">
+                  <span className="text-xs font-semibold text-slate-800 truncate block">{client.name}</span>
+                  <span className="text-[11px] font-bold text-slate-900">{client.employees} employees</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                  {client.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Card: Top Client by Staff Count */}
+        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
+              <TrendingUpIcon className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900">Top Client by Staff</h3>
+            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-bold">1</span>
+          </div>
+          <div className="space-y-3">
+            {[
+              { name: 'ABC Manufacturing Ltd.', staff: 42, pct: 100 },
+              { name: 'XYZ Services Pvt. Ltd.', staff: 28, pct: 67 },
+              { name: 'Global Tech Solutions', staff: 22, pct: 52 },
+            ].map((client, idx) => (
+              <div key={idx} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-800 truncate">{client.name}</span>
+                  <span className="font-mono font-bold text-slate-900">{client.staff} staff</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-full bg-purple-600 rounded-full" style={{ width: `${client.pct}%` }} />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
