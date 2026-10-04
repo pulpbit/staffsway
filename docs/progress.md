@@ -5,6 +5,110 @@ deployed (GitHub Actions → Cloudflare Workers + Pages) unless noted.
 
 ---
 
+## 2026-10-04 — Full UI redesign pass + table/scroll fixes (commit `11eaf8e`)
+
+Scope: **46 frontend files**. No backend, API, permission, or calculation changes —
+`backend/` is untouched in this commit.
+
+### A. Design language rolled out everywhere
+Took the login page + management dashboard language (slate/blue, `rounded-2xl`,
+`border-slate-200/80`, `shadow-xs`, gradient KPI tiles, soft badges, uppercase
+compact labels) across the shared UI kit and **all** feature pages:
+
+- `components/ui/` — `layout`, `data`, `fields`, `actions`, `overlay`, `drawer`,
+  `state`, `validation`, `status`, `skeleton`, `AadhaarBoxes`.
+- Every `features/*` page, incl. assets, attendance report, clients, compliance,
+  documents, helpdesk, leaves, my space, payroll, performance, recruitment,
+  referrers, reports, separation, settings, sites, slips, training.
+- Legacy `ink` / `body` / `mute` / `hairline` / `card-shadow` / `mono-label`
+  tokens swept out. Verified in-browser across all 21 routes: **0** occurrences
+  of any retired token still in the DOM.
+
+### B. Employee suite
+| Change | Where |
+|---|---|
+| Five-stage step tracker + anchor nav (`FORM_STAGES`, `IntersectionObserver`, `jumpToStage`) | `employees/EmployeeForm.tsx` |
+| Profile header, quick actions, active-tab styling | `employees/EmployeeProfileDrawer.tsx` |
+| Quality bar, import progress, gradient result tiles, phase tracker | `employees/BulkEmployeeImport.tsx` |
+| Print-safe enterprise voucher | `slips/SalarySlipView.tsx` |
+| Employee Master now pins **Emp. ID + Status + Employee Name** | `employees/EmployeesPage.tsx` |
+
+Also fixed 31 pre-existing TypeScript errors surfaced by the pass: modal/drawer
+call sites matched to real component APIs, `ConfirmDialog confirmText/cancelText`,
+`FormGrid cols={2}`, `validate(RULES, form)` argument order, missing `Plus` /
+`Textarea` imports, `ReportsPage` table `keyFn`.
+
+### C. Three functional regressions — the important part
+The redesign broke table rendering. User report: *"Employee Master can show only
+2-3 rows; Monthly Attendance shows only a header."*
+
+**Root cause 1 — collapsed page scroll.** Page roots used `h-full min-h-0` while
+`AppLayout` `main` had `min-height:auto`. `main` therefore never scrolled
+(`scrollHeight === clientHeight`) and the flex chain crushed the table cards to
+**134–160px**, clipping rows that were always in the DOM (36 attendance, 39 employee).
+Fix: `min-h-0` on `main`; page roots use `min-h-full`; cards get real `min-h`
+floors; `Table` is its own bounded scroll region.
+
+**Root cause 2 — headers could not stick.** `data.tsx` `thead` had no `top`, and
+`overflow-x-auto` computes `overflow-y:auto`, so `position:sticky` had no scroller
+to stick to. Fix: sticky `thead` inside a bounded `maxHeight` region
+(`max-h-[calc(100vh-16rem)] min-h-[420px]`, overridable per table).
+
+**Root cause 3 — `border-collapse` killed sticky on the attendance grid.** Switching
+that grid to `border-separate border-spacing-0` made `position:sticky` work.
+
+Also: sticky cells used `bg-slate-50/90` / `bg-slate-50/70` (and rows
+`bg-slate-50/40`), so scrolled day cells **bled through** the pinned columns.
+Now every sticky cell uses a fully opaque background matching its row state
+(`bg-white` / `bg-slate-50` / `bg-blue-50`). And because `data.tsx` gave every
+sticky column `left-0`, a second pinned column would stack on the first — offsets
+are now measured cumulatively via `ResizeObserver` on the header cells.
+
+### D. Verification (all passed, local, headless Chromium)
+- `npx tsc --noEmit` clean; `npm run build` green (only the pre-existing
+  >500 kB chunk warning).
+- **Rows in view** @1280×720: employees 8/39 (was 2–3), attendance 10/36 (was 0),
+  slips 7/35, reports 6/39, sites 7/10, assets 8/8.
+- **Sticky headers** hold position after a 600px scroll on all 9 table pages.
+- **Sticky columns** after a 900px right-scroll: employees 160 sticky cells,
+  attendance 230 — **0 translucent**, cumulative `left` offsets
+  employees `0 → 96 → 206`, attendance `0 → 60 → 192 → 296 → 392`.
+- All 21 routes render; **0 React console errors**.
+
+### E. Findings worth remembering
+- **`h-full` + `min-h-0` on a page root only works if every ancestor up to the
+  scroller has `min-h-0` too.** Otherwise the scroller silently stops scrolling and
+  clips the page instead. Symptom looks like missing data, not a CSS bug.
+- **`border-collapse` suppresses `position:sticky`** in Chromium. Use
+  `border-separate border-spacing-0` for any grid with pinned headers/columns.
+- **A sticky cell must be fully opaque.** `bg-*/70` reads as a bug the moment
+  anything scrolls under it. Also pin the *row* to the same opaque value or you
+  get a seam.
+- Multiple pinned columns per side need **cumulative** offsets; `left-0` on all of
+  them overlaps. Measure real widths — content decides them, not a width class.
+
+### F. Open bug — pre-existing, NOT from this commit
+`GET /api/performance/summary` returns **500**
+(`D1_ERROR: Wrong number of parameter bindings`). At
+`backend/src/routes/performance.ts:554` the `performance_pips` count binds
+`...params`, which includes `fiscal_year`, but that query has **no `fiscal_year`
+placeholder** (`performance_pips` has no such column). Broken in both the
+employee-scoped and org-wide cases. Reproduces on `a30bf43` with no local
+changes. One-line fix: bind only `employee_id`, matching lines 552–553.
+**Left unfixed** to keep this commit frontend-only, per the no-backend-change
+constraint.
+
+### G. Doc debt / follow-ups
+- Apply the one-line `performance.ts` binding fix above.
+- `docs/architecture.md` has no section on the shared table scroll/sticky model
+  or the design tokens — both were the source of today's regressions and are
+  now written up in **E**.
+- Visual sign-off still pending: the model used for this pass has **no image
+  input**, so all layout/contrast claims above are DOM + computed-style evidence
+  (`getBoundingClientRect`, `getComputedStyle`), not screenshots.
+
+---
+
 ## 2026-09-27 — Referrer registration intake (commit `7d84a55`)
 
 Public URL for candidates: **`https://staffsway.pages.dev/apply`**
