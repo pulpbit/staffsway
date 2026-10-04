@@ -283,9 +283,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
     }
   }
 
-if (isEdit && empLoading) return <LoadingState />
-
-  const stateOptions = [{ value: '', label: 'Select state' }, ...STATE_OPTIONS.map(s => ({ value: s, label: s }))]
+const stateOptions = [{ value: '', label: 'Select state' }, ...STATE_OPTIONS.map(s => ({ value: s, label: s }))]
 
   // Highlight the stage whose section is nearest the top of the viewport.
   // `root: null` observes the viewport rather than a specific scroll box, so
@@ -346,6 +344,13 @@ const checkedBanner = !isEdit && unlocked && (
       <button type="button" className="text-[11px] text-blue-600 underline hover:text-blue-800 cursor-pointer" onClick={() => onClose()}>Restart</button>
     </div>
   )
+
+  // Must stay BELOW every hook. Returning early here skipped the stage-tracking
+  // useEffect below, so the first edit render declared one hook fewer than the
+  // render that followed. React treats that as fatal and unmounts the whole
+  // app: the list stayed on screen, then every node under #root vanished with
+  // no console error. It broke Edit Employee for every record.
+  if (isEdit && empLoading) return <LoadingState />
 
   return (
     <div>
