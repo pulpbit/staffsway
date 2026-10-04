@@ -11,6 +11,18 @@ import { StatusBadge } from '@/components/ui/status'
 import { FilterBar, SearchInput, SelectFilter, Avatar } from '@/components/ui/actions'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
 import { fullName, dateShort, money, grossSalary } from '@/utils/format'
+
+/**
+ * State shown for an employee, taken from their permanent address.
+ *
+ * Falls back to the present-address state in two cases: when the permanent
+ * address is flagged as identical to present, and when no permanent state has
+ * been captured. The second case is the norm for existing records - permanent
+ * address is optional and currently empty across the seeded employees - so
+ * without the fallback this column would read blank for everyone.
+ */
+const permanentState = (r: any): string | null =>
+  (r.permanent_same_as_present ? r.state : r.permanent_state) || r.state || null
 import { downloadCsv } from '@/utils/csv'
 import { stateShort } from '@/utils/states'
 import { toast } from 'sonner'
@@ -190,11 +202,8 @@ export default function EmployeesPage() {
       </span>
     ) },
     { key: 'father_name', header: 'Father\'s/Spouse', hideSm: true, render: (r) => <span className="text-xs text-slate-600">{r.father_name || r.spouse_name || '—'}</span> },
-    { key: 'gender', header: 'Gender', hideSm: true, render: (r) => <span className="text-xs text-slate-600 capitalize">{r.gender || '—'}</span> },
-    { key: 'dob', header: 'DOB', render: (r) => <span className="text-xs text-slate-600 whitespace-nowrap tabular-nums">{dateShort(r.dob)}</span> },
     { key: 'aadhaar', header: 'Aadhaar No.', render: (r) => <span className="text-xs font-mono text-slate-700">{r.aadhaar || '—'}</span> },
-    { key: 'pan', header: 'PAN', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.pan || '—'}</span> },
-    { key: 'state', header: 'State', hideSm: true, render: (r) => <span className="text-xs font-medium text-slate-700">{stateShort(r.state)}</span> },
+    { key: 'state', header: 'State', hideSm: true, render: (r) => <span className="text-xs font-medium text-slate-700">{stateShort(permanentState(r))}</span> },
     { key: 'mobile', header: 'Contact No.', render: (r) => <span className="text-xs text-slate-700 whitespace-nowrap tabular-nums font-mono">{r.mobile || '—'}</span> },
     { key: 'designation', header: 'Job Title', render: (r) => <span className="text-xs text-slate-700 font-medium">{r.designation || '—'}</span> },
     {
@@ -205,7 +214,6 @@ export default function EmployeesPage() {
         return <span className="text-xs text-slate-800 font-bold whitespace-nowrap tabular-nums">{gross ? money(gross) : '—'}</span>
       },
     },
-    { key: 'hra', header: 'HRA', hideSm: true, render: (r) => <span className="text-xs text-slate-800 font-bold whitespace-nowrap tabular-nums">{r.hra ? money(Number(r.hra)) : '—'}</span> },
     { key: 'joining', header: 'Joining Date', sortable: true, render: (r) => <span className="text-xs text-slate-600 whitespace-nowrap tabular-nums">{dateShort(r.joining_date)}</span> },
     { key: 'exit_date', header: 'Exit Date', render: (r) => <span className="text-xs text-slate-600 whitespace-nowrap tabular-nums">{r.exit_date ? dateShort(r.exit_date) : '—'}</span> },
     { key: 'bank_account', header: 'A/C No.', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.bank_account || '—'}</span> },
