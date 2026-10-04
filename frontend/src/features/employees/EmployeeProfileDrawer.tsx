@@ -10,8 +10,9 @@ import { LoadingState } from '@/components/ui/state'
 import { fullName, dateShort, money } from '@/utils/format'
 import { isPending } from '@/utils/pending'
 import { stateShort } from '@/utils/states'
+import EmployeeLetterModal from '@/features/letters/EmployeeLetterModal'
 import {
-  CalendarCheck, Upload, CalendarDays, Pencil, FileText, ArrowRightLeft,
+  CalendarCheck, Upload, CalendarDays, Pencil, FileText, FileSignature, ArrowRightLeft,
   Plus, Trash2, Check, CircleAlert, Phone, Mail, MapPin,
   TrendingUp, ClipboardCheck, Printer,
   LogOut, CircleCheck, CirclePause,
@@ -59,6 +60,7 @@ interface EmployeeProfileDrawerProps {
 
 export default function EmployeeProfileDrawer({ open, employeeId, name, code, onClose, onEdit, onRevise, onOnboarding, onJoiningForm, onToggleStatus, onDelete, onViewAttendance, onGeneratePayslip, onTransfer, onApplyLeave, onExit }: EmployeeProfileDrawerProps) {
   const [tab, setTab] = useState<Tab>('info')
+  const [letterOpen, setLetterOpen] = useState(false)
   const [docForm, setDocForm] = useState({ document_type: DOC_TYPES[0], document_name: '', document_number: '' })
   const queryClient = useQueryClient()
 
@@ -147,6 +149,9 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
               </Button>
               <Button size="sm" variant="secondary" onClick={() => employeeId && onGeneratePayslip?.(employeeId)} disabled={!employeeId}>
                 <FileText className="w-3.5 h-3.5" /> Payslip
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setLetterOpen(true)} disabled={!employeeId || emp.status !== 'active'}>
+                <FileSignature className="w-3.5 h-3.5" /> Letter
               </Button>
             </div>
           </div>
@@ -418,6 +423,16 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
             </div>
           </div>
         </div>
+      )}
+
+      {/* Renders above the drawer (Modal is z-60 vs Drawer z-50). */}
+      {letterOpen && employeeId && (
+        <EmployeeLetterModal
+          employeeId={employeeId}
+          onClose={() => {
+            setLetterOpen(false)
+          }}
+        />
       )}
     </Drawer>
   )

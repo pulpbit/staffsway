@@ -26,9 +26,10 @@ const permanentState = (r: any): string | null =>
 import { downloadCsv } from '@/utils/csv'
 import { stateShort } from '@/utils/states'
 import { toast } from 'sonner'
-import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download, ScrollText, CalendarCheck, Sparkles } from 'lucide-react'
+import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download, ScrollText, CalendarCheck, Sparkles, FileSignature } from 'lucide-react'
 import EmployeeForm from './EmployeeForm'
 import JoiningFormModal from './JoiningFormModal'
+import EmployeeLetterModal from '@/features/letters/EmployeeLetterModal'
 import SalaryRevisionModal from './SalaryRevisionModal'
 import BulkEmployeeImport from './BulkEmployeeImport'
 import EmployeeProfileDrawer from './EmployeeProfileDrawer'
@@ -57,6 +58,7 @@ export default function EmployeesPage() {
   const [onbFor, setOnbFor] = useState<any>(null)
   const [revFor, setRevFor] = useState<any>(null)
   const [joiningFor, setJoiningFor] = useState<number | null>(null)
+  const [letterFor, setLetterFor] = useState<number | null>(null)
   const [viewRow, setViewRow] = useState<any>(null)
   const [attFor, setAttFor] = useState<any>(null)
   const [payslipFor, setPayslipFor] = useState<any>(null)
@@ -233,6 +235,9 @@ export default function EmployeesPage() {
         </button>
         <button onClick={() => setJoiningFor(r.id)} title="Print joining form" aria-label="Generate joining form" className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 border border-slate-200/70 transition-colors cursor-pointer">
           <ScrollText className="w-3.5 h-3.5" />
+        </button>
+        <button onClick={() => setLetterFor(r.id)} title="Generate offer or appointment letter" aria-label="Generate letter" disabled={r.status !== 'active'} className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
+          <FileSignature className="w-3.5 h-3.5" />
         </button>
       </div>
     ) },
@@ -460,6 +465,10 @@ export default function EmployeesPage() {
           employeeId={joiningFor}
           onClose={() => setJoiningFor(null)}
         />
+      )}
+
+      {letterFor && (
+        <EmployeeLetterModal employeeId={letterFor} onClose={() => setLetterFor(null)} />
       )}
 
       {revFor && (

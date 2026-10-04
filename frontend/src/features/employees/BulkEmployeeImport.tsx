@@ -86,10 +86,9 @@ export default function BulkEmployeeImport({ onClose, onImported }: Props) {
             </button>
           </div>
           <p className="text-[12px] text-slate-600 leading-relaxed">
-            Start from a template (CSV or Excel) with all employee fields as headers. Fill in one row per employee, then
-            upload it. Rows that match an existing <span className="text-slate-900 font-medium">Employee Code</span> or{' '}
-            <span className="text-slate-900 font-medium">Email</span> are updated; everything else is created as a new
-            employee.
+            Download the template and fill in one row per employee. Only{' '}
+            <span className="text-slate-900 font-medium">Employee Name</span> is required — leave any other column
+            blank and it falls back to a default. Every row is created as a new employee with an auto-generated code.
           </p>
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
@@ -156,8 +155,8 @@ export default function BulkEmployeeImport({ onClose, onImported }: Props) {
                 <tr className="text-left text-slate-500 border-b border-slate-200">
                   <th className="px-3 py-2 font-bold text-[10.5px] uppercase tracking-wider">Row</th>
                   <th className="px-3 py-2 font-bold text-[10.5px] uppercase tracking-wider">Name</th>
-                  <th className="px-3 py-2 font-bold text-[10.5px] uppercase tracking-wider">Code</th>
-                  <th className="px-3 py-2 font-bold text-[10.5px] uppercase tracking-wider">Email</th>
+                  <th className="px-3 py-2 font-bold text-[10.5px] uppercase tracking-wider">Designation</th>
+                  <th className="px-3 py-2 font-bold text-[10.5px] uppercase tracking-wider">Site</th>
                   <th className="px-3 py-2 font-bold text-[10.5px] uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
@@ -166,8 +165,8 @@ export default function BulkEmployeeImport({ onClose, onImported }: Props) {
                   <tr key={p.rowNumber} className={p.valid ? 'bg-white' : 'bg-rose-50/50'}>
                     <td className="px-3 py-2 text-slate-500 tabular-nums">{p.rowNumber}</td>
                     <td className="px-3 py-2 text-slate-900 font-semibold">{p.name}</td>
-                    <td className="px-3 py-2 font-mono text-[11px] text-slate-600">{p.employeeCode || '—'}</td>
-                    <td className="px-3 py-2 text-slate-600">{p.email || '—'}</td>
+                    <td className="px-3 py-2 text-slate-600">{p.designation || '—'}</td>
+                    <td className="px-3 py-2 text-slate-600">{p.site || '—'}</td>
                     <td className="px-3 py-2">
                       {p.valid
                         ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60"><CheckCircle2 className="w-3 h-3" /> OK</span>

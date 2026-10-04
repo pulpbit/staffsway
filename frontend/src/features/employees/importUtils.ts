@@ -19,55 +19,46 @@ export interface ParsedRow {
   rowNumber: number
   valid: boolean
   name: string
-  employeeCode?: string
-  email?: string
+  site?: string
+  designation?: string
+  status?: string
   error?: string
   payload?: Record<string, unknown>
 }
 
+// The import sheet is deliberately short. Only Employee Name is required;
+// every other field is optional and falls back to a sensible default (active
+// status, permanent type, 8 working hours, PF/ESIC/PT on, LWF/TDS off, zero
+// salary components). Labels are what the user sees in the downloaded
+// template, so they are written out in full rather than as column keys.
 export const IMPORT_COLUMNS: ImportColumn[] = [
-  { key: 'full_name', label: 'full_name', type: 'text', required: true, hint: 'Required' },
-  { key: 'first_name', label: 'first_name', type: 'text', hint: 'Legacy: used only when full_name is left blank' },
-  { key: 'last_name', label: 'last_name', type: 'text', hint: 'Legacy: used only when full_name is left blank' },
-  { key: 'employee_code', label: 'employee_code', type: 'text', hint: 'Leave blank to auto-generate. Provide an existing code to update that employee.' },
-  { key: 'father_name', label: 'father_name', type: 'text', hint: 'Father / Husband name' },
-  { key: 'gender', label: 'gender', type: 'enum', options: ['Male', 'Female', 'Other'] },
-  { key: 'dob', label: 'dob', type: 'date', hint: 'YYYY-MM-DD' },
-  { key: 'mobile', label: 'mobile', type: 'text' },
-  { key: 'email', label: 'email', type: 'text', hint: 'Used to match an existing employee if no employee_code is given' },
-  { key: 'aadhaar', label: 'aadhaar', type: 'text', hint: 'Aadhaar number (12 digits)' },
-  { key: 'address', label: 'address', type: 'text' },
-  { key: 'state', label: 'state', type: 'text' },
-  { key: 'pincode', label: 'pincode', type: 'text' },
-  { key: 'emergency_contact_name', label: 'emergency_contact_name', type: 'text' },
-  { key: 'emergency_contact_phone', label: 'emergency_contact_phone', type: 'text' },
-  { key: 'bank_name', label: 'bank_name', type: 'text' },
-  { key: 'bank_account', label: 'bank_account', type: 'text' },
-  { key: 'bank_ifsc', label: 'bank_ifsc', type: 'text' },
-  { key: 'pan', label: 'pan', type: 'text' },
-  { key: 'uan', label: 'uan', type: 'text' },
-  { key: 'joining_date', label: 'joining_date', type: 'date', hint: 'YYYY-MM-DD' },
-  { key: 'designation', label: 'designation', type: 'text' },
-  { key: 'department', label: 'department', type: 'text' },
-  { key: 'grade', label: 'grade', type: 'text' },
-  { key: 'reporting_manager', label: 'reporting_manager', type: 'text' },
-  { key: 'previous_employment', label: 'previous_employment', type: 'text' },
-  { key: 'employee_type', label: 'employee_type', type: 'enum', options: ['permanent', 'contract', 'temporary', 'probation'] },
-  { key: 'shift_type', label: 'shift_type', type: 'text', hint: 'e.g. General, Morning, Evening, Night, Rotational, Split' },
-  { key: 'site_name', label: 'site_name', type: 'text', hint: 'Must match an existing site; leave blank if unassigned' },
-    { key: 'status', label: 'status', type: 'enum', options: ['active', 'inactive'] },
-  { key: 'basic', label: 'basic', type: 'number', hint: 'Basic salary (monthly)' },
-  { key: 'hra', label: 'hra', type: 'number' },
-  { key: 'conveyance', label: 'conveyance', type: 'number' },
-  { key: 'other_allowance', label: 'other_allowance', type: 'number' },
-  { key: 'overtime_rate', label: 'overtime_rate', type: 'number', hint: 'OT rate per hour (fallback only)' },
-  { key: 'working_hours', label: 'working_hours', type: 'number', hint: 'Working hours per day, e.g. 8 or 9' },
-  { key: 'other_deduction', label: 'other_deduction', type: 'number' },
-  { key: 'pf_applicable', label: 'pf_applicable', type: 'bool', options: ['Yes', 'No'] },
-  { key: 'esic_applicable', label: 'esic_applicable', type: 'bool', options: ['Yes', 'No'] },
-  { key: 'lwf_applicable', label: 'lwf_applicable', type: 'bool', options: ['Yes', 'No'] },
-  { key: 'pt_applicable', label: 'pt_applicable', type: 'bool', options: ['Yes', 'No'] },
-  { key: 'tds_applicable', label: 'tds_applicable', type: 'bool', options: ['Yes', 'No'] },
+  { key: 'full_name', label: 'Employee Name', type: 'text', required: true, hint: 'Required. Split into first and last name automatically.' },
+  { key: 'father_name', label: "Father's / Spouse Name", type: 'text', hint: 'One field for either; put the spouse name where it applies' },
+  { key: 'gender', label: 'Gender', type: 'enum', options: ['Male', 'Female', 'Other'] },
+  { key: 'dob', label: 'DOB', type: 'date', hint: 'YYYY-MM-DD' },
+  { key: 'aadhaar', label: 'Aadhar No.', type: 'text', hint: '12 digits' },
+  { key: 'mobile', label: 'Mobile', type: 'text' },
+  { key: 'basic', label: 'Basic', type: 'number', hint: 'Basic salary, monthly' },
+  { key: 'hra', label: 'HRA', type: 'number' },
+  { key: 'conveyance', label: 'Conveyance', type: 'number' },
+  { key: 'other_allowance', label: 'Other Allowances', type: 'number' },
+  { key: 'joining_date', label: 'Joining Date', type: 'date', hint: 'YYYY-MM-DD' },
+  { key: 'bank_name', label: 'Bank Name', type: 'text' },
+  { key: 'bank_account', label: 'A/C No.', type: 'text' },
+  { key: 'bank_ifsc', label: 'IFSC No.', type: 'text' },
+  { key: 'esi_number', label: 'ESIC IP No.', type: 'text' },
+  { key: 'designation', label: 'Designation', type: 'text' },
+  { key: 'department', label: 'Department', type: 'text' },
+  { key: 'reporting_manager', label: 'Reporting Manager', type: 'text' },
+  { key: 'shift_type', label: 'Shift Type', type: 'text', hint: 'General, Morning, Evening, Night, Rotational or Split' },
+  { key: 'site_name', label: 'Site Name', type: 'text', hint: 'Must match an existing site exactly, or leave blank' },
+  { key: 'status', label: 'Status', type: 'enum', options: ['active', 'inactive'] },
+  { key: 'working_hours', label: 'Working Hours', type: 'number', hint: 'Per day, e.g. 8. Defaults to 8 when blank.' },
+  { key: 'pf_applicable', label: 'PF Applicable', type: 'bool', options: ['Yes', 'No'] },
+  { key: 'esic_applicable', label: 'ESIC Applicable', type: 'bool', options: ['Yes', 'No'] },
+  { key: 'lwf_applicable', label: 'LWF Applicable', type: 'bool', options: ['Yes', 'No'] },
+  { key: 'pt_applicable', label: 'PT Applicable', type: 'bool', options: ['Yes', 'No'] },
+  { key: 'tds_applicable', label: 'TDS Applicable', type: 'bool', options: ['Yes', 'No'] },
 ]
 
 const SALARY_NUM_MAP: Record<string, string> = {
@@ -89,30 +80,54 @@ const STAT_FLAG_MAP: Record<string, string> = {
 }
 
 const HEADER_ALIASES: Record<string, string> = {
-  first__name: 'first_name',
-  last__name: 'last_name',
-  employee__code: 'employee_code',
+  employee__name: 'full_name',
+  name: 'full_name',
+  father__spouse__name: 'father_name',
   father__husband__name: 'father_name',
+  father_spouse_name: 'father_name',
+  // Sheets that split the combined column into two still map cleanly.
+  fathers_name: 'father_name',
+  spouse_name: 'father_name',
   date__of__birth: 'dob',
   phone: 'mobile',
+  mobile__no: 'mobile',
   aadhaar__number: 'aadhaar',
-  pin__code: 'pincode',
-  emergency__contact: 'emergency_contact_name',
-  emergency__contact__phone: 'emergency_contact_phone',
-  emergency__contact__phone__no: 'emergency_contact_phone',
+  // Both spellings are common; the template ships "Aadhar No." but people also
+  // write it with the doubled 'a'.
+  aadhaar_no: 'aadhaar',
+  aadhaar_number: 'aadhaar',
+  aadhar_no: 'aadhaar',
+  aadhar_number: 'aadhaar',
+  aadhar: 'aadhaar',
+  aadhar__no: 'aadhaar',
+  aadhar__number: 'aadhaar',
+  other__allowances: 'other_allowance',
+  other_allowances: 'other_allowance',
+  bank__name: 'bank_name',
+  a_c__no: 'bank_account',
+  a_c_no: 'bank_account',
+  a_c_number: 'bank_account',
   account__number: 'bank_account',
   bank__account__no: 'bank_account',
+  bank_ac_no: 'bank_account',
+  account_no: 'bank_account',
   ifsc: 'bank_ifsc',
   ifsc__code: 'bank_ifsc',
-  pan__number: 'pan',
+  ifsc__no: 'bank_ifsc',
+  esic__ip__no: 'esi_number',
+  esic_no: 'esi_number',
+  esic__number: 'esi_number',
+  job__title: 'designation',
+  designation: 'designation',
   date__of__joining: 'joining_date',
-  employment__type: 'employee_type',
+  reporting__manager: 'reporting_manager',
   shift: 'shift_type',
   site: 'site_name',
   basic__salary: 'basic',
   ot__rate: 'overtime_rate',
   working__hours: 'working_hours',
   working__days: 'working_hours',
+  hours: 'working_hours',
 }
 
 function normalizeHeader(h: string): string {
@@ -126,8 +141,25 @@ function normalizeHeader(h: string): string {
 
 function mapHeader(h: string): string | undefined {
   const n = normalizeHeader(h)
-  if (IMPORT_COLUMNS.some((c) => c.key === n)) return n
-  return HEADER_ALIASES[n]
+  // The template ships friendly labels, but accept the internal keys too so a
+  // sheet exported from an older template still lines up.
+  const byKey = IMPORT_COLUMNS.find((c) => c.key === n)
+  if (byKey) return byKey.key
+  const byLabel = IMPORT_COLUMNS.find((c) => normalizeHeader(c.label) === n)
+  if (byLabel) return byLabel.key
+  const alias = HEADER_ALIASES[n]
+  if (alias) return alias
+  // Fall back to a punctuation-insensitive comparison. Hand-written sheets
+  // spell headers as "Aadhar No.", "A/C No.", "Father's Name" and friends, and
+  // the collapsed form matches those without needing an alias for each variant.
+  const collapsed = (s: string) => normalizeHeader(s).replace(/_/g, '')
+  const target = collapsed(h)
+  const match = IMPORT_COLUMNS.find((c) => collapsed(c.label) === target || collapsed(c.key) === target)
+  if (match) return match.key
+  for (const [aliasKey, canonical] of Object.entries(HEADER_ALIASES)) {
+    if (collapsed(aliasKey) === target) return canonical
+  }
+  return undefined
 }
 
 export interface ParsedFile {
@@ -168,6 +200,16 @@ export async function parseImportFile(file: File): Promise<ParsedFile> {
     if (key) colIndex.push({ idx, key })
     else if (String(h ?? '').trim()) unknownCols.push(String(h))
   })
+
+  // Every row needs a name, so a sheet with no recognisable name column is
+  // rejected outright rather than failing once per row.
+  if (!colIndex.some((c) => c.key === 'full_name')) {
+    return {
+      rows: [],
+      columnNames: colIndex.map((c) => c.key),
+      error: `No "Employee Name" column found. Expected one of: Employee Name, full_name. Found: ${headerRow.map((h) => String(h ?? '').trim()).filter(Boolean).join(', ') || '(empty file)'}`,
+    }
+  }
 
   const rows: Record<string, unknown>[] = []
   for (let i = start + 1; i < aoa.length; i++) {
@@ -210,12 +252,9 @@ function normalizeDate(s: string): string | undefined {
   return undefined
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
 export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteRef[]): ParsedRow[] {
   const siteByName = new Map(sites.map((s) => [s.name.toLowerCase(), s.id]))
   const parsed: ParsedRow[] = []
-  const hasFullNameCol = rows.length > 0 && Object.prototype.hasOwnProperty.call(rows[0], 'full_name')
 
   rows.forEach((row, i) => {
     const rowNumber = i + 2
@@ -224,13 +263,13 @@ export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteR
     const salaryInput: Record<string, number | boolean | undefined> = {}
     const statInput: Record<string, boolean | undefined> = {}
     let siteId: number | undefined
-    let email: string | undefined
+    let siteName: string | undefined
 
     for (const col of IMPORT_COLUMNS) {
       const raw = row[col.key]
       const s = toStr(raw)
       if (!s) {
-        if (col.required && !(col.key === 'full_name' && !hasFullNameCol)) errors.push(`${col.label} is required.`)
+        if (col.required) errors.push(`${col.label} is required.`)
         continue
       }
 
@@ -255,15 +294,15 @@ export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteR
           break
         }
         default: {
-          if (col.key === 'email' && !EMAIL_RE.test(s)) { errors.push('Email is not valid.'); continue }
           v = s
         }
       }
 
-      if (col.key === 'site_name' || col.key === 'site_id') {
+      if (col.key === 'site_name') {
         const id = siteByName.get(s.toLowerCase())
         if (id === undefined) { errors.push(`Site "${s}" not found — use an existing site name or leave blank.`); continue }
         siteId = id
+        siteName = s
         continue
       }
       if (SALARY_NUM_MAP[col.key]) { salaryInput[SALARY_NUM_MAP[col.key]] = v as number; continue }
@@ -273,11 +312,11 @@ export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteR
         continue
       }
       if (STAT_FLAG_MAP[col.key]) { statInput[STAT_FLAG_MAP[col.key]] = v as boolean; continue }
-      if (col.key === 'employee_code') top.employee_code = s.toUpperCase()
-      else if (col.key === 'email') { email = s.toLowerCase(); top.email = s }
-      else top[col.key] = v
+      top[col.key] = v
     }
 
+    // Only attach a salary block when the sheet actually carries salary data, so
+    // a name-only row stays a plain employee record with no salary row.
     if (Object.keys(salaryInput).length) {
       top.salary = {
         basic: typeof salaryInput.basic === 'number' ? salaryInput.basic : 0,
@@ -302,19 +341,10 @@ export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteR
     }
     if (siteId !== undefined) top.site_id = siteId
 
-    if (!toStr(top.full_name)) {
-      const legacyName = [toStr(top.first_name), toStr(top.last_name)].filter(Boolean).join(' ')
-      if (legacyName) top.full_name = legacyName
-    }
-    delete top.first_name
-    delete top.last_name
-
     const name = toStr(top.full_name)
-    if (errors.length) {
-      parsed.push({ rowNumber, valid: false, name: name || `Row ${rowNumber}`, email, employeeCode: toStr(top.employee_code) || undefined, error: errors.join(' ') })
-    } else {
-      parsed.push({ rowNumber, valid: true, name, email, employeeCode: toStr(top.employee_code) || undefined, payload: top })
-    }
+    const common = { rowNumber, name: name || `Row ${rowNumber}`, site: siteName, designation: toStr(top.designation) || undefined, status: toStr(top.status) || undefined }
+    if (errors.length) parsed.push({ ...common, valid: false, error: errors.join(' ') })
+    else parsed.push({ ...common, valid: true, payload: top })
   })
 
   return parsed
@@ -323,40 +353,27 @@ export function buildImportPreview(rows: Record<string, unknown>[], sites: SiteR
 function templateExampleRow(): Record<string, unknown> {
   return {
     full_name: 'Ravi Kumar',
-    employee_code: '',
     father_name: 'Suresh Kumar',
     gender: 'Male',
     dob: '1995-06-15',
-    mobile: '9876543210',
-    email: 'ravi.kumar@example.com',
     aadhaar: '123456789012',
-    address: '12 MG Road',
-    state: 'Karnataka',
-    pincode: '560001',
-    emergency_contact_name: 'Suresh Kumar',
-    emergency_contact_phone: '9876500000',
-    bank_name: 'HDFC Bank',
-    bank_account: '50100123456789',
-    bank_ifsc: 'HDFC0000001',
-    pan: 'ABCDE1234F',
-    uan: '',
-    joining_date: '2024-04-01',
-    designation: 'Security Guard',
-    department: 'Security Services',
-    grade: 'A2',
-    reporting_manager: '',
-    previous_employment: '',
-    employee_type: 'permanent',
-    shift_type: 'General',
-    site_name: '',
-    status: 'active',
+    mobile: '9876543210',
     basic: 12000,
     hra: 2400,
     conveyance: 800,
     other_allowance: 600,
-    overtime_rate: 80,
+    joining_date: '2024-04-01',
+    bank_name: 'HDFC Bank',
+    bank_account: '50100123456789',
+    bank_ifsc: 'HDFC0000001',
+    esi_number: '',
+    designation: 'Security Guard',
+    department: 'Security Services',
+    reporting_manager: '',
+    shift_type: 'General',
+    site_name: '',
+    status: 'active',
     working_hours: 8,
-    other_deduction: 0,
     pf_applicable: 'Yes',
     esic_applicable: 'Yes',
     lwf_applicable: 'No',
@@ -366,7 +383,11 @@ function templateExampleRow(): Record<string, unknown> {
 }
 
 export function downloadCsvTemplate() {
-  downloadCsv([templateExampleRow()], 'employee_import_template')
+  const sample = templateExampleRow()
+  // Key the row by label so the CSV header matches the template the user sees.
+  const row: Record<string, unknown> = {}
+  for (const c of IMPORT_COLUMNS) row[c.label] = sample[c.key] ?? ''
+  downloadCsv([row], 'employee_import_template')
 }
 
 export async function downloadExcelTemplate() {
@@ -380,15 +401,16 @@ export async function downloadExcelTemplate() {
   const instructions: (string | number)[][] = [
     ['Bulk Employee Import — Instructions'],
     [],
-    ['Employee Code is optional. Leave blank to auto-generate (SW####), or type an existing code to update that employee.'],
-    ['If a row has no employee code but the email matches an existing employee, that employee is updated.'],
-    ['Rows that match neither are created as new employees.'],
+    ['Only "Employee Name" is required. Every other column may be left blank and will fall back to a default.'],
+    ['Each row is created as a NEW employee. Employee codes are auto-generated (SW####, or the client prefix when a Site Name is given).'],
+    ['Anything not supplied is left blank on the employee record: address, PAN, UAN, grade, previous employment and emergency contact.'],
+    ['Salary defaults: PF, ESIC and PT applicable; LWF and TDS not applicable.'],
     ['Dates must be in YYYY-MM-DD format.'],
     ['Yes/No columns accept Yes/No, true/false, 1/0.'],
-    ['site_name must exactly match an existing site or be left blank.'],
+    ['Site Name must exactly match an existing site, or be left blank to leave the employee unassigned.'],
     [''],
     ['Field', 'Required', 'Description / Allowed values'],
-    ...IMPORT_COLUMNS.map((c) => [c.label, c.required ? 'Yes' : 'No', [c.hint, c.options ? `Allowed: ${c.options.join(' / ')}` : ''].filter(Boolean).join('. ') ?? '']),
+    ...IMPORT_COLUMNS.map((c) => [c.label, c.required ? 'Yes' : 'No', [c.hint, c.options ? `Allowed: ${c.options.join(' / ')}` : ''].filter(Boolean).join('. ')]),
   ]
   const wsInstr = XLSX.utils.aoa_to_sheet(instructions)
   wsInstr['!cols'] = [{ wch: 22 }, { wch: 10 }, { wch: 80 }]

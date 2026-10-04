@@ -414,7 +414,13 @@ employeeRoutes.post('/', async (c) => {
 })
 
 // ---------- Bulk import / upload (create or update employees from a file) ----------
-const importRowSchema = z.object({ ...employeeBase, employee_code: z.string().max(20).optional() })
+// site_name is accepted directly so the API mirrors the import sheet; it is
+// resolved to site_id against the sites table before the row is used.
+const importRowSchema = z.object({
+  ...employeeBase,
+  employee_code: z.string().max(20).optional(),
+  site_name: z.string().max(120).optional(),
+})
 
 const importSchema = z.object({
   rows: z.array(z.record(z.string(), z.unknown())).min(1).max(2000),
@@ -471,7 +477,7 @@ const IMPORT_STR_FIELDS = [
   'address', 'state', 'district', 'pincode', 'permanent_address', 'permanent_state', 'permanent_district', 'permanent_pincode',
   'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation',
   'bank_name', 'bank_holder_name', 'bank_account', 'bank_ifsc', 'pan', 'uan', 'esi_number', 'joining_date', 'designation', 'department',
-  'grade', 'reporting_manager', 'previous_employment', 'shift_type',
+  'grade', 'reporting_manager', 'previous_employment', 'shift_type', 'site_name',
 ]
 const IMPORT_SALARY_KEYS = ['basic', 'hra', 'conveyance', 'other_allowance', 'other_allowance_label', 'overtime_rate', 'working_hours', 'other_deduction'] as const
 
@@ -570,9 +576,11 @@ employeeRoutes.post('/import', async (c) => {
   // Per-client employee code bookkeeping: site -> client code, and the current
   // per-client / SW-fallback sequence length so imported rows get sequential codes.
   const siteClientMap = new Map<number, string>()
-  const siteRows = await db.prepare('SELECT s.id, c.client_code AS cc FROM sites s LEFT JOIN clients c ON c.id = s.client_id').all()
+  const siteNameMap = new Map<string, number>()
+  const siteRows = await db.prepare('SELECT s.id, s.name, c.client_code AS cc FROM sites s LEFT JOIN clients c ON c.id = s.client_id').all()
   for (const s of siteRows.results as any[]) {
     if (s.cc) siteClientMap.set(Number(s.id), String(s.cc))
+    if (s.name) siteNameMap.set(String(s.name).trim().toLowerCase(), Number(s.id))
   }
   const clientCounts = new Map<string, number>()
   let swCount = 0
@@ -636,7 +644,19 @@ employeeRoutes.post('/import', async (c) => {
     if (code) seenCodes.add(code)
     if (email) seenEmails.add(email)
 
-    const siteId = d.site_id ?? null
+    // The sheet sends Site Name; the database stores site_id. Resolve it here so
+    // a typo is reported against the offending row instead of silently leaving
+    // the employee unassigned.
+    let siteId = d.site_id ?? null
+    if (siteId === null && d.site_name) {
+      const resolved = siteNameMap.get(d.site_name.trim().toLowerCase())
+      if (resolved === undefined) {
+        skipped++
+        errors.push({ row: rowNumber, fields: { site_name: ['Site not found'] }, message: `Site "${d.site_name}" not found.` })
+        continue
+      }
+      siteId = resolved
+    }
 
     if (!target) {
       seq += 1
