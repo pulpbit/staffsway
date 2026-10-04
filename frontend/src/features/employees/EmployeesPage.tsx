@@ -40,7 +40,7 @@ import EmployeeTransferModal from './EmployeeTransferModal'
 import EmployeeApplyLeaveModal from './EmployeeApplyLeaveModal'
 import EmployeeExitModal from './EmployeeExitModal'
 
-/** Responsive table that shows CardTable on mobile (< lg) and Table on desktop (lg+) */
+/** Responsive table with horizontal scroll on mobile, sticky first column */
 function ResponsiveTable<T>({
   columns,
   data,
@@ -57,8 +57,6 @@ function ResponsiveTable<T>({
   renderExpanded,
   bare,
   maxHeight,
-  cardRender,
-  cardColumns,
 }: {
   columns: import('@/components/ui/data').Column<T>[]
   data: T[]
@@ -75,27 +73,7 @@ function ResponsiveTable<T>({
   renderExpanded?: (row: T) => React.ReactNode
   bare?: boolean
   maxHeight?: string
-  cardRender?: (row: T, idx: number, columns: import('@/components/ui/data').CardColumn<T>[]) => React.ReactNode
-  cardColumns?: import('@/components/ui/data').CardColumn<T>[]
 }) {
-  const isMobile = useMediaQuery('(max-width: 1023px)')
-  
-  if (isMobile) {
-    return (
-      <CardTable
-        columns={cardColumns || columns.map(c => ({ ...c, priority: c.priority ?? 1 }))}
-        data={data}
-        keyFn={keyFn}
-        emptyMessage={emptyMessage}
-        emptyState={emptyState}
-        loading={loading}
-        rowClick={rowClick}
-        bare={bare}
-        cardRender={cardRender}
-      />
-    )
-  }
-  
   return (
     <Table
       columns={columns}
@@ -485,7 +463,6 @@ export default function EmployeesPage() {
                 onSort={handleSort}
                 emptyMessage="No employees match your search criteria."
                 minWidth="1500px"
-                cardColumns={columns.map(c => ({ ...c, priority: c.priority ?? 1 }))}
               />
             </div>
             {employees.length > 0 && meta.total_pages > 1 && (
