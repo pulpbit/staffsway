@@ -59,6 +59,7 @@ export default function EmployeesPage() {
   const [revFor, setRevFor] = useState<any>(null)
   const [joiningFor, setJoiningFor] = useState<number | null>(null)
   const [letterFor, setLetterFor] = useState<number | null>(null)
+  const [bulkLetters, setBulkLetters] = useState<number[] | null>(null)
   const [viewRow, setViewRow] = useState<any>(null)
   const [attFor, setAttFor] = useState<any>(null)
   const [payslipFor, setPayslipFor] = useState<any>(null)
@@ -224,20 +225,20 @@ export default function EmployeesPage() {
     { key: 'esi_number', header: 'ESIC No.', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.esi_number || '—'}</span> },
     { key: 'actions', header: 'Actions', sticky: 'right', className: 'w-36', render: (r) => (
       <div className="flex items-center gap-1.5">
-        <button onClick={() => openView(r)} title="View employee profile" aria-label="View profile" className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer">
-          <Eye className="w-3.5 h-3.5" />
+        <button onClick={() => openView(r)} title="View employee profile" aria-label="View profile" className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation">
+          <Eye className="w-4 h-4" />
         </button>
-        <button onClick={() => openEdit(r.id)} title="Edit employee record" aria-label="Edit employee" disabled={r.status === 'exited'} className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
-          <Pencil className="w-3.5 h-3.5" />
+        <button onClick={() => openEdit(r.id)} title="Edit employee record" aria-label="Edit employee" disabled={r.status === 'exited'} className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation disabled:opacity-30 disabled:cursor-not-allowed">
+          <Pencil className="w-4 h-4" />
         </button>
-        <button onClick={() => setAttFor(r)} title="View attendance history" aria-label="View attendance" className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200/70 transition-colors cursor-pointer">
-          <CalendarCheck className="w-3.5 h-3.5" />
+        <button onClick={() => setAttFor(r)} title="View attendance history" aria-label="View attendance" className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation">
+          <CalendarCheck className="w-4 h-4" />
         </button>
-        <button onClick={() => setJoiningFor(r.id)} title="Print joining form" aria-label="Generate joining form" className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 border border-slate-200/70 transition-colors cursor-pointer">
-          <ScrollText className="w-3.5 h-3.5" />
+        <button onClick={() => setJoiningFor(r.id)} title="Print joining form" aria-label="Generate joining form" className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation">
+          <ScrollText className="w-4 h-4" />
         </button>
-        <button onClick={() => setLetterFor(r.id)} title="Generate offer or appointment letter" aria-label="Generate letter" disabled={r.status !== 'active'} className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
-          <FileSignature className="w-3.5 h-3.5" />
+        <button onClick={() => setLetterFor(r.id)} title="Generate offer or appointment letter" aria-label="Generate letter" disabled={r.status !== 'active'} className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation disabled:opacity-30 disabled:cursor-not-allowed">
+          <FileSignature className="w-4 h-4" />
         </button>
       </div>
     ) },
@@ -257,6 +258,7 @@ export default function EmployeesPage() {
 
   const viewRowOf = viewRow ? (employees.find((e) => e.id === viewRow.id) || viewRow) : null
   const rowFor = (id: number) => employees.find((e) => e.id === id) || (viewRow?.id === id ? viewRow : null)
+  const activeEmployees = employees.filter((e) => e.status === 'active')
 
   return (
     <div className="flex flex-col min-h-full gap-5">
@@ -269,7 +271,7 @@ export default function EmployeesPage() {
               <button
                 type="button"
                 onClick={() => setShowImport(true)}
-                className="h-10 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold flex items-center gap-2 shadow-2xs transition-all cursor-pointer"
+                className="h-11 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold flex items-center gap-2 shadow-2xs transition-all cursor-pointer touch-manipulation"
               >
                 <Upload className="w-4 h-4 text-blue-600" />
                 <span>Bulk Import</span>
@@ -277,10 +279,20 @@ export default function EmployeesPage() {
               <button
                 type="button"
                 onClick={openAdd}
-                className="h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                className="h-11 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-600/20 transition-all cursor-pointer touch-manipulation"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Add Employee</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setBulkLetters(activeEmployees.map((e) => e.id))}
+                disabled={!activeEmployees.length}
+                title={activeEmployees.length ? `Generate appointment letters for all ${activeEmployees.length} active employees on this page` : 'No active employees on this page'}
+                className="h-11 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold flex items-center gap-2 shadow-2xs transition-all cursor-pointer touch-manipulation disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <FileSignature className="w-4 h-4 text-violet-600" />
+                <span>Bulk Appointment Letters</span>
               </button>
             </>
           }
@@ -469,6 +481,13 @@ export default function EmployeesPage() {
 
       {letterFor && (
         <EmployeeLetterModal employeeId={letterFor} onClose={() => setLetterFor(null)} />
+      )}
+
+      {bulkLetters && (
+        <EmployeeLetterModal
+          employeeIds={bulkLetters}
+          onClose={() => setBulkLetters(null)}
+        />
       )}
 
       {revFor && (
