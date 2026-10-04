@@ -23,6 +23,24 @@ export const dateShort = (d: string | null | undefined): string => {
 
 export const fullName = (first: string, last: string): string => [first, last].filter(Boolean).join(' ')
 
+/**
+ * Gross monthly salary from a salary structure: the sum of the fixed
+ * components. Mirrors the backend's own definition in routes/employees.ts so
+ * the employee table and payroll cannot disagree. Employee rows arrive from
+ * the API with these parts already joined in, and each may be null for an
+ * employee with no salary structure yet.
+ */
+export const grossSalary = (structure?: {
+  basic?: number | string | null
+  hra?: number | string | null
+  conveyance?: number | string | null
+  other_allowance?: number | string | null
+} | null): number => {
+  if (!structure) return 0
+  return (['basic', 'hra', 'conveyance', 'other_allowance'] as const)
+    .reduce((sum, key) => sum + (Number(structure[key]) || 0), 0)
+}
+
 export const statusColor = (status: string): string => {
   switch (status) {
     case 'active': return 'bg-success-soft text-success'

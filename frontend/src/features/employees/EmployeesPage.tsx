@@ -10,7 +10,7 @@ import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { StatusBadge } from '@/components/ui/status'
 import { FilterBar, SearchInput, SelectFilter, Avatar } from '@/components/ui/actions'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
-import { fullName, dateShort, money } from '@/utils/format'
+import { fullName, dateShort, money, grossSalary } from '@/utils/format'
 import { downloadCsv } from '@/utils/csv'
 import { stateShort } from '@/utils/states'
 import { toast } from 'sonner'
@@ -197,7 +197,14 @@ export default function EmployeesPage() {
     { key: 'state', header: 'State', hideSm: true, render: (r) => <span className="text-xs font-medium text-slate-700">{stateShort(r.state)}</span> },
     { key: 'mobile', header: 'Contact No.', render: (r) => <span className="text-xs text-slate-700 whitespace-nowrap tabular-nums font-mono">{r.mobile || '—'}</span> },
     { key: 'designation', header: 'Job Title', render: (r) => <span className="text-xs text-slate-700 font-medium">{r.designation || '—'}</span> },
-    { key: 'basic', header: 'Basic', render: (r) => <span className="text-xs text-slate-800 font-bold whitespace-nowrap tabular-nums">{r.basic ? money(Number(r.basic)) : '—'}</span> },
+    {
+      key: 'gross',
+      header: 'Gross',
+      render: (r) => {
+        const gross = grossSalary(r)
+        return <span className="text-xs text-slate-800 font-bold whitespace-nowrap tabular-nums">{gross ? money(gross) : '—'}</span>
+      },
+    },
     { key: 'hra', header: 'HRA', hideSm: true, render: (r) => <span className="text-xs text-slate-800 font-bold whitespace-nowrap tabular-nums">{r.hra ? money(Number(r.hra)) : '—'}</span> },
     { key: 'joining', header: 'Joining Date', sortable: true, render: (r) => <span className="text-xs text-slate-600 whitespace-nowrap tabular-nums">{dateShort(r.joining_date)}</span> },
     { key: 'exit_date', header: 'Exit Date', render: (r) => <span className="text-xs text-slate-600 whitespace-nowrap tabular-nums">{r.exit_date ? dateShort(r.exit_date) : '—'}</span> },
