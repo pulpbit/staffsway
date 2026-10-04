@@ -11,12 +11,12 @@ export function SkeletonRow({ className = '' }: { className?: string }) {
 export function TableSkeleton({ rows = 6, columns = 5, className = '' }: { rows?: number; columns?: number; className?: string }) {
   return (
     <div className={`p-4 ${className}`} aria-busy="true" aria-label="Loading">
-      <div className="flex items-center gap-3 py-2 border-b border-hairline px-3">
+      <div className="flex items-center gap-3 py-2 border-b border-slate-200/80 px-3">
         {Array.from({ length: columns }).map((_, i) => (
           <Skeleton key={i} className="h-3" style={{ width: `${70 - i * 6}%` }} />
         ))}
       </div>
-      <div className="divide-y divide-hairline">
+      <div className="divide-y divide-slate-100">
         {Array.from({ length: rows }).map((_, r) => (
           <div key={r} className="flex items-center gap-3 py-3 px-3">
             {Array.from({ length: columns }).map((_, c) => (
@@ -33,7 +33,7 @@ export function CardGridSkeleton({ count = 4, className = '' }: { count?: number
   return (
     <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 ${className}`}>
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="bg-white rounded-md card-shadow p-4">
+        <div key={i} className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4">
           <Skeleton className="h-3 w-20 mb-3" />
           <Skeleton className="h-6 w-16" />
           <Skeleton className="h-3 w-24 mt-2" />
@@ -45,7 +45,7 @@ export function CardGridSkeleton({ count = 4, className = '' }: { count?: number
 
 export function CardSkeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={`bg-white rounded-md card-shadow p-5 ${className}`}>
+    <div className={`bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 ${className}`}>
       <Skeleton className="h-4 w-40 mb-1" />
       <Skeleton className="h-3 w-56 mb-6" />
       <div className="space-y-4">
@@ -60,7 +60,7 @@ export function CardSkeleton({ className = '' }: { className?: string }) {
 export function FormSkeleton({ fields = 8, className = '' }: { fields?: number; className?: string }) {
   return (
     <div className={`space-y-6 ${className}`}>
-      <div className="bg-white rounded-md card-shadow p-5">
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5">
         <Skeleton className="h-4 w-40" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
           {Array.from({ length: fields }).map((_, i) => (

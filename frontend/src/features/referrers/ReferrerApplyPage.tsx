@@ -4,25 +4,10 @@ import { publicReferrerApi } from '@/services/api'
 import { Button, Input, Select, Textarea, FormSection, FormGrid, Toggle } from '@/components/ui/fields'
 import { AadhaarBoxes } from '@/components/ui/AadhaarBoxes'
 import { toast } from 'sonner'
-import { IdCard, User, Phone, MapPin, Landmark, CheckCircle2, AlertTriangle, Briefcase, ShieldCheck } from 'lucide-react'
-
-/**
- * PUBLIC staff-registration intake, served at /apply outside ProtectedRoute.
- *
- * A referrer refers staff to Staffsway and registers them on the company's
- * behalf. This is not a commercial arrangement, so nothing here involves rates,
- * agreements or billing — the referrer is recorded purely as the source of the
- * referral.
- *
- * Three steps: Aadhaar uniqueness gate -> staff essentials -> referrer selection
- * and submit. Reuses the Aadhaar gate pattern from
- * features/employees/EmployeeForm.tsx, but against the public endpoint, which
- * reports only whether a number is free and never returns a matching person.
- *
- * This page intentionally collects NO salary, designation, department, site or
- * joining date. Those are HR inputs at approval time, because a public form
- * that asks for them invites both fraud and pointless negotiation.
- */
+import {
+  IdCard, User, Phone, MapPin, Landmark, CheckCircle2, AlertTriangle, Briefcase,
+  ShieldCheck, Sparkles, Building2, ChevronRight, ArrowLeft
+} from 'lucide-react'
 
 const GENDERS = ['Male', 'Female', 'Other']
 const MARITAL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed']
@@ -51,11 +36,8 @@ export default function ReferrerApplyPage() {
   const [checking, setChecking] = useState(false)
   const [blocked, setBlocked] = useState<null | 'employee' | 'pending'>(null)
   const [submitting, setSubmitting] = useState(false)
-  // Set on success, which short-circuits the whole form below.
   const [reference, setReference] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  // Sent with the submission so the server can reject sub-4-second completions.
-  // The Aadhaar check ignores it: typing 12 digits quickly is not bot behaviour.
   const [startedAt] = useState(() => Date.now())
   const [form, setForm] = useState({ ...emptyForm })
 
@@ -66,12 +48,9 @@ export default function ReferrerApplyPage() {
     retry: 1,
   })
 
-  // Built straight into Select options so the placeholder has a real empty
-  // value. Faking a row with id 0 leaves the select showing nothing while the
-  // browser has visually selected that row.
   const referrerOptions = useMemo(
     () => [
-      { value: '', label: 'Select referrer' },
+      { value: '', label: 'Select referrer or agency' },
       ...(referrers || []).map((r) => ({ value: String(r.id), label: `${r.name} (${r.referrer_code})` })),
     ],
     [referrers]
@@ -85,7 +64,7 @@ export default function ReferrerApplyPage() {
   const runCheck = async () => {
     setErrors((e) => ({ ...e, aadhaar: '' }))
     if (!/^\d{12}$/.test(aadhaar)) {
-      setErrors((e) => ({ ...e, aadhaar: 'Enter all 12 digits.' }))
+      setErrors((e) => ({ ...e, aadhaar: 'Enter all 12 digits of your Aadhaar number.' }))
       return
     }
     setChecking(true)
@@ -98,7 +77,7 @@ export default function ReferrerApplyPage() {
         setBlocked((res.data?.reason as 'employee' | 'pending') || 'employee')
       }
     } catch (err: any) {
-      toast.error(err?.error?.message || 'Could not verify the Aadhaar number. Please try again.')
+      toast.error(err?.error?.message || 'Could not verify Aadhaar number. Please try again.')
     } finally {
       setChecking(false)
     }
@@ -106,14 +85,14 @@ export default function ReferrerApplyPage() {
 
   const validateEssentials = (): boolean => {
     const e: Record<string, string> = {}
-    if (!form.full_name.trim() || form.full_name.trim().length < 2) e.full_name = 'Enter the full name.'
-    if (!/^[0-9+\-\s]{7,15}$/.test(form.mobile.trim())) e.mobile = 'Enter a valid phone number.'
+    if (!form.full_name.trim() || form.full_name.trim().length < 2) e.full_name = 'Enter full legal name.'
+    if (!/^[0-9+\-\s]{7,15}$/.test(form.mobile.trim())) e.mobile = 'Enter a valid mobile number.'
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = 'Enter a valid email address.'
     if (form.pincode && !/^\d{6}$/.test(form.pincode.trim())) e.pincode = 'PIN code must be 6 digits.'
-    if (form.pan && !/^[A-Za-z]{5}\d{4}[A-Za-z]$/.test(form.pan.trim())) e.pan = 'Enter a valid PAN.'
-    if (form.bank_ifsc && !/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(form.bank_ifsc.trim())) e.bank_ifsc = 'Enter a valid IFSC.'
+    if (form.pan && !/^[A-Za-z]{5}\d{4}[A-Za-z]$/.test(form.pan.trim())) e.pan = 'Enter a valid 10-digit PAN.'
+    if (form.bank_ifsc && !/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test(form.bank_ifsc.trim())) e.bank_ifsc = 'Enter a valid 11-digit IFSC.'
     if (form.emergency_contact_phone && !/^[0-9+\-\s]{7,15}$/.test(form.emergency_contact_phone.trim())) {
-      e.emergency_contact_phone = 'Enter a valid phone number.'
+      e.emergency_contact_phone = 'Enter a valid contact number.'
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -121,7 +100,7 @@ export default function ReferrerApplyPage() {
 
   const submit = async () => {
     if (!form.referrer_id) {
-      toast.error('Please select the referrer.')
+      toast.error('Please select the referrer or sourcing agency.')
       return
     }
     setSubmitting(true)
@@ -136,7 +115,6 @@ export default function ReferrerApplyPage() {
       setReference(res.data?.reference || null)
     } catch (err: any) {
       if (err?.error?.code === 'conflict') {
-        // Someone else got there first, or HR created this employee meanwhile.
         setBlocked(err?.error?.message?.includes('registered') ? 'employee' : 'pending')
         setStep(1)
         toast.error(err.error.message)
@@ -149,7 +127,7 @@ export default function ReferrerApplyPage() {
         setErrors(mapped)
         setStep(2)
       }
-      toast.error(err?.error?.message || 'Could not submit the registration.')
+      toast.error(err?.error?.message || 'Could not submit registration.')
     } finally {
       setSubmitting(false)
     }
@@ -159,20 +137,23 @@ export default function ReferrerApplyPage() {
 
   if (reference) {
     return (
-      <div className="min-h-screen bg-canvas-soft flex items-center justify-center p-4">
-        <div className="w-full max-w-lg">
-          <div className="bg-white card-shadow-lg rounded-md p-6 text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-success/10 mb-4">
-              <CheckCircle2 className="w-6 h-6 text-success" />
-            </div>
-            <h1 className="text-[17px] font-semibold text-navy">Registration received</h1>
-            <p className="text-[13px] text-body mt-2">
-              Your reference is <span className="font-mono font-medium text-navy">{reference}</span>. Keep it for any follow-up with HR.
-            </p>
-            <p className="text-[12px] text-mute mt-3">
-              HR will verify the details and confirm the joining date, site and salary separately. No employee record is created until
-              that approval is done.
-            </p>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-lg bg-white rounded-3xl shadow-xl border border-slate-200/80 p-8 text-center space-y-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 shadow-inner">
+            <CheckCircle2 className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Registration Submitted!</h1>
+          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+            <span className="text-xs text-slate-500 block uppercase tracking-wider font-semibold">Application Reference Number</span>
+            <span className="text-xl font-mono font-bold text-indigo-600 tracking-wider block mt-1">{reference}</span>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Your profile details have been securely recorded. Our HR Operations team will review your dossier and contact you regarding deployment site, shift schedule, and contract documentation.
+          </p>
+          <div className="pt-2">
+            <Button variant="secondary" onClick={() => window.location.reload()} className="w-full">
+              Submit Another Candidate
+            </Button>
           </div>
         </div>
       </div>
@@ -180,226 +161,218 @@ export default function ReferrerApplyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-canvas-soft py-6 px-4">
-      <div className="max-w-3xl mx-auto">
-        <header className="mb-5">
-          <h1 className="text-[19px] font-semibold text-navy tracking-[-0.01em]">Staffsway — Staff Registration</h1>
-          <p className="text-[13px] text-body mt-1">
-            Staffsway Manpower Staffing &amp; HR Services. Register a person for review; HR will confirm onboarding details.
+    <div className="min-h-screen bg-gradient-to-b from-slate-100 to-slate-50 py-10 px-4">
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Top Header Card */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 text-center space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold">
+            <Building2 className="w-3.5 h-3.5" /> StaffSway Manpower &amp; Staffing
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Staff Registration Portal</h1>
+          <p className="text-xs sm:text-sm text-slate-500 max-w-lg mx-auto">
+            Official candidate intake for verified staff onboarding. Fill in your details below for verification and job deployment.
           </p>
-        </header>
+        </div>
 
-        <div className="flex items-center gap-2 mb-4 text-[12px]">
-          {(['Aadhaar', 'Staff Details', 'Referrer & Submit'] as const).map((label, i) => {
+        {/* Stepper Wizard */}
+        <div className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80">
+          {(['1. Aadhaar Check', '2. Personal Details', '3. Sourcing & Submit'] as const).map((label, i) => {
             const n = (i + 1) as Step
             const done = step > n
             const active = step === n
             return (
               <div key={label} className="flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-medium border ${
+                <div
+                  className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold transition-all ${
                     done
-                      ? 'bg-success text-white border-success'
+                      ? 'bg-emerald-600 text-white shadow-sm'
                       : active
-                        ? 'bg-navy text-white border-navy'
-                        : 'bg-white text-mute border-hairline'
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                        : 'bg-slate-100 text-slate-400'
                   }`}
                 >
-                  {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : n}
+                  {done ? <CheckCircle2 className="w-4 h-4" /> : n}
+                </div>
+                <span className={`text-xs font-semibold hidden sm:inline ${active ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {label}
                 </span>
-                <span className={active ? 'text-navy font-medium' : 'text-mute'}>{label}</span>
-                {i < 2 && <span className="w-6 h-px bg-hairline" />}
+                {i < 2 && <div className="w-8 sm:w-16 h-0.5 bg-slate-200 mx-1" />}
               </div>
             )
           })}
         </div>
 
+        {/* Step 1: Aadhaar Check */}
         {step === 1 && (
-          <div className="bg-white card-shadow-lg rounded-md p-5">
-            <FormSection icon={IdCard} title="Aadhaar Verification" subtitle="Enter the person's 12-digit Aadhaar number to continue.">
-              {blocked ? (
-                <div className="border border-warning/40 bg-warning/5 rounded-sm p-3.5">
-                  <p className="flex items-center gap-1.5 text-[13px] font-medium text-warning-deep">
-                    <AlertTriangle className="w-4 h-4" />
-                    {blocked === 'employee' ? 'Already registered with us' : 'Already under review'}
-                  </p>
-                  <p className="text-[12px] text-body mt-1">
-                    {blocked === 'employee'
-                      ? 'This Aadhaar number belongs to an existing employee. Please contact HR if this is a correction to an existing record.'
-                      : 'A registration for this Aadhaar number is already waiting for review. No need to submit it twice.'}
-                  </p>
-                  <Button size="sm" variant="secondary" className="mt-3" onClick={() => { setBlocked(null); setAadhaar('') }}>
-                    Enter a Different Number
+          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+            <div className="space-y-1">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <IdCard className="w-5 h-5 text-indigo-600" /> Identity Verification
+              </h2>
+              <p className="text-xs text-slate-500">Enter candidate&apos;s 12-digit Aadhaar number to verify eligibility.</p>
+            </div>
+
+            {blocked ? (
+              <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50/50 space-y-3">
+                <p className="flex items-center gap-2 text-xs font-bold text-amber-800">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  {blocked === 'employee' ? 'Candidate Already Active in Database' : 'Registration Pending Review'}
+                </p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  {blocked === 'employee'
+                    ? 'This Aadhaar number is currently assigned to an active workforce member. For corrections or rejoining, contact your HR supervisor.'
+                    : 'A registration submission with this Aadhaar number is currently under review by our onboarding desk.'}
+                </p>
+                <Button size="sm" variant="secondary" onClick={() => { setBlocked(null); setAadhaar('') }}>
+                  Check Another Aadhaar Number
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    12-Digit Aadhaar Number
+                  </label>
+                  <AadhaarBoxes
+                    value={aadhaar}
+                    onChange={(d) => { setAadhaar(d); setErrors((e) => ({ ...e, aadhaar: '' })) }}
+                    invalid={!!errors.aadhaar}
+                  />
+                  {errors.aadhaar && <p className="text-xs text-rose-600 mt-1.5 font-medium">{errors.aadhaar}</p>}
+                </div>
+
+                <div className="pt-2">
+                  <Button onClick={runCheck} loading={checking} disabled={aadhaar.length !== 12} className="w-full sm:w-auto">
+                    Verify &amp; Continue <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
                 </div>
-              ) : (
-                <>
-                  <div className="mb-3">
-                    <p className="block text-[12px] font-medium text-body mb-1">Aadhaar Number</p>
-                    <AadhaarBoxes value={aadhaar} onChange={(d) => { setAadhaar(d); setErrors((e) => ({ ...e, aadhaar: '' })) }} invalid={!!errors.aadhaar} />
-                    <p className="text-[11px] text-mute mt-1.5">
-                      The cursor moves automatically. The number is checked against existing employees and pending registrations.
-                    </p>
-                    {errors.aadhaar && <p className="text-[11px] text-error mt-1">{errors.aadhaar}</p>}
-                  </div>
-                  <Button onClick={runCheck} loading={checking} disabled={aadhaar.length !== 12}>Check Aadhaar</Button>
-                </>
-              )}
-            </FormSection>
+              </div>
+            )}
           </div>
         )}
 
+        {/* Step 2: Full Details */}
         {step === 2 && (
-          <div className="bg-white card-shadow-lg rounded-md p-5">
-            <div className="flex items-center justify-between gap-2 rounded-md border border-success/40 bg-success/5 px-3.5 py-2.5 mb-4">
-              <p className="flex items-center gap-1.5 text-[12px] text-success font-medium">
-                <CheckCircle2 className="w-4 h-4" /> Aadhaar {aadhaar} is available
-              </p>
-              <button type="button" className="text-[11px] text-link underline hover:text-link-deep cursor-pointer" onClick={() => setStep(1)}>
-                Change
+          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs">
+              <span className="font-semibold text-emerald-800 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Aadhaar {aadhaar} Verified
+              </span>
+              <button type="button" onClick={() => setStep(1)} className="text-xs text-emerald-700 font-bold hover:underline">
+                Change Number
               </button>
             </div>
 
-            <FormSection icon={User} title="Staff Details" subtitle="As per the person's identity documents.">
-              <FormGrid cols={3}>
-                <Input label="Full Name" value={form.full_name} onChange={(e) => update('full_name', e.target.value)} error={errors.full_name} />
-                <Input label="Father's Name" value={form.father_name} onChange={(e) => update('father_name', e.target.value)} />
+            <div className="space-y-4">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block flex items-center gap-1.5">
+                <User className="w-4 h-4 text-indigo-600" /> Personal Particulars
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input label="Full Name (as per Aadhaar)" value={form.full_name} onChange={(e) => update('full_name', e.target.value)} error={errors.full_name} required />
+                <Input label="Father's / Guardian's Name" value={form.father_name} onChange={(e) => update('father_name', e.target.value)} />
                 <Select label="Gender" options={GENDERS.map((g) => ({ value: g, label: g }))} value={form.gender} onChange={(e) => update('gender', e.target.value)} />
-              </FormGrid>
-              <FormGrid cols={3}>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Input label="Date of Birth" type="date" value={form.dob} onChange={(e) => update('dob', e.target.value)} />
                 <Select label="Marital Status" options={MARITAL_STATUSES.map((m) => ({ value: m, label: m }))} value={form.marital_status} onChange={(e) => update('marital_status', e.target.value)} />
-                <Input label="Nationality" value={form.nationality} onChange={(e) => update('nationality', e.target.value)} />
-              </FormGrid>
-              <FormGrid cols={3}>
-                <Input label="Total Experience" placeholder="e.g. 3 yrs" value={form.experience} onChange={(e) => update('experience', e.target.value)} />
-                <Input label="Previous Employer" value={form.previous_employment} onChange={(e) => update('previous_employment', e.target.value)} />
-              </FormGrid>
-            </FormSection>
-
-            <FormSection icon={Phone} title="Contact" className="mb-4">
-              <FormGrid cols={3}>
-                <Input label="Primary Mobile" value={form.mobile} onChange={(e) => update('mobile', e.target.value)} error={errors.mobile} />
-                <Input label="Alternate Mobile" value={form.alternate_mobile} onChange={(e) => update('alternate_mobile', e.target.value)} />
-                <Input label="Email" type="email" value={form.email} onChange={(e) => update('email', e.target.value)} error={errors.email} />
-              </FormGrid>
-              <FormGrid cols={3}>
-                <Input label="Emergency Contact Name" value={form.emergency_contact_name} onChange={(e) => update('emergency_contact_name', e.target.value)} />
-                <Input label="Emergency Contact No." value={form.emergency_contact_phone} onChange={(e) => update('emergency_contact_phone', e.target.value)} error={errors.emergency_contact_phone} />
-                <Input label="Relationship" value={form.emergency_contact_relation} onChange={(e) => update('emergency_contact_relation', e.target.value)} />
-              </FormGrid>
-            </FormSection>
-
-            <FormSection icon={MapPin} title="Address" className="mb-4">
-              <Textarea label="Present Address" rows={2} value={form.address} onChange={(e) => update('address', e.target.value)} />
-              <FormGrid cols={3}>
-                <Select label="State" options={stateOptions} value={form.state} onChange={(e) => update('state', e.target.value)} />
-                <Input label="District" value={form.district} onChange={(e) => update('district', e.target.value)} />
-                <Input label="PIN Code" value={form.pincode} onChange={(e) => update('pincode', e.target.value)} error={errors.pincode} />
-              </FormGrid>
-              <div className="mt-3">
-                <Toggle
-                  label="Permanent address is the same as present address"
-                  checked={form.permanent_same_as_present}
-                  onChange={(v) => update('permanent_same_as_present', v)}
-                />
+                <Input label="Prior Experience (Years)" placeholder="e.g. 2 Years" value={form.experience} onChange={(e) => update('experience', e.target.value)} />
               </div>
-              {!form.permanent_same_as_present && (
-                <div className="mt-3">
-                  <Textarea label="Permanent Address" rows={2} value={form.permanent_address} onChange={(e) => update('permanent_address', e.target.value)} />
-                  <FormGrid cols={3}>
-                    <Select label="Permanent State" options={stateOptions} value={form.permanent_state} onChange={(e) => update('permanent_state', e.target.value)} />
-                    <Input label="Permanent District" value={form.permanent_district} onChange={(e) => update('permanent_district', e.target.value)} />
-                    <Input label="Permanent PIN Code" value={form.permanent_pincode} onChange={(e) => update('permanent_pincode', e.target.value)} />
-                  </FormGrid>
-                </div>
-              )}
-            </FormSection>
+            </div>
 
-            <FormSection icon={Landmark} title="Bank & Statutory Identity" subtitle="Used for salary credit and PF/ESIC registration. Leave blank if not available yet.">
-              <FormGrid cols={3}>
-                <Input label="Bank Name" value={form.bank_name} onChange={(e) => update('bank_name', e.target.value)} />
-                <Input label="Account Holder Name" value={form.bank_holder_name} onChange={(e) => update('bank_holder_name', e.target.value)} />
-                <Input label="IFSC Code" value={form.bank_ifsc} onChange={(e) => update('bank_ifsc', e.target.value)} error={errors.bank_ifsc} />
-              </FormGrid>
-              <FormGrid cols={4}>
+            <div className="space-y-4 pt-4 border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block flex items-center gap-1.5">
+                <Phone className="w-4 h-4 text-indigo-600" /> Contact &amp; Emergency Reach
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input label="Primary Mobile" placeholder="10-digit mobile" value={form.mobile} onChange={(e) => update('mobile', e.target.value)} error={errors.mobile} required />
+                <Input label="Alternate Mobile" value={form.alternate_mobile} onChange={(e) => update('alternate_mobile', e.target.value)} />
+                <Input label="Email Address" type="email" value={form.email} onChange={(e) => update('email', e.target.value)} error={errors.email} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input label="Emergency Contact Name" value={form.emergency_contact_name} onChange={(e) => update('emergency_contact_name', e.target.value)} />
+                <Input label="Emergency Contact Phone" value={form.emergency_contact_phone} onChange={(e) => update('emergency_contact_phone', e.target.value)} error={errors.emergency_contact_phone} />
+                <Input label="Relationship" placeholder="e.g. Spouse / Brother" value={form.emergency_contact_relation} onChange={(e) => update('emergency_contact_relation', e.target.value)} />
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-indigo-600" /> Residential Address
+              </span>
+              <Textarea label="Present Address" rows={2} value={form.address} onChange={(e) => update('address', e.target.value)} />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Select label="State" options={stateOptions} value={form.state} onChange={(e) => update('state', e.target.value)} />
+                <Input label="District / City" value={form.district} onChange={(e) => update('district', e.target.value)} />
+                <Input label="PIN Code" value={form.pincode} onChange={(e) => update('pincode', e.target.value)} error={errors.pincode} />
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block flex items-center gap-1.5">
+                <Landmark className="w-4 h-4 text-indigo-600" /> Bank &amp; Statutory Account Info
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input label="Bank Name" placeholder="e.g. State Bank of India" value={form.bank_name} onChange={(e) => update('bank_name', e.target.value)} />
                 <Input label="Account Number" value={form.bank_account} onChange={(e) => update('bank_account', e.target.value)} />
-                <Input label="PAN" value={form.pan} onChange={(e) => update('pan', e.target.value)} error={errors.pan} />
-                <Input label="UAN" value={form.uan} onChange={(e) => update('uan', e.target.value)} />
-                <Input label="ESIC Number" value={form.esi_number} onChange={(e) => update('esi_number', e.target.value)} />
-              </FormGrid>
-            </FormSection>
+                <Input label="IFSC Code" placeholder="e.g. SBIN0001234" value={form.bank_ifsc} onChange={(e) => update('bank_ifsc', e.target.value)} error={errors.bank_ifsc} />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Input label="PAN Card" placeholder="10-character PAN" value={form.pan} onChange={(e) => update('pan', e.target.value)} error={errors.pan} />
+                <Input label="Universal Account No. (UAN)" value={form.uan} onChange={(e) => update('uan', e.target.value)} />
+                <Input label="ESIC IP Number" value={form.esi_number} onChange={(e) => update('esi_number', e.target.value)} />
+              </div>
+            </div>
 
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="secondary" onClick={() => setStep(1)}>Back</Button>
-              <Button
-                onClick={() => {
-                  if (validateEssentials()) setStep(3)
-                }}
-              >
-                Continue
+            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+              <Button variant="secondary" onClick={() => setStep(1)}>
+                <ArrowLeft className="w-4 h-4 mr-1" /> Back
+              </Button>
+              <Button onClick={() => { if (validateEssentials()) setStep(3) }}>
+                Continue to Review <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
           </div>
         )}
 
+        {/* Step 3: Sourcing Partner & Submit */}
         {step === 3 && (
-          <div className="bg-white card-shadow-lg rounded-md p-5">
-            <FormSection icon={Briefcase} title="Referrer" subtitle="Who referred this person to Staffsway?">
-              {loadingReferrers && <p className="text-[12px] text-mute">Loading referrers…</p>}
-              {referrersError && (
-                <p className="text-[12px] text-error">Could not load the referrer list. Please refresh and try again.</p>
-              )}
-              {!loadingReferrers && !referrersError && (
-                <>
-                  {referrers && referrers.length === 0 ? (
-                    <p className="text-[12px] text-warning-deep">
-                      No referrers are registered yet. Please contact HR before submitting.
-                    </p>
-                  ) : (
-                    <FormGrid cols={2}>
-                      <Select
-                        label="Referred By"
-                        options={referrerOptions}
-                        value={form.referrer_id}
-                        onChange={(e) => update('referrer_id', e.target.value)}
-                      />
-                    </FormGrid>
-                  )}
-                  <p className="text-[11px] text-mute mt-2">
-                    The referrer you select is recorded against this registration. HR verifies it during review.
-                  </p>
-                </>
-              )}
-            </FormSection>
-
-            <div className="rounded-md border border-hairline bg-canvas-soft-2 p-3.5 mb-4">
-              <p className="text-[12px] font-medium text-navy mb-2">Review</p>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
-                <dt className="text-mute">Aadhaar</dt>
-                <dd className="text-body font-mono">{aadhaar}</dd>
-                <dt className="text-mute">Name</dt>
-                <dd className="text-body">{form.full_name || '—'}</dd>
-                <dt className="text-mute">Father</dt>
-                <dd className="text-body">{form.father_name || '—'}</dd>
-                <dt className="text-mute">Mobile</dt>
-                <dd className="text-body">{form.mobile || '—'}</dd>
-                <dt className="text-mute">Experience</dt>
-                <dd className="text-body">{form.experience || '—'}</dd>
-                <dt className="text-mute">Bank</dt>
-                <dd className="text-body">{form.bank_name || '—'}</dd>
-              </dl>
+          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider block flex items-center gap-1.5">
+                <Briefcase className="w-4 h-4 text-indigo-600" /> Sourcing Partner / Referrer
+              </span>
+              <Select
+                label="Referred By"
+                options={referrerOptions}
+                value={form.referrer_id}
+                onChange={(e) => update('referrer_id', e.target.value)}
+                required
+              />
+              <p className="text-[11px] text-slate-500">Select the recruitment agency or sourcing contact that referred you.</p>
             </div>
 
-            <p className="flex items-start gap-1.5 text-[11px] text-mute mb-4">
-              <ShieldCheck className="w-3.5 h-3.5 mt-px shrink-0" />
-              No employee record is created on submission. HR reviews every registration and confirms the site, role, joining date and
-              salary before approving.
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3 text-xs">
+              <span className="font-bold text-slate-900 uppercase tracking-wider block">Submission Summary</span>
+              <div className="grid grid-cols-2 gap-2">
+                <p><span className="text-slate-500">Candidate:</span> <span className="font-semibold text-slate-900 ml-1">{form.full_name}</span></p>
+                <p><span className="text-slate-500">Aadhaar:</span> <span className="font-mono font-semibold text-slate-800 ml-1">{aadhaar}</span></p>
+                <p><span className="text-slate-500">Mobile:</span> <span className="font-semibold text-slate-900 ml-1">{form.mobile}</span></p>
+                <p><span className="text-slate-500">Bank:</span> <span className="font-medium text-slate-800 ml-1">{form.bank_name || 'Not provided'}</span></p>
+              </div>
+            </div>
+
+            <p className="flex items-start gap-2 text-xs text-slate-500 leading-relaxed bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100">
+              <ShieldCheck className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+              By submitting, you certify that the provided credentials and Aadhaar identity belong to you. HR will verify documents before issuing onboarding contracts.
             </p>
 
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="secondary" onClick={() => setStep(2)}>Back</Button>
-              <Button onClick={submit} loading={submitting} disabled={!form.referrer_id}>Submit Registration</Button>
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <Button variant="secondary" onClick={() => setStep(2)}>
+                <ArrowLeft className="w-4 h-4 mr-1" /> Edit Details
+              </Button>
+              <Button onClick={submit} loading={submitting} disabled={!form.referrer_id}>
+                Confirm &amp; Submit Registration
+              </Button>
             </div>
           </div>
         )}

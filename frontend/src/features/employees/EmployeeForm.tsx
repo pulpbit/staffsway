@@ -8,6 +8,51 @@ import { AadhaarBoxes } from '@/components/ui/AadhaarBoxes'
 import { toast } from 'sonner'
 import { IdCard, User, Phone, Briefcase, Wallet, Landmark, FileText, HeartHandshake, Siren, CheckCircle2, AlertTriangle } from 'lucide-react'
 
+/**
+ * The nine form sections are grouped into five workflow stages so a long
+ * dossier reads as a guided sequence. Each stage anchors to its first
+ * section; `StepTracker` scrolls to that anchor instead of hiding fields,
+ * which keeps the single-form submit path (and therefore the backend
+ * payload) completely unchanged.
+ */
+const FORM_STAGES = [
+  { id: 'stage-personal', label: 'Personal Details', icon: User },
+  { id: 'stage-employment', label: 'Employment & Role', icon: Briefcase },
+  { id: 'stage-statutory', label: 'Statutory & PF/ESI', icon: Wallet },
+  { id: 'stage-bank', label: 'Bank & Salary Package', icon: Landmark },
+  { id: 'stage-documents', label: 'Documents & Nominee', icon: FileText },
+] as const
+
+function StepTracker({ stages, active, onJump }: { stages: readonly { id: string; label: string; icon: React.ElementType }[]; active: string; onJump: (id: string) => void }) {
+  const activeIdx = Math.max(0, stages.findIndex((s) => s.id === active))
+  return (
+    <nav aria-label="Form progress" className="mb-4 rounded-2xl border border-slate-200/80 bg-white shadow-xs px-4 py-3">
+      <ol className="flex flex-wrap items-center gap-x-1 gap-y-2">
+        {stages.map((s, i) => {
+          const done = i < activeIdx
+          const current = i === activeIdx
+          return (
+            <li key={s.id} className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => onJump(s.id)}
+                aria-current={current ? 'step' : undefined}
+                className={`group inline-flex items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer ${current ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`}
+              >
+                <span className={`w-5 h-5 rounded-lg inline-flex items-center justify-center shrink-0 text-[10px] font-extrabold ${current ? 'bg-white/20 text-white' : done ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                  {done ? <CheckCircle2 className="w-3 h-3" /> : i + 1}
+                </span>
+                <span className="text-[12px] font-bold whitespace-nowrap">{s.label}</span>
+              </button>
+              {i < stages.length - 1 && <span className={`w-4 h-px shrink-0 ${done ? 'bg-emerald-300' : 'bg-slate-200'}`} aria-hidden="true" />}
+            </li>
+          )
+        })}
+      </ol>
+    </nav>
+  )
+}
+
 interface Props {
   employeeId: number | null
   onClose: () => void
@@ -49,6 +94,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   const isEdit = !!employeeId
   const [loading, setLoading] = useState(false)
   const [unlocked, setUnlocked] = useState(false)
+  const [activeStage, setActiveStage] = useState<string>(FORM_STAGES[0].id)
   const [checking, setChecking] = useState(false)
   const [checkAadhaar, setCheckAadhaar] = useState('')
   const [match, setMatch] = useState<any>(null)
@@ -229,25 +275,53 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
     }
   }
 
-  if (isEdit && empLoading) return <LoadingState />
+if (isEdit && empLoading) return <LoadingState />
 
   const stateOptions = [{ value: '', label: 'Select state' }, ...STATE_OPTIONS.map(s => ({ value: s, label: s }))]
+
+  // Highlight the stage whose section is nearest the top of the viewport.
+  // `root: null` observes the viewport rather than a specific scroll box, so
+  // this works identically whether the form is on the Add Employee page or
+  // inside a modal.
+  useEffect(() => {
+    if (!unlocked && !isEdit) return
+    const nodes = FORM_STAGES
+      .map((s) => document.getElementById(s.id))
+      .filter((n): n is HTMLElement => !!n)
+    if (!nodes.length) return
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+        if (visible[0]) setActiveStage(visible[0].target.id)
+      },
+      { rootMargin: '-80px 0px -70% 0px', threshold: 0 },
+    )
+    nodes.forEach((n) => io.observe(n))
+    return () => io.disconnect()
+  }, [unlocked, isEdit])
+
+  const jumpToStage = (id: string) => {
+    setActiveStage(id)
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const checkPanel = !isEdit && !unlocked && (
     <FormSection icon={IdCard} title="Aadhaar Verification" subtitle="A 12-digit Aadhaar must be verified before a new employee is registered.">
       {!match ? (
         <div className="flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="flex-1">
-            <p className="block text-[12px] font-medium text-body mb-1 tracking-[-0.01em]">Aadhaar Number</p>
+            <p className="block text-[12px] font-medium text-slate-600 mb-1 tracking-[-0.01em]">Aadhaar Number</p>
             <AadhaarBoxes value={checkAadhaar} onChange={setCheckAadhaar} />
-            <p className="text-[11px] text-mute mt-1.5">Enter 12 digits across the boxes — the cursor moves automatically.</p>
+            <p className="text-[11px] text-slate-500 mt-1.5">Enter 12 digits across the boxes — the cursor moves automatically.</p>
           </div>
           <Button onClick={handleCheck} loading={checking} className="sm:mb-0">Check Aadhaar</Button>
         </div>
       ) : (
-        <div className="border border-warning/40 bg-warning/5 rounded-sm p-3.5">
-          <p className="flex items-center gap-1.5 text-[13px] font-medium text-warning-deep"><AlertTriangle className="w-4 h-4" /> Employee already exists</p>
-          <p className="text-[12px] text-body mt-1">{match.first_name} {match.last_name} · {match.employee_code}{match.site_name ? ` · ${match.client_name || ''} — ${match.site_name}` : ''}</p>
+        <div className="border border-amber-500/40 bg-amber-500/5 rounded-lg p-3.5">
+          <p className="flex items-center gap-1.5 text-[13px] font-medium text-amber-700"><AlertTriangle className="w-4 h-4" /> Employee already exists</p>
+          <p className="text-[12px] text-slate-600 mt-1">{match.first_name} {match.last_name} · {match.employee_code}{match.site_name ? ` · ${match.client_name || ''} — ${match.site_name}` : ''}</p>
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <Button size="sm" onClick={() => onSwitchToEdit?.(match.id)}>Open Existing</Button>
             <Button size="sm" variant="secondary" onClick={() => { setMatch(null); setUnlocked(true) }}>Continue New Registration</Button>
@@ -258,10 +332,10 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
     </FormSection>
   )
 
-  const checkedBanner = !isEdit && unlocked && (
-    <div className="flex items-center justify-between gap-2 rounded-md border border-success/40 bg-success/5 px-3.5 py-2.5">
-      <p className="flex items-center gap-1.5 text-[12px] text-success font-medium"><CheckCircle2 className="w-4 h-4" /> Aadhaar {form.aadhaar} verified — continuing as a new employee.</p>
-      <button type="button" className="text-[11px] text-link underline hover:text-link-deep cursor-pointer" onClick={() => onClose()}>Restart</button>
+const checkedBanner = !isEdit && unlocked && (
+    <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-500/40 bg-emerald-600/5 px-3.5 py-2.5">
+      <p className="flex items-center gap-1.5 text-[12px] text-emerald-600 font-medium"><CheckCircle2 className="w-4 h-4" /> Aadhaar {form.aadhaar} verified — continuing as a new employee.</p>
+      <button type="button" className="text-[11px] text-blue-600 underline hover:text-blue-800 cursor-pointer" onClick={() => onClose()}>Restart</button>
     </div>
   )
 
@@ -272,7 +346,9 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
 
       {unlocked || isEdit ? (
         <>
-          <FormSection icon={User} title="Basic Details" subtitle="Personal information as per identity documents" className="mb-4">
+          <StepTracker stages={FORM_STAGES} active={activeStage} onJump={jumpToStage} />
+
+          <FormSection icon={User} title="Basic Details" subtitle="Personal information as per identity documents" className="mb-4" anchor="stage-personal">
             <FormGrid cols={3}>
               <Input label="Full Name" value={form.full_name} onChange={e => update('full_name', e.target.value)} error={errors.full_name} />
               <Input label="Date of Birth" type="date" value={form.dob} onChange={e => update('dob', e.target.value)} ref={fieldRefs.dob} />
@@ -281,7 +357,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             <FormGrid cols={3}>
               <div>
                 <Input label="Username (for My Space login)" readOnly value={isEdit ? form.employee_code : (nextCode || 'Auto-assigned')} />
-                <p className="text-[11px] text-mute mt-1">Employee ID · My Space password = Date of Birth (DDMMYY).</p>
+                <p className="text-[11px] text-slate-500 mt-1">Employee ID · My Space password = Date of Birth (DDMMYY).</p>
               </div>
               <Select label="Marital Status" options={MARITAL_STATUSES.map(m => ({ value: m, label: m }))} value={form.marital_status} onChange={e => update('marital_status', e.target.value)} />
               <Input label="Nationality" value={form.nationality} onChange={e => update('nationality', e.target.value)} />
@@ -302,7 +378,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             </div>
           </FormSection>
 
-          <FormSection icon={Phone} title="Contact Details" subtitle="Communication and address information" className="mb-4">
+          <FormSection icon={Phone} title="Contact Details" subtitle="Communication and address information" className="mb-4" anchor="stage-personal">
             <FormGrid cols={3}>
               <Input label="Primary Contact No." value={form.mobile} onChange={e => update('mobile', e.target.value)} error={errors.mobile} />
               <Input label="Alternate Contact No." value={form.alternate_mobile} onChange={e => update('alternate_mobile', e.target.value)} />
@@ -328,7 +404,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             )}
           </FormSection>
 
-          <FormSection icon={Briefcase} title="Official Information" subtitle="Placement, employment terms and reporting" className="mb-4">
+          <FormSection icon={Briefcase} title="Official Information" subtitle="Placement, employment terms and reporting" className="mb-4" anchor="stage-employment">
             <FormGrid cols={3}>
               <Select
                 label="Client"
@@ -370,7 +446,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             </FormGrid>
           </FormSection>
 
-          <FormSection icon={Wallet} title="Salary & Statutory" subtitle="Compensation structure and PF / ESIC / LWF / PT applicability" className="mb-4">
+          <FormSection icon={Wallet} title="Salary & Statutory" subtitle="Compensation structure and PF / ESIC / LWF / PT applicability" className="mb-4" anchor="stage-statutory">
             <FormGrid cols={3}>
               <Input label="CTC / Gross Salary" type="number" min={0} value={form.ctc} onChange={e => update('ctc', e.target.value)} />
               <Input label="Basic Salary" type="number" min={0} value={form.salary.basic} onChange={e => updateSalary('basic', e.target.value)} />
@@ -404,10 +480,10 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
                 <Input label="ESI No." value={form.esi_number} onChange={e => update('esi_number', e.target.value)} ref={fieldRefs.esi_number} />
               </FormGrid>
             )}
-            <p className="text-[11px] text-mute">Other deductions are managed via payroll salary revisions. Working Hours / Day (set under Official Information) drives the hourly rate: monthly earnings ÷ days in month ÷ working hours.</p>
+            <p className="text-[11px] text-slate-500">Other deductions are managed via payroll salary revisions. Working Hours / Day (set under Official Information) drives the hourly rate: monthly earnings ÷ days in month ÷ working hours.</p>
           </FormSection>
 
-          <FormSection icon={Landmark} title="Bank Details" subtitle="Salary disbursement account (masked elsewhere in the app)" className="mb-4">
+          <FormSection icon={Landmark} title="Bank Details" subtitle="Salary disbursement account (masked elsewhere in the app)" className="mb-4" anchor="stage-bank">
             <FormGrid cols={3}>
               <Input label="Bank Name" value={form.bank_name} onChange={e => update('bank_name', e.target.value)} />
               <Input label="A/C No." value={form.bank_account} onChange={e => update('bank_account', e.target.value)} ref={fieldRefs.bank_account} />
@@ -418,7 +494,7 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             </FormGrid>
           </FormSection>
 
-          <FormSection icon={FileText} title="Identity Documents" subtitle="Government-issued IDs — stored as text records" className="mb-4">
+          <FormSection icon={FileText} title="Identity Documents" subtitle="Government-issued IDs — stored as text records" className="mb-4" anchor="stage-documents">
             <FormGrid cols={3}>
               <Input label="Aadhaar No." value={form.aadhaar} maxLength={12} onChange={e => update('aadhaar', e.target.value.replace(/\D/g, ''))} />
               <Input label="PAN" value={form.pan} onChange={e => update('pan', e.target.value.toUpperCase())} />
@@ -444,13 +520,13 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
             </FormGrid>
           </FormSection>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-hairline sticky bottom-[-20px] -mx-5 px-5 bg-white py-4">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-200 sticky bottom-[-20px] -mx-5 px-5 bg-white py-4">
             <Button variant="secondary" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSubmit} loading={loading}>{isEdit ? 'Update Employee' : 'Add Employee'}</Button>
           </div>
         </>
       ) : (
-        <div className="flex justify-end gap-2 pt-2 mt-3 border-t border-hairline">
+        <div className="flex justify-end gap-2 pt-2 mt-3 border-t border-slate-200">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
         </div>
       )}

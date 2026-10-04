@@ -80,24 +80,29 @@ export function FieldErrorsDialog({ open, labels, onClose }: { open: boolean; la
     <Modal open={open} onClose={onClose} size="sm">
       <div className="flex flex-col">
         <div className="flex items-start gap-3">
-          <div className="shrink-0 w-9 h-9 rounded-full bg-error/10 flex items-center justify-center">
-            <AlertTriangle className="w-4 h-4 text-error" />
+          <div className="shrink-0 w-10 h-10 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-[15px] font-semibold text-ink tracking-[-0.02em]">Please correct the highlighted fields</h3>
-            <p className="text-[12px] text-mute mt-0.5">The fields marked red in the form need attention before saving.</p>
+            <h3 className="text-[15px] font-bold text-slate-900 tracking-tight">Please correct the highlighted fields</h3>
+            <p className="text-[12.5px] text-slate-500 mt-1">The fields marked red in the form need attention before saving.</p>
           </div>
         </div>
         <ul className="mt-4 space-y-1.5">
           {labels.map(label => (
-            <li key={label} className="flex items-start gap-2 text-[13px] text-error">
-              <span className="w-1.5 h-1.5 rounded-full bg-error shrink-0 mt-1.5" />
+            <li key={label} className="flex items-start gap-2.5 text-[13px] font-medium text-rose-700 bg-rose-50/60 border border-rose-200/50 rounded-lg px-3 py-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1.5" />
               {label}
             </li>
           ))}
         </ul>
         <div className="flex justify-end mt-5">
-          <button onClick={onClose} className="inline-flex items-center justify-center px-3 h-8 text-[13px] font-medium rounded-sm bg-ink text-white hover:bg-ink/90 transition-colors">Got it</button>
+          <button
+            onClick={onClose}
+            className="inline-flex items-center justify-center px-3.5 h-9 text-[13px] font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors cursor-pointer shadow-sm"
+          >
+            Got it
+          </button>
         </div>
       </div>
     </Modal>

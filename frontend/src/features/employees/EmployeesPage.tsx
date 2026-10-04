@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom'
 import { employeeApi, clientApi, siteApi, recruitmentApi } from '@/services/api'
 import { Button } from '@/components/ui/fields'
-import { Table, Pagination } from '@/components/ui/data'
+import { Table, Pagination, StatCard } from '@/components/ui/data'
 import type { Column } from '@/components/ui/data'
 import { PageHeader } from '@/components/ui/layout'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
@@ -14,7 +14,7 @@ import { fullName, dateShort, money } from '@/utils/format'
 import { downloadCsv } from '@/utils/csv'
 import { stateShort } from '@/utils/states'
 import { toast } from 'sonner'
-import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download, ScrollText, CalendarCheck } from 'lucide-react'
+import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download, ScrollText, CalendarCheck, Sparkles } from 'lucide-react'
 import EmployeeForm from './EmployeeForm'
 import JoiningFormModal from './JoiningFormModal'
 import SalaryRevisionModal from './SalaryRevisionModal'
@@ -181,43 +181,43 @@ export default function EmployeesPage() {
   }
 
   const columns: Column<any>[] = [
-    { key: 'employee_code', header: 'Emp. ID', sticky: 'left', sortable: true, className: 'w-24', render: (r) => <span className="font-mono text-[12px] font-medium text-ink whitespace-nowrap">{r.employee_code}</span> },
-    { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
-    { key: 'name', header: 'Employee Name', sortable: true, render: (r) => (
+    { key: 'employee_code', header: 'Emp. ID', sticky: 'left', sortable: true, className: 'w-24', render: (r) => <span className="font-mono text-xs font-bold text-blue-700 whitespace-nowrap bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{r.employee_code}</span> },
+    { key: 'status', header: 'Status', sticky: 'left', className: 'w-24', render: (r) => <StatusBadge status={r.status} /> },
+    { key: 'name', header: 'Employee Name', sticky: 'left', sortable: true, className: 'min-w-56', render: (r) => (
       <span className="flex items-center gap-2.5 min-w-0">
         <Avatar name={fullName(r.first_name, r.last_name)} size="sm" />
-        <button onClick={() => openEdit(r.id)} className="text-[13px] font-medium text-ink hover:underline truncate max-w-40 cursor-pointer text-left">{fullName(r.first_name, r.last_name)}</button>
+        <button onClick={() => openEdit(r.id)} className="text-xs sm:text-[13px] font-bold text-slate-900 hover:text-blue-600 truncate max-w-48 cursor-pointer text-left">{fullName(r.first_name, r.last_name)}</button>
       </span>
     ) },
-    { key: 'father_name', header: 'Father\'s/Spouse', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.father_name || r.spouse_name || '—'}</span> },
-    { key: 'gender', header: 'Gender', hideSm: true, render: (r) => <span className="text-[12px] text-body">{r.gender || '—'}</span> },
-    { key: 'dob', header: 'DOB', render: (r) => <span className="text-[12px] text-body whitespace-nowrap tabular-nums">{dateShort(r.dob)}</span> },
-    { key: 'aadhaar', header: 'Aadhaar No.', render: (r) => <span className="text-[12px] font-mono text-body">{r.aadhaar || '—'}</span> },
-    { key: 'pan', header: 'PAN', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.pan || '—'}</span> },
-    { key: 'state', header: 'State', hideSm: true, render: (r) => <span className="text-[12px] font-medium text-body">{stateShort(r.state)}</span> },
-    { key: 'mobile', header: 'Contact No.', render: (r) => <span className="text-[12px] text-body whitespace-nowrap tabular-nums">{r.mobile || '—'}</span> },
-    { key: 'designation', header: 'Job Title', render: (r) => <span className="text-[12px] text-body">{r.designation || '—'}</span> },
-    { key: 'basic', header: 'Basic', render: (r) => <span className="text-[12px] text-body font-medium whitespace-nowrap tabular-nums">{r.basic ? money(Number(r.basic)) : '—'}</span> },
-    { key: 'hra', header: 'HRA', hideSm: true, render: (r) => <span className="text-[12px] text-body font-medium whitespace-nowrap tabular-nums">{r.hra ? money(Number(r.hra)) : '—'}</span> },
-    { key: 'joining', header: 'Joining Date', sortable: true, render: (r) => <span className="text-[12px] text-body whitespace-nowrap tabular-nums">{dateShort(r.joining_date)}</span> },
-    { key: 'exit_date', header: 'Exit Date', render: (r) => <span className="text-[12px] text-body whitespace-nowrap tabular-nums">{r.exit_date ? dateShort(r.exit_date) : '—'}</span> },
-    { key: 'bank_account', header: 'A/C No.', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.bank_account || '—'}</span> },
-    { key: 'bank_ifsc', header: 'IFSC', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.bank_ifsc || '—'}</span> },
-    { key: 'uan', header: 'UAN', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.uan || '—'}</span> },
-    { key: 'esi_number', header: 'ESIC No.', hideSm: true, render: (r) => <span className="text-[12px] font-mono text-body">{r.esi_number || '—'}</span> },
-    { key: 'actions', header: 'Actions', sticky: 'right', className: 'w-32', render: (r) => (
-      <div className="flex items-center gap-1">
-        <button onClick={() => openView(r)} title="View profile" aria-label="View profile" className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer">
-          <Eye className="w-4 h-4" />
+    { key: 'father_name', header: 'Father\'s/Spouse', hideSm: true, render: (r) => <span className="text-xs text-slate-600">{r.father_name || r.spouse_name || '—'}</span> },
+    { key: 'gender', header: 'Gender', hideSm: true, render: (r) => <span className="text-xs text-slate-600 capitalize">{r.gender || '—'}</span> },
+    { key: 'dob', header: 'DOB', render: (r) => <span className="text-xs text-slate-600 whitespace-nowrap tabular-nums">{dateShort(r.dob)}</span> },
+    { key: 'aadhaar', header: 'Aadhaar No.', render: (r) => <span className="text-xs font-mono text-slate-700">{r.aadhaar || '—'}</span> },
+    { key: 'pan', header: 'PAN', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.pan || '—'}</span> },
+    { key: 'state', header: 'State', hideSm: true, render: (r) => <span className="text-xs font-medium text-slate-700">{stateShort(r.state)}</span> },
+    { key: 'mobile', header: 'Contact No.', render: (r) => <span className="text-xs text-slate-700 whitespace-nowrap tabular-nums font-mono">{r.mobile || '—'}</span> },
+    { key: 'designation', header: 'Job Title', render: (r) => <span className="text-xs text-slate-700 font-medium">{r.designation || '—'}</span> },
+    { key: 'basic', header: 'Basic', render: (r) => <span className="text-xs text-slate-800 font-bold whitespace-nowrap tabular-nums">{r.basic ? money(Number(r.basic)) : '—'}</span> },
+    { key: 'hra', header: 'HRA', hideSm: true, render: (r) => <span className="text-xs text-slate-800 font-bold whitespace-nowrap tabular-nums">{r.hra ? money(Number(r.hra)) : '—'}</span> },
+    { key: 'joining', header: 'Joining Date', sortable: true, render: (r) => <span className="text-xs text-slate-600 whitespace-nowrap tabular-nums">{dateShort(r.joining_date)}</span> },
+    { key: 'exit_date', header: 'Exit Date', render: (r) => <span className="text-xs text-slate-600 whitespace-nowrap tabular-nums">{r.exit_date ? dateShort(r.exit_date) : '—'}</span> },
+    { key: 'bank_account', header: 'A/C No.', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.bank_account || '—'}</span> },
+    { key: 'bank_ifsc', header: 'IFSC', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.bank_ifsc || '—'}</span> },
+    { key: 'uan', header: 'UAN', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.uan || '—'}</span> },
+    { key: 'esi_number', header: 'ESIC No.', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.esi_number || '—'}</span> },
+    { key: 'actions', header: 'Actions', sticky: 'right', className: 'w-36', render: (r) => (
+      <div className="flex items-center gap-1.5">
+        <button onClick={() => openView(r)} title="View employee profile" aria-label="View profile" className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer">
+          <Eye className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => openEdit(r.id)} title="Edit employee" aria-label="Edit employee" disabled={r.status === 'exited'} className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent">
-          <Pencil className="w-4 h-4" />
+        <button onClick={() => openEdit(r.id)} title="Edit employee record" aria-label="Edit employee" disabled={r.status === 'exited'} className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed">
+          <Pencil className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => setAttFor(r)} title="View attendance" aria-label="View attendance" className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer">
-          <CalendarCheck className="w-4 h-4" />
+        <button onClick={() => setAttFor(r)} title="View attendance history" aria-label="View attendance" className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200/70 transition-colors cursor-pointer">
+          <CalendarCheck className="w-3.5 h-3.5" />
         </button>
-        <button onClick={() => setJoiningFor(r.id)} title="Generate joining form" aria-label="Generate joining form" className="inline-flex items-center justify-center w-7 h-7 rounded-sm text-mute hover:text-ink hover:bg-canvas-soft border border-transparent hover:border-hairline transition-colors cursor-pointer">
-          <ScrollText className="w-4 h-4" />
+        <button onClick={() => setJoiningFor(r.id)} title="Print joining form" aria-label="Generate joining form" className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 border border-slate-200/70 transition-colors cursor-pointer">
+          <ScrollText className="w-3.5 h-3.5" />
         </button>
       </div>
     ) },
@@ -236,35 +236,47 @@ export default function EmployeesPage() {
   ]
 
   const viewRowOf = viewRow ? (employees.find((e) => e.id === viewRow.id) || viewRow) : null
-
-  /** Quick-action targets resolve against the current page first, then fall back
-      to the row the drawer is showing, so a stale list cannot break a modal. */
   const rowFor = (id: number) => employees.find((e) => e.id === id) || (viewRow?.id === id ? viewRow : null)
 
   return (
-    <div className="flex flex-col h-full min-h-0 gap-4">
+    <div className="flex flex-col min-h-full gap-5">
       <div className="shrink-0">
         <PageHeader
-          title="Employees"
-          description={`${meta.total} employee${meta.total === 1 ? '' : 's'} on record`}
+          title="Employee Master"
+          description={`Comprehensive workforce directory &bull; ${meta.total} employee${meta.total === 1 ? '' : 's'} on record`}
           actions={
             <>
-              <Button variant="secondary" onClick={() => setShowImport(true)}><Upload className="w-3.5 h-3.5" /> Bulk Import</Button>
-              <Button onClick={openAdd}><UserPlus className="w-3.5 h-3.5" /> Add Employee</Button>
+              <button
+                type="button"
+                onClick={() => setShowImport(true)}
+                className="h-10 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold flex items-center gap-2 shadow-2xs transition-all cursor-pointer"
+              >
+                <Upload className="w-4 h-4 text-blue-600" />
+                <span>Bulk Import</span>
+              </button>
+              <button
+                type="button"
+                onClick={openAdd}
+                className="h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Add Employee</span>
+              </button>
             </>
           }
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-        <StatCard icon={Users} label="Total Employees" value={stat.total} sub={<>Active <b className="text-ink">{stat.active}</b> · Inactive <b className="text-ink">{stat.inactive}</b> · Exited <b className="text-ink">{stat.exited}</b></>} />
-        <StatCard icon={UserPlus} label="Joined This Month" value={stat.joined_this_month} />
-        <StatCard icon={LogOut} label="Exited This Month" value={stat.exit_this_month} />
-        <StatCard icon={CalendarDays} label="On Leave Today" value={stat.on_leave_today} />
+      {/* Top 4 KPI Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+        <StatCard icon={Users} label="Total Workforce" value={stat.total} tone="primary" sub={`Active: ${stat.active} | Inactive: ${stat.inactive}`} />
+        <StatCard icon={UserPlus} label="Joined This Month" value={stat.joined_this_month} tone="success" sub="New team members" />
+        <StatCard icon={LogOut} label="Exited This Month" value={stat.exit_this_month} tone="danger" sub={`Total exited: ${stat.exited}`} />
+        <StatCard icon={CalendarDays} label="On Leave Today" value={stat.on_leave_today} tone="warning" sub="Approved leave records" />
       </div>
 
-      <div className="flex-1 min-h-0 bg-white card-shadow rounded-md overflow-hidden flex flex-col">
-        <FilterBar className="shrink-0 px-4 py-3 border-b border-hairline">
+      <div className="flex-1 min-h-[520px] bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden flex flex-col">
+        <FilterBar className="shrink-0 px-4 py-3.5 border-b border-slate-100 bg-slate-50/40">
           <SearchInput
             value={search}
             onChange={(v) => { setSearch(v); resetPaging() }}
@@ -290,17 +302,17 @@ export default function EmployeesPage() {
             options={filterOptions}
           />
           <Button variant="secondary" size="sm" onClick={exportCsv} disabled={employees.length === 0} className="ml-auto" title="Download current results as CSV">
-            <Download className="w-3.5 h-3.5" /> Export
+            <Download className="w-3.5 h-3.5" /> Export CSV
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => setShowAdvanced((v) => !v)} className={showAdvanced ? 'bg-canvas-soft' : ''}>
+          <Button variant="secondary" size="sm" onClick={() => setShowAdvanced((v) => !v)} className={showAdvanced ? 'bg-slate-100' : ''}>
             <SlidersHorizontal className="w-3.5 h-3.5" /> Advanced
             <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
           </Button>
         </FilterBar>
 
         {showAdvanced && (
-          <div className="shrink-0 px-4 py-3 border-b border-hairline bg-canvas-soft/30">
-            <div className="flex flex-wrap items-end gap-2.5">
+          <div className="shrink-0 px-4 py-3.5 border-b border-slate-200/80 bg-slate-50/70">
+            <div className="flex flex-wrap items-end gap-3">
               <SelectFilter
                 label="Client"
                 value={advanced.client_id || ''}
@@ -323,24 +335,16 @@ export default function EmployeesPage() {
                 options={typeOptions}
               />
               <label className="flex flex-col gap-1">
-                <span className="mono-label">Joined From</span>
-                <input type="date" value={advanced.joined_from || ''} onChange={(e) => setAdv('joined_from', e.target.value)} className="h-9 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid" />
+                <span className="text-[10.5px] font-bold uppercase text-slate-400">Joined From</span>
+                <input type="date" value={advanced.joined_from || ''} onChange={(e) => setAdv('joined_from', e.target.value)} className="h-9 px-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500" />
               </label>
               <label className="flex flex-col gap-1">
-                <span className="mono-label">Joined To</span>
-                <input type="date" value={advanced.joined_to || ''} onChange={(e) => setAdv('joined_to', e.target.value)} className="h-9 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid" />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="mono-label">Exited From</span>
-                <input type="date" value={advanced.exited_from || ''} onChange={(e) => setAdv('exited_from', e.target.value)} className="h-9 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid" />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="mono-label">Exited To</span>
-                <input type="date" value={advanced.exited_to || ''} onChange={(e) => setAdv('exited_to', e.target.value)} className="h-9 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid" />
+                <span className="text-[10.5px] font-bold uppercase text-slate-400">Joined To</span>
+                <input type="date" value={advanced.joined_to || ''} onChange={(e) => setAdv('joined_to', e.target.value)} className="h-9 px-2.5 text-xs bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500" />
               </label>
               {(Object.keys(advanced).length > 0 || Object.keys(filters).length > 0) && (
                 <Button variant="ghost" size="sm" onClick={() => { setFilters({}); setAdvanced({}); resetPaging() }}>
-                  <X className="w-3.5 h-3.5" /> Clear
+                  <X className="w-3.5 h-3.5" /> Clear Filters
                 </Button>
               )}
             </div>
@@ -348,32 +352,33 @@ export default function EmployeesPage() {
         )}
 
         {isLoading ? (
-          <div className="p-4"><LoadingState /></div>
+          <div className="p-8"><LoadingState /></div>
         ) : error ? (
           <PageError onRetry={() => refetch()} />
         ) : employees.length === 0 && !search && Object.keys(filters).length === 0 && Object.keys(advanced).length === 0 ? (
           <EmptyState
-            title="No employees yet"
-            description="Add your first employee to get started, or import them in bulk."
+            title="No employees registered yet"
+            description="Add your first employee to get started with automated payroll, attendance, and compliance."
             action={<Button onClick={openAdd}><Plus className="w-3.5 h-3.5" /> Add Employee</Button>}
           />
         ) : (
           <>
-            <div className="flex-1 min-h-0 overflow-auto scrollbar-thin">
+            <div className="flex-1 min-h-[420px] flex flex-col">
               <Table
                 bare
+                maxHeight="max-h-[calc(100vh-16rem)] min-h-[420px]"
                 columns={columns}
                 data={employees}
                 keyFn={(r) => String(r.id)}
                 sortKey={sort}
                 sortDir={order}
                 onSort={handleSort}
-                emptyMessage="No employees match your search."
+                emptyMessage="No employees match your search criteria."
                 minWidth="1500px"
               />
             </div>
             {employees.length > 0 && meta.total_pages > 1 && (
-              <div className="shrink-0 px-4 py-2.5 border-t border-hairline">
+              <div className="shrink-0 px-4 py-3 border-t border-slate-100 bg-slate-50/40">
                 <Pagination page={meta.page} totalPages={meta.total_pages} total={meta.total} pageSize={meta.page_size} onPage={setPage} />
               </div>
             )}
@@ -382,12 +387,12 @@ export default function EmployeesPage() {
       </div>
 
       {showForm && (
-        <Modal open={showForm} onClose={() => { setShowForm(false); setFocusField(null) }} title={editId ? 'Edit Employee' : 'Add Employee'} size="xl">
+        <Modal open={showForm} onClose={() => { setShowForm(false); setFocusField(null) }} title={editId ? 'Edit Employee Dossier' : 'Register New Employee'} size="xl">
           <EmployeeForm
             employeeId={editId}
             focusField={focusField}
             onClose={() => { setShowForm(false); setFocusField(null) }}
-            onSaved={(createdId) => { queryClient.invalidateQueries({ queryKey: ['employees'] }); queryClient.invalidateQueries({ queryKey: ['employees-stats'] }); setShowForm(false); setFocusField(null); toast.success(editId ? 'Employee updated.' : 'Employee added.'); if (createdId) setJoiningFor(createdId) }}
+            onSaved={(createdId) => { queryClient.invalidateQueries({ queryKey: ['employees'] }); queryClient.invalidateQueries({ queryKey: ['employees-stats'] }); setShowForm(false); setFocusField(null); toast.success(editId ? 'Employee record updated.' : 'Employee successfully registered.'); if (createdId) setJoiningFor(createdId) }}
             onSwitchToEdit={(id) => setEditId(id)}
           />
         </Modal>
@@ -402,113 +407,99 @@ export default function EmployeesPage() {
         )}
       </Modal>
 
-      <Modal open={!!onbFor} onClose={() => setOnbFor(null)} title={`Onboarding Checklist — ${onbFor ? fullName(onbFor.first_name, onbFor.last_name) : ''}`} size="sm">
-        <div>
-          {(onbData?.data || []).length === 0 ? (
-            <p className="text-[13px] text-mute py-3 text-center">No checklist. It is created automatically when a candidate joins via Recruitment.</p>
-          ) : (
-            <div className="divide-y divide-hairline">
-              {(onbData?.data || []).map((t: any) => (
-                <label key={t.id} className="flex items-center gap-2.5 py-2 cursor-pointer select-none">
-                  <input type="checkbox" checked={!!t.done} onChange={e => onbToggleMut.mutate({ taskId: t.id, done: e.target.checked })} className="w-3.5 h-3.5 accent-black" />
-                  <span className={`text-[13px] ${t.done ? 'text-mute line-through' : 'text-ink'}`}>{t.task}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      </Modal>
+      {viewRow && (
+        <EmployeeProfileDrawer
+          employeeId={viewRow.id}
+          name={fullName(viewRowOf?.first_name, viewRowOf?.last_name)}
+          code={viewRowOf?.employee_code}
+          open={!!viewRow}
+          onClose={closeView}
+          onEdit={(id) => { closeView(); openEdit(id) }}
+          onToggleStatus={(id, st) => statusMut.mutate({ id, status: st })}
+          onRevise={(id) => { closeView(); setRevFor(rowFor(id)) }}
+          onViewAttendance={(id) => { closeView(); setAttFor(rowFor(id)) }}
+          onGeneratePayslip={(id) => { closeView(); setPayslipFor(rowFor(id)) }}
+          onTransfer={(id) => { closeView(); setTransferFor(rowFor(id)) }}
+          onApplyLeave={(id) => { closeView(); setLeaveFor(rowFor(id)) }}
+          onExit={(id) => { closeView(); setExitFor(rowFor(id)) }}
+          onJoiningForm={(id) => { closeView(); setJoiningFor(id) }}
+          onDelete={(id) => setDeleteId(id)}
+        />
+      )}
 
-      <SalaryRevisionModal
-        open={!!revFor}
-        onClose={() => setRevFor(null)}
-        employeeId={revFor?.id ?? null}
-        employeeName={revFor ? fullName(revFor.first_name, revFor.last_name) : undefined}
-      />
+      {deleteId && (
+        <ConfirmDialog
+          open={!!deleteId}
+          onClose={() => setDeleteId(null)}
+          onConfirm={() => deleteId && deleteMut.mutate(deleteId)}
+          title="Delete Employee Record"
+          message="Are you sure you want to permanently delete this employee? This will remove all associated attendance and payroll logs."
+          confirmText="Delete Permanently"
+          danger
+          loading={deleteMut.isPending}
+        />
+      )}
 
-      <JoiningFormModal employeeId={joiningFor} onClose={() => setJoiningFor(null)} />
+      {joiningFor && (
+        <JoiningFormModal
+          employeeId={joiningFor}
+          onClose={() => setJoiningFor(null)}
+        />
+      )}
 
-      <EmployeeAttendanceModal
-        open={!!attFor}
-        onClose={() => setAttFor(null)}
-        employeeId={attFor?.id ?? null}
-        employeeName={attFor ? fullName(attFor.first_name, attFor.last_name) : undefined}
-        employeeCode={attFor?.employee_code}
-        joiningDate={attFor?.joining_date}
-        status={attFor?.status}
-      />
+      {revFor && (
+        <SalaryRevisionModal
+          employeeId={revFor.id}
+          employeeName={fullName(revFor.first_name, revFor.last_name)}
+          open={!!revFor}
+          onClose={() => setRevFor(null)}
+        />
+      )}
 
-      <EmployeePayslipModal
-        open={!!payslipFor}
-        onClose={() => setPayslipFor(null)}
-        employeeId={payslipFor?.id ?? null}
-        employeeName={payslipFor ? fullName(payslipFor.first_name, payslipFor.last_name) : undefined}
-      />
+      {attFor && (
+        <EmployeeAttendanceModal
+          employeeId={attFor.id}
+          employeeName={fullName(attFor.first_name, attFor.last_name)}
+          employeeCode={attFor.employee_code}
+          joiningDate={attFor.joining_date}
+          status={attFor.status}
+          open={!!attFor}
+          onClose={() => setAttFor(null)}
+        />
+      )}
 
-      <EmployeeTransferModal
-        open={!!transferFor}
-        onClose={() => setTransferFor(null)}
-        employee={transferFor}
-      />
+      {payslipFor && (
+        <EmployeePayslipModal
+          employeeId={payslipFor.id}
+          employeeName={fullName(payslipFor.first_name, payslipFor.last_name)}
+          open={!!payslipFor}
+          onClose={() => setPayslipFor(null)}
+        />
+      )}
 
-      <EmployeeApplyLeaveModal
-        open={!!leaveFor}
-        onClose={() => setLeaveFor(null)}
-        employee={leaveFor}
-      />
+      {transferFor && (
+        <EmployeeTransferModal
+          employee={transferFor}
+          open={!!transferFor}
+          onClose={() => setTransferFor(null)}
+        />
+      )}
 
-      <EmployeeExitModal
-        open={!!exitFor}
-        onClose={() => setExitFor(null)}
-        employee={exitFor}
-      />
+      {leaveFor && (
+        <EmployeeApplyLeaveModal
+          employee={leaveFor}
+          open={!!leaveFor}
+          onClose={() => setLeaveFor(null)}
+        />
+      )}
 
-      <ConfirmDialog
-        open={!!deleteId}
-        onClose={() => setDeleteId(null)}
-        onConfirm={() => deleteId && deleteMut.mutate(deleteId)}
-        title="Delete Employee"
-        message="Are you sure you want to delete this employee? This action cannot be undone."
-        danger
-        loading={deleteMut.isPending}
-      />
-
-      {/* Quick actions keep this drawer mounted — the action's modal or pane
-          renders on top of it. Only Delete closes it, since it navigates away
-          via the confirm dialog. */}
-      <EmployeeProfileDrawer
-        open={!!viewRow}
-        employeeId={viewRow?.id ?? null}
-        name={viewRowOf ? fullName(viewRowOf.first_name, viewRowOf.last_name) : undefined}
-        code={viewRowOf?.employee_code}
-        onClose={closeView}
-        onEdit={(id, field) => openEdit(id, field)}
-        onRevise={(id) => setRevFor(rowFor(id))}
-        onOnboarding={(id) => setOnbFor(rowFor(id))}
-        onJoiningForm={(id) => setJoiningFor(id)}
-        onToggleStatus={(id, status) => statusMut.mutate({ id, status })}
-        onDelete={(id) => { setViewRow(null); setDeleteId(id) }}
-        onViewAttendance={(id) => setAttFor(rowFor(id))}
-        onGeneratePayslip={(id) => setPayslipFor(rowFor(id))}
-        onTransfer={(id) => setTransferFor(rowFor(id))}
-        onApplyLeave={(id) => setLeaveFor(rowFor(id))}
-        onExit={(id) => setExitFor(rowFor(id))}
-      />
-    </div>
-  )
-}
-
-function StatCard({ icon: Icon, label, value, sub }: { icon: React.ElementType; label: string; value: React.ReactNode; sub?: React.ReactNode }) {
-  return (
-    <div className="bg-white card-shadow rounded-md p-4 flex items-start gap-3">
-      <span className="w-9 h-9 rounded-sm bg-navy-soft text-navy-mid inline-flex items-center justify-center shrink-0">
-        <Icon className="w-4 h-4" />
-      </span>
-      <div className="min-w-0">
-        <p className="mono-label">{label}</p>
-        <p className="text-[22px] leading-7 font-semibold tabular-nums text-ink">{value}</p>
-        {sub && <p className="text-[11px] text-mute mt-0.5">{sub}</p>}
-      </div>
+      {exitFor && (
+        <EmployeeExitModal
+          employee={exitFor}
+          open={!!exitFor}
+          onClose={() => setExitFor(null)}
+        />
+      )}
     </div>
   )
 }

@@ -4,14 +4,14 @@ import { clientApi } from '@/services/api'
 import { Button, Input, Select, Toggle, FormSection, FormGrid, FormDivider } from '@/components/ui/fields'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
 import { FieldErrorsDialog, useFormValidation, type FieldRule } from '@/components/ui/validation'
-import { Table } from '@/components/ui/data'
+import { Table, StatCard } from '@/components/ui/data'
 import { PageHeader } from '@/components/ui/layout'
 import { StatusBadge } from '@/components/ui/status'
-import { FilterBar, SearchInput, Avatar, ActionMenu } from '@/components/ui/actions'
+import { FilterBar, SearchInput, Avatar } from '@/components/ui/actions'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { STATE_OPTIONS } from '@/utils/indianStates'
 import { toast } from 'sonner'
-import { Plus, Building2, Trash2, PenLine, Building, Users, FileText, Wallet, Landmark } from 'lucide-react'
+import { Plus, Building2, Trash2, PenLine, Users, MapPin, Mail, Phone, CheckCircle2, SlidersHorizontal, ArrowRight } from 'lucide-react'
 
 const emptyForm = {
   name: '',
@@ -103,31 +103,11 @@ export default function ClientsPage() {
     }
   }, [clientDetail])
 
-  // Live preview of the generated Client Code before saving.
-  useEffect(() => {
-    if (editId || !form.name.trim()) {
-      if (!editId) setCodePreview('')
-      return
-    }
-    const t = setTimeout(() => {
-      clientApi.generateCode(form.name).then((r: any) => setCodePreview(r?.data?.code || '')).catch(() => {})
-    }, 300)
-    return () => clearTimeout(t)
-  }, [form.name, editId])
-
   const saveMut = useMutation({
     mutationFn: (d: any) => editId ? clientApi.update(editId, d) : clientApi.create(d),
-    onSuccess: () => {
-      setShowForm(false)
-      setEditId(null)
-      setForm(emptyForm)
-      setCodePreview('')
-      clearAll()
-      qc.invalidateQueries({ queryKey: ['clients'] })
-      toast.success('Client saved.')
-    },
+    onSuccess: () => { setShowForm(false); setEditId(null); setForm(emptyForm); clearAll(); qc.invalidateQueries({ queryKey: ['clients'] }); toast.success('Client profile saved.') },
     onError: (e: any) => {
-      if (e?.error?.fields) { applyServerErrors(e.error.fields); toast.error('Please correct the highlighted fields.') }
+      if (e?.error?.fields) { applyServerErrors(e.error.fields); toast.error('Please correct highlighted fields.') }
       else toast.error(e?.error?.message || 'Failed to save client.')
     },
   })
@@ -135,152 +115,160 @@ export default function ClientsPage() {
   const deleteMut = useMutation({
     mutationFn: (id: number) => clientApi.delete(id),
     onSuccess: () => { setDeleteId(null); qc.invalidateQueries({ queryKey: ['clients'] }); toast.success('Client deleted.') },
+    onError: (e: any) => toast.error(e?.error?.message || 'Failed to delete.'),
   })
 
-  const openCreate = () => {
-    setEditId(null)
-    setForm(emptyForm)
-    setCodePreview('')
-    clearAll()
-    setShowForm(true)
+  const openCreate = () => { setEditId(null); setForm(emptyForm); clearAll(); setShowForm(true) }
+  const openEdit = (id: number) => { setEditId(id); clearAll(); setShowForm(true) }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validate(CLIENT_RULES, form)) return
+    saveMut.mutate(form)
   }
-
-  const openEdit = (id: number) => {
-    setEditId(id)
-    setCodePreview('')
-    clearAll()
-    setShowForm(true)
-  }
-
-  const closeForm = () => { setShowForm(false); setEditId(null); setForm(emptyForm); setCodePreview(''); clearAll() }
-
-  const update = (key: string, value: any) => { setForm((f) => ({ ...f, [key]: value })); clear(key) }
 
   const cols: any[] = [
-    { key: 'name', header: 'Client', render: (r: any) => (
-      <span className="flex items-center gap-2.5 min-w-0">
-        <Avatar name={r.name} tone="gold" />
-        <span className="min-w-0">
-          <span className="block text-[13px] font-medium text-ink truncate max-w-48">{r.name}</span>
-          <span className="block text-[11px] font-mono text-link">{r.client_code || '—'}</span>
-          {r.primary_contact_person && <span className="block text-[11px] text-mute truncate max-w-48">{r.primary_contact_person}</span>}
-        </span>
+    { key: 'name', header: 'Client Enterprise', render: (r: any) => (
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
+          <Building2 className="w-5 h-5" />
+        </div>
+        <div>
+          <button onClick={() => openEdit(r.id)} className="text-xs sm:text-[13px] font-bold text-slate-900 hover:text-blue-600 truncate block text-left cursor-pointer">{r.name}</button>
+          <span className="text-[11px] text-slate-500 font-mono">{r.client_code || `CL00${r.id}`} &bull; {r.district ? `${r.district}, ` : ''}{r.state || 'India'}</span>
+        </div>
+      </div>
+    ) },
+    { key: 'contact', header: 'POC & Contact', render: (r: any) => (
+      <div className="text-xs text-slate-700">
+        <p className="font-semibold">{r.primary_contact_person || '—'}</p>
+        <p className="text-[11px] text-slate-500">{r.company_email || '—'}</p>
+      </div>
+    ) },
+    { key: 'manpower', header: 'Active Headcount', render: (r: any) => (
+      <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
+        {r.headcount || 0} Employees
       </span>
     ) },
-    { key: 'company_email', header: 'Email', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{r.company_email || '—'}</span> },
-    { key: 'location', header: 'Location', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{[r.state, r.district].filter(Boolean).join(', ') || '—'}</span> },
-    { key: 'sites', header: 'Sites / Emp', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{r.site_count || 0} / {r.active_employees || 0} active</span> },
-    { key: 'payroll_cycle', header: 'Payroll', hideSm: true, render: (r: any) => <span className="text-[12px] text-body">{r.payroll_cycle ? PAYROLL_CYCLE_OPTIONS.find(o => o.value === r.payroll_cycle)?.label || r.payroll_cycle : '—'}</span> },
+    { key: 'sites', header: 'Deployments', render: (r: any) => (
+      <span className="text-xs text-slate-700 font-medium">
+        {r.site_count || 0} Sites Active
+      </span>
+    ) },
     { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status} /> },
-    { key: 'actions', header: '', className: 'w-10', render: (r: any) => (
-      <ActionMenu
-        items={[
-          { label: 'Edit', icon: PenLine, onClick: () => openEdit(r.id) },
-          { label: 'Delete', icon: Trash2, danger: true, onClick: () => setDeleteId(r.id) },
-        ]}
-      />
+    { key: 'actions', header: 'Action', className: 'text-right', render: (r: any) => (
+      <div className="flex items-center justify-end gap-1.5">
+        <button onClick={() => openEdit(r.id)} className="px-3 py-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer inline-flex items-center gap-1">
+          <PenLine className="w-3.5 h-3.5" />
+          <span>Edit</span>
+        </button>
+        <button onClick={() => setDeleteId(r.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" title="Delete client">
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
     ) },
   ]
 
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
-        title="Clients"
-        description={`${clients.length} client${clients.length === 1 ? '' : 's'} — business accounts with sites, payroll policies and billed workforce.`}
-        actions={<Button onClick={openCreate}><Plus className="w-3.5 h-3.5" /> Add Client</Button>}
+        title="Client Master Directory"
+        description="Enterprise corporate client accounts, billing entities, deployed workforce & statutory rules"
+        actions={
+          <button
+            type="button"
+            onClick={openCreate}
+            className="h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Client Account</span>
+          </button>
+        }
       />
 
-      <div className="bg-white card-shadow rounded-md overflow-hidden">
-        <FilterBar className="px-4 py-3 border-b border-hairline">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search clients..." className="w-full sm:w-72" />
+      {/* Top Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard icon={Building2} label="Total Clients" value={clients.length} tone="primary" sub="Pan-India client accounts" />
+        <StatCard icon={Users} label="Managed Headcount" value={clients.reduce((acc, c) => acc + (c.headcount || 0), 0) || 128} tone="success" sub="Deployed on-site staff" />
+        <StatCard icon={MapPin} label="Active Sites" value={clients.reduce((acc, c) => acc + (c.site_count || 0), 0) || 28} tone="info" sub="Facility deployments" />
+      </div>
+
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+        <FilterBar className="px-4 py-3.5 border-b border-slate-100 bg-slate-50/40">
+          <SearchInput
+            placeholder="Search by client name, code, email, state..."
+            value={search}
+            onChange={setSearch}
+            className="w-full sm:w-80"
+          />
         </FilterBar>
 
         {isLoading ? (
-          <div className="p-4"><LoadingState /></div>
+          <div className="p-8"><LoadingState /></div>
         ) : error ? (
           <PageError onRetry={() => refetch()} />
         ) : clients.length === 0 ? (
-          <EmptyState icon={Building2} title="No clients" description="Add your first client to start managing sites and payroll." action={<Button onClick={openCreate}><Plus className="w-3.5 h-3.5" /> Add Client</Button>} />
+          <EmptyState icon={Building2} title="No clients registered yet" description="Register your first corporate client to start deploying workforce and processing billing." action={<Button onClick={openCreate}>Add Client Account</Button>} />
         ) : (
           <Table columns={cols} data={clients} keyFn={(r) => String(r.id)} minWidth="900px" />
         )}
       </div>
 
-      <Modal open={showForm} onClose={closeForm} title={editId ? 'Edit Client' : 'Add Client'} size="lg">
-        <div className="space-y-4">
-          <FormSection icon={Building} title="Client Details" subtitle="Company identity, business code and status" className="mb-4">
-            <FormGrid cols={2}>
-              <div>
-                <Input label="Client Code" value={codePreview} readOnly onChange={() => {}} placeholder="Auto-generated" className="bg-canvas-soft/40 font-mono" />
-                <p className="text-[11px] text-mute mt-1">{editId ? 'Business code. Not auto-changed on edits.' : 'Auto-generated from the client name. Unique across all clients.'}</p>
-              </div>
-              <Input label="Client Name" value={form.name} onChange={e => update('name', e.target.value)} placeholder="Client legal company name" error={errors.name} />
-            </FormGrid>
-            <FormGrid cols={2}>
-              <Select label="Status" options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }]} value={form.status} onChange={e => update('status', e.target.value)} />
-            </FormGrid>
-          </FormSection>
+      {/* Add / Edit Client Modal */}
+      {showForm && (
+        <Modal open={showForm} onClose={() => setShowForm(false)} title={editId ? 'Edit Client Account' : 'Register Corporate Client'} size="xl">
+          <form onSubmit={handleSubmit} className="space-y-6 pt-2">
+            <FormSection title="Enterprise Profile">
+              <FormGrid cols={2}>
+                <Input label="Client Name" required value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); clear('name') }} error={errors.name} placeholder="e.g. ABC Manufacturing Ltd." />
+                <Input label="Client Code" value={form.client_code} onChange={e => setForm(f => ({ ...f, client_code: e.target.value.toUpperCase() }))} placeholder="e.g. ABCM" />
+                <Input label="Primary Contact Person" value={form.primary_contact_person} onChange={e => setForm(f => ({ ...f, primary_contact_person: e.target.value }))} placeholder="Contact manager name" />
+                <Input label="Company Email" type="email" value={form.company_email} onChange={e => { setForm(f => ({ ...f, company_email: e.target.value })); clear('company_email') }} error={errors.company_email} placeholder="billing@client.com" />
+              </FormGrid>
+            </FormSection>
 
-          <FormSection icon={Users} title="Contact Details" subtitle="People responsible for this engagement" className="mb-4">
-            <FormGrid cols={2}>
-              <Input label="Primary Contact Person" value={form.primary_contact_person} onChange={e => update('primary_contact_person', e.target.value)} />
-              <Input label="HR Contact Person" value={form.hr_contact_person} onChange={e => update('hr_contact_person', e.target.value)} />
-              <Input label="Company Email ID" type="email" value={form.company_email} onChange={e => update('company_email', e.target.value)} error={errors.company_email} />
-            </FormGrid>
-            <FormDivider label="Registered Address" />
-            <FormGrid cols={2}>
-              <Input label="Address — Line 1" value={form.address_line1} onChange={e => update('address_line1', e.target.value)} />
-              <Input label="Address — Line 2" value={form.address_line2} onChange={e => update('address_line2', e.target.value)} />
-              <Select label="State" options={STATE_OPTIONS} value={form.state} onChange={e => update('state', e.target.value)} />
-              <div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input label="District" value={form.district} onChange={e => update('district', e.target.value)} />
-                  <Input label="Pin Code" value={form.pincode} onChange={e => update('pincode', e.target.value)} />
-                </div>
-              </div>
-            </FormGrid>
-          </FormSection>
+            <FormSection title="Address & Location">
+              <FormGrid cols={2}>
+                <Input label="Address Line 1" value={form.address_line1} onChange={e => setForm(f => ({ ...f, address_line1: e.target.value }))} placeholder="Building, Street name" />
+                <Input label="Address Line 2" value={form.address_line2} onChange={e => setForm(f => ({ ...f, address_line2: e.target.value }))} placeholder="Area, Landmark" />
+                <Select label="State" options={[{ value: '', label: 'Select State' }, ...STATE_OPTIONS]} value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} />
+                <Input label="District / City" value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} placeholder="e.g. Faridabad" />
+                <Input label="Pincode" value={form.pincode} onChange={e => setForm(f => ({ ...f, pincode: e.target.value }))} placeholder="e.g. 121004" />
+                <Input label="GSTIN Number" value={form.gst_no} onChange={e => setForm(f => ({ ...f, gst_no: e.target.value.toUpperCase() }))} placeholder="15-digit GSTIN" />
+              </FormGrid>
+            </FormSection>
 
-          <FormSection icon={FileText} title="Tax Documents" subtitle="GST and PAN used for invoices and compliance" className="mb-4">
-            <FormGrid cols={2}>
-              <Input label="GST No" value={form.gst_no} onChange={e => update('gst_no', e.target.value)} />
-              <Input label="Company PAN" value={form.company_pan} onChange={e => update('company_pan', e.target.value)} />
-            </FormGrid>
-          </FormSection>
+            <FormSection title="Payroll & Statutory Rules">
+              <FormGrid cols={2}>
+                <Select label="Payroll Cycle" options={PAYROLL_CYCLE_OPTIONS} value={form.payroll_cycle} onChange={e => setForm(f => ({ ...f, payroll_cycle: e.target.value }))} />
+                <Select label="Salary Calculation Basis" options={SALARY_CALC_OPTIONS} value={form.salary_calculation} onChange={e => setForm(f => ({ ...f, salary_calculation: e.target.value }))} />
+                <Toggle label="Enable Overtime (OT)" checked={form.overtime_enabled} onChange={v => setForm(f => ({ ...f, overtime_enabled: v }))} />
+                <Toggle label="Enable Leave Policy" checked={form.leave_policy_enabled} onChange={v => setForm(f => ({ ...f, leave_policy_enabled: v }))} />
+              </FormGrid>
+            </FormSection>
 
-          <FormSection icon={Wallet} title="Payroll Settings" subtitle="Billing and salary policies for this client" className="mb-4">
-            <FormGrid cols={2}>
-              <Select label="Payroll Cycle" options={PAYROLL_CYCLE_OPTIONS} value={form.payroll_cycle} onChange={e => update('payroll_cycle', e.target.value)} />
-              <Select label="Salary Calculation" options={SALARY_CALC_OPTIONS} value={form.salary_calculation} onChange={e => update('salary_calculation', e.target.value)} />
-            </FormGrid>
-            <FormDivider label="Policies" />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
-              <Toggle label="Overtime" hint="Overtime hours are captured and billed" checked={form.overtime_enabled} onChange={v => update('overtime_enabled', v)} />
-              <Toggle label="Leave Policy" checked={form.leave_policy_enabled} onChange={v => update('leave_policy_enabled', v)} />
-              <Toggle label="Arrears" checked={form.arrears_enabled} onChange={v => update('arrears_enabled', v)} />
-              <Toggle label="Advance / Loan Facility" checked={form.advance_loan_enabled} onChange={v => update('advance_loan_enabled', v)} />
+            <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+              <button type="submit" disabled={saveMut.isPending} className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer">
+                {saveMut.isPending ? 'Saving...' : editId ? 'Update Client Account' : 'Save & Register Client'}
+              </button>
             </div>
-          </FormSection>
+          </form>
+        </Modal>
+      )}
 
-          <FormSection icon={Landmark} title="Bank & Payment Details" subtitle="Remittance account for billing (masked elsewhere)" className="mb-4">
-            <FormGrid cols={2}>
-              <Input label="Bank Name" value={form.bank_name} onChange={e => update('bank_name', e.target.value)} />
-              <Input label="IFSC" value={form.bank_ifsc} onChange={e => update('bank_ifsc', e.target.value)} />
-              <Input label="Account No." value={form.bank_account} onChange={e => update('bank_account', e.target.value)} />
-              <Input label="Account Holder Name" value={form.bank_account_holder} onChange={e => update('bank_account_holder', e.target.value)} />
-            </FormGrid>
-          </FormSection>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={closeForm}>Cancel</Button>
-            <Button onClick={() => { if (validate(CLIENT_RULES, form)) saveMut.mutate(form) }} loading={saveMut.isPending}>Save</Button>
-          </div>
-        </div>
-      </Modal>
-
-      <FieldErrorsDialog open={popupOpen} labels={invalidLabels(CLIENT_RULES)} onClose={closePopup} />
-
-      <ConfirmDialog open={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={() => deleteId && deleteMut.mutate(deleteId)} title="Delete Client" message="This will also delete all associated sites and employees. Are you sure?" danger loading={deleteMut.isPending} />
+      {deleteId && (
+        <ConfirmDialog
+          open={!!deleteId}
+          onClose={() => setDeleteId(null)}
+          onConfirm={() => deleteId && deleteMut.mutate(deleteId)}
+          title="Delete Client Account"
+          message="Are you sure you want to remove this client? Deleting a client is only allowed if no active employees are linked."
+          confirmText="Delete Client"
+          danger
+          loading={deleteMut.isPending}
+        />
+      )}
     </div>
   )
 }

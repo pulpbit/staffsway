@@ -7,7 +7,7 @@ import { FilterBar, SelectFilter, NativeSelect } from '@/components/ui/actions'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { downloadCsv } from '@/utils/csv'
 import { toast } from 'sonner'
-import { Download, Users, CalendarCheck, CalendarX2, Palmtree, CalendarDays, Moon, Sun, AlarmClock, BadgeCheck, IndianRupee } from 'lucide-react'
+import { Download, Users, CalendarCheck, CalendarX2, Palmtree, CalendarDays, Moon, Sun, AlarmClock, BadgeCheck, IndianRupee, Table as TableIcon } from 'lucide-react'
 import { monthYear, money } from '@/utils/format'
 import type { AttendanceReport } from '@/types/api'
 import { r2 } from './attendanceGrid'
@@ -21,7 +21,7 @@ export default function AttendanceReportPage() {
   const [clientFilter, setClientFilter] = useState('')
   const [siteFilter, setSiteFilter] = useState('')
 
-  const { data, isLoading, isFetching, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['attendance-report', month, year, clientFilter, siteFilter],
     queryFn: () => attendanceApi.report(month, year, { client_id: clientFilter, site_id: siteFilter }),
   })
@@ -57,17 +57,25 @@ export default function AttendanceReportPage() {
   }
 
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
-        title="Attendance Report"
-        description={`${monthYear(month, year)} · ${employees.length} employee${employees.length === 1 ? '' : 's'} · ${rep?.total_days || 0} calendar days`}
+        title="Attendance Analytics & Report"
+        description={`${monthYear(month, year)} &bull; ${employees.length} employee${employees.length === 1 ? '' : 's'} on record &bull; ${rep?.total_days || 0} calendar days`}
         actions={
-          <Button variant="secondary" onClick={exportCsv} disabled={employees.length === 0}><Download className="w-3.5 h-3.5" /> Export CSV</Button>
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={employees.length === 0}
+            className="h-10 px-4 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold flex items-center gap-2 shadow-2xs transition-all cursor-pointer disabled:opacity-40"
+          >
+            <Download className="w-4 h-4 text-blue-600" />
+            <span>Export CSV</span>
+          </button>
         }
       />
 
-      <div className="bg-white card-shadow rounded-md overflow-hidden">
-        <FilterBar className="px-4 py-3 border-b border-hairline">
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
+        <FilterBar className="px-4 py-3.5 border-b border-slate-100 bg-slate-50/40">
           <NativeSelect className="w-40" value={String(month)} onChange={(v) => setMonth(Number(v))} options={Array.from({ length: 12 }, (_, i) => i + 1).map((m) => ({ value: String(m), label: new Date(2000, m - 1).toLocaleDateString('en-US', { month: 'long' }) }))} />
           <NativeSelect className="w-24" value={String(year)} onChange={(v) => setYear(Number(v))} options={[2024, 2025, 2026, 2027].map((y) => ({ value: String(y), label: String(y) }))} />
           <SelectFilter label="Client" value={clientFilter} onChange={(v) => { setClientFilter(v); setSiteFilter('') }} options={[{ value: '', label: 'All Clients' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]} />
@@ -75,121 +83,90 @@ export default function AttendanceReportPage() {
         </FilterBar>
 
         {isLoading ? (
-          <div className="p-4"><LoadingState /></div>
+          <div className="p-8"><LoadingState /></div>
         ) : error ? (
           <PageError onRetry={() => refetch()} />
         ) : employees.length === 0 ? (
           <EmptyState title="No data for this month" description="Enter attendance for the selected month first." />
         ) : (
           <>
-            {/* Headline stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-2 px-4 py-4 border-b border-hairline">
-              <Stat icon={Users} tone="text-navy-mid bg-navy-soft" label="Headcount" value={num(totals?.headcount ?? 0)} />
-              <Stat icon={CalendarCheck} tone="text-success bg-success-soft" label="Present" value={num(totals?.p ?? 0)} />
-              <Stat icon={CalendarX2} tone="text-error bg-error-soft" label="Absent" value={num(totals?.a ?? 0)} />
-              <Stat icon={Palmtree} tone="text-mute bg-neutral-soft" label="Rest" value={num(totals?.rest ?? 0)} />
-              <Stat icon={CalendarDays} tone="text-info-deep bg-info-soft" label="Holidays" value={num(totals?.hd ?? 0)} />
-              <Stat icon={Moon} tone="text-warning-deep bg-warning-soft" label="Half Days" value={num(totals?.hf ?? 0)} />
-              <Stat icon={Sun} tone="text-error-deep bg-error-soft" label="Leave" value={num(totals?.l ?? 0)} />
-              <Stat icon={AlarmClock} tone="text-mute bg-neutral-soft" label="OT Hrs" value={`${r2(totals?.ot_hours ?? 0)}`} />
-              <Stat icon={BadgeCheck} tone="text-navy-mid bg-navy-soft" label="Payable Days" value={num(totals?.payable_days ?? 0)} />
-              <Stat icon={IndianRupee} tone="text-success bg-success-soft" label="Actual Salary" value={`₹${money(totals?.actual_salary ?? 0)}`} />
+            {/* Headline stats row */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3 p-4 border-b border-slate-100 bg-slate-50/30">
+              <Stat icon={Users} tone="text-blue-700 bg-blue-50 border-blue-200/60" label="Headcount" value={num(totals?.headcount ?? 0)} />
+              <Stat icon={CalendarCheck} tone="text-emerald-700 bg-emerald-50 border-emerald-200/60" label="Present" value={num(totals?.p ?? 0)} />
+              <Stat icon={CalendarX2} tone="text-rose-700 bg-rose-50 border-rose-200/60" label="Absent" value={num(totals?.a ?? 0)} />
+              <Stat icon={Palmtree} tone="text-slate-700 bg-slate-100 border-slate-200/60" label="Rest Days" value={num(totals?.rest ?? 0)} />
+              <Stat icon={CalendarDays} tone="text-sky-700 bg-sky-50 border-sky-200/60" label="Holidays" value={num(totals?.hd ?? 0)} />
+              <Stat icon={Moon} tone="text-amber-700 bg-amber-50 border-amber-200/60" label="Half Days" value={num(totals?.hf ?? 0)} />
+              <Stat icon={Sun} tone="text-rose-700 bg-rose-50 border-rose-200/60" label="Leaves" value={num(totals?.l ?? 0)} />
+              <Stat icon={AlarmClock} tone="text-purple-700 bg-purple-50 border-purple-200/60" label="OT Hours" value={`${r2(totals?.ot_hours ?? 0)}`} />
+              <Stat icon={BadgeCheck} tone="text-blue-700 bg-blue-50 border-blue-200/60" label="Payable Days" value={num(totals?.payable_days ?? 0)} />
+              <Stat icon={IndianRupee} tone="text-emerald-700 bg-emerald-50 border-emerald-200/60" label="Actual Salary" value={`₹${money(totals?.actual_salary ?? 0)}`} />
             </div>
 
             {/* Client / Site rollup */}
-            <div className="px-4 py-3 border-b border-hairline">
-              <h3 className="text-[13px] font-semibold text-ink mb-2">Client / Site Summary</h3>
-              <div className="overflow-x-auto scrollbar-thin">
-                <table className="w-full min-w-[760px] text-[12px]">
-                  <thead>
-                    <tr className="border-b border-hairline bg-canvas-soft">
-                      {['Client', 'Site', 'Headcount', 'P', 'A', 'R', 'HD', 'HF', 'L', 'OT Hrs', 'OT Days', 'PD', 'Salary', 'Actual'].map((h) => (
-                        <th key={h} className="px-2 py-2 text-left text-[10px] font-medium font-mono text-mute uppercase tracking-[0.04em] whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groups.map((g) => (
-                      <tr key={`${g.client_id ?? 0}:${g.site_id ?? 0}`} className="border-b border-hairline hover:bg-canvas-soft/70 text-body">
-                        <td className="px-2 py-2 font-medium text-ink">{g.client_name || '—'}</td>
-                        <td className="px-2 py-2">{g.site_name || '—'}</td>
-                        <td className="px-2 py-2 tabular-nums">{g.headcount}</td>
-                        <td className="px-2 py-2 tabular-nums text-success font-medium">{g.p}</td>
-                        <td className="px-2 py-2 tabular-nums text-error font-medium">{g.a}</td>
-                        <td className="px-2 py-2 tabular-nums">{g.rest}</td>
-                        <td className="px-2 py-2 tabular-nums">{g.hd}</td>
-                        <td className="px-2 py-2 tabular-nums">{g.hf}</td>
-                        <td className="px-2 py-2 tabular-nums">{g.l}</td>
-                        <td className="px-2 py-2 tabular-nums">{g.ot_hours}</td>
-                        <td className="px-2 py-2 tabular-nums">{g.ot_days}</td>
-                        <td className="px-2 py-2 tabular-nums font-semibold text-ink">{g.payable_days}</td>
-                        <td className="px-2 py-2 tabular-nums">₹{money(g.monthly_earnings)}</td>
-                        <td className="px-2 py-2 tabular-nums font-semibold text-ink">₹{money(g.actual_salary)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-canvas-soft font-semibold text-ink">
-                      <td className="px-2 py-2 text-[11px] uppercase tracking-wide">Total</td>
-                      <td className="px-2 py-2">—</td>
-                      <td className="px-2 py-2 tabular-nums">{totals?.headcount ?? 0}</td>
-                      <td className="px-2 py-2 tabular-nums text-success">{totals?.p ?? 0}</td>
-                      <td className="px-2 py-2 tabular-nums text-error">{totals?.a ?? 0}</td>
-                      <td className="px-2 py-2 tabular-nums">{totals?.rest ?? 0}</td>
-                      <td className="px-2 py-2 tabular-nums">{totals?.hd ?? 0}</td>
-                      <td className="px-2 py-2 tabular-nums">{totals?.hf ?? 0}</td>
-                      <td className="px-2 py-2 tabular-nums">{totals?.l ?? 0}</td>
-                      <td className="px-2 py-2 tabular-nums">{totals?.ot_hours ?? 0}</td>
-                      <td className="px-2 py-2 tabular-nums">{totals?.ot_days ?? 0}</td>
-                      <td className="px-2 py-2 tabular-nums">{totals?.payable_days ?? 0}</td>
-                      <td className="px-2 py-2 tabular-nums">₹{money(totals?.monthly_earnings ?? 0)}</td>
-                      <td className="px-2 py-2 tabular-nums">₹{money(totals?.actual_salary ?? 0)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+            {groups.length > 0 && (
+              <div className="px-5 py-4 border-b border-slate-100">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Client &bull; Site Breakdown</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {groups.map((g, idx) => (
+                    <div key={idx} className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900 truncate">{g.client_name || 'Direct / Head Office'}</span>
+                        <span className="text-[11px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{g.headcount} emps</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate">{g.site_name || 'Primary Site'}</p>
+                      <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-100">
+                        <span className="text-slate-500">Payable: <strong>{g.payable_days}</strong></span>
+                        <span className="text-emerald-700 font-bold font-mono">₹{money(g.actual_salary)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Employee detail */}
-            <div className="px-4 py-3">
-              <h3 className="text-[13px] font-semibold text-ink mb-2">Employee Detail</h3>
-              <div className="overflow-x-auto scrollbar-thin max-h-[520px]">
-                <table className="w-full min-w-[1000px] text-[12px]">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="border-b border-hairline bg-canvas-soft">
-                      {['Emp ID', 'Employee', 'Client', 'Site', 'P', 'A', 'R', 'HD', 'HF', 'L', 'OT Hrs', 'OT Days', 'Salary', 'PD', 'Actual Salary'].map((h) => (
-                        <th key={h} className="px-2 py-2 text-left text-[10px] font-medium font-mono text-mute uppercase tracking-[0.04em] whitespace-nowrap">{h}</th>
-                      ))}
+            {/* Detailed employee table */}
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[10.5px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/70">
+                    <th className="px-4 py-3">Emp. ID</th>
+                    <th className="px-4 py-3">Employee</th>
+                    <th className="px-4 py-3">Client &bull; Site</th>
+                    <th className="px-4 py-3">Designation</th>
+                    <th className="px-2 py-3 text-center">P</th>
+                    <th className="px-2 py-3 text-center">A</th>
+                    <th className="px-2 py-3 text-center">Rest</th>
+                    <th className="px-2 py-3 text-center">HD</th>
+                    <th className="px-2 py-3 text-center">HF</th>
+                    <th className="px-2 py-3 text-center">L</th>
+                    <th className="px-2 py-3 text-center">OT Hrs</th>
+                    <th className="px-3 py-3 text-right">Payable</th>
+                    <th className="px-4 py-3 text-right">Salary</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {employees.map((e, idx) => (
+                    <tr key={e.employee_id} className={`hover:bg-blue-50/40 transition-colors ${idx % 2 === 1 ? 'bg-slate-50/30' : 'bg-white'}`}>
+                      <td className="px-4 py-2.5 font-mono font-bold text-blue-700">{e.employee_code}</td>
+                      <td className="px-4 py-2.5 font-bold text-slate-900">{e.name}</td>
+                      <td className="px-4 py-2.5 text-slate-500 text-[11px]">{e.client_name || '—'} &bull; {e.site_name || '—'}</td>
+                      <td className="px-4 py-2.5">{e.designation || '—'}</td>
+                      <td className="px-2 py-2.5 text-center font-bold text-emerald-700">{e.p}</td>
+                      <td className="px-2 py-2.5 text-center font-bold text-rose-700">{e.a}</td>
+                      <td className="px-2 py-2.5 text-center text-slate-500">{e.rest}</td>
+                      <td className="px-2 py-2.5 text-center text-sky-700">{e.hd}</td>
+                      <td className="px-2 py-2.5 text-center text-amber-700">{e.hf}</td>
+                      <td className="px-2 py-2.5 text-center text-rose-600">{e.l}</td>
+                      <td className="px-2 py-2.5 text-center font-mono">{r2(e.ot_hours)}</td>
+                      <td className="px-3 py-2.5 text-right font-extrabold text-slate-900">{e.payable_days}</td>
+                      <td className="px-4 py-2.5 text-right font-bold text-emerald-700 font-mono">₹{money(e.actual_salary)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {employees.map((e) => (
-                      <tr key={e.employee_id} className="border-b border-hairline hover:bg-canvas-soft/70 text-body">
-                        <td className="px-2 py-1.5 font-mono text-[11px] text-mute">{e.employee_code}</td>
-                        <td className="px-2 py-1.5">
-                          <span className="block font-medium text-ink">{e.name}</span>
-                          <span className="block text-[11px] text-mute">{e.designation || '—'}</span>
-                        </td>
-                        <td className="px-2 py-1.5">{e.client_name || '—'}</td>
-                        <td className="px-2 py-1.5">{e.site_name || '—'}</td>
-                        <td className="px-2 py-1.5 tabular-nums text-success font-medium">{e.p}</td>
-                        <td className="px-2 py-1.5 tabular-nums text-error font-medium">{e.a}</td>
-                        <td className="px-2 py-1.5 tabular-nums">{e.rest}</td>
-                        <td className="px-2 py-1.5 tabular-nums">{e.hd}</td>
-                        <td className="px-2 py-1.5 tabular-nums">{e.hf}</td>
-                        <td className="px-2 py-1.5 tabular-nums">{e.l}</td>
-                        <td className="px-2 py-1.5 tabular-nums">{e.ot_hours}</td>
-                        <td className="px-2 py-1.5 tabular-nums">{e.ot_days}</td>
-                        <td className="px-2 py-1.5 tabular-nums">₹{money(e.monthly_earnings)}</td>
-                        <td className="px-2 py-1.5 tabular-nums font-semibold text-ink">{e.payable_days}</td>
-                        <td className="px-2 py-1.5 tabular-nums font-semibold text-ink">₹{money(e.actual_salary)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {isFetching && <div className="px-4 pb-3 text-[11px] text-mute">Refreshing…</div>}
           </>
         )}
       </div>
@@ -199,12 +176,10 @@ export default function AttendanceReportPage() {
 
 function Stat({ icon: Icon, tone, label, value }: { icon: any; tone: string; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-md bg-canvas-soft/60 px-2.5 py-2 min-w-0">
-      <span className={`w-7 h-7 rounded-sm flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-3.5 h-3.5" /></span>
-      <span className="min-w-0">
-        <span className="block text-[9.5px] text-mute uppercase tracking-wide font-medium truncate">{label}</span>
-        <span className="block text-[14px] font-semibold text-ink tabular-nums leading-tight truncate">{value}</span>
-      </span>
+    <div className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center ${tone}`}>
+      <Icon className="w-4 h-4 mb-1" />
+      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+      <span className="text-sm font-black mt-0.5">{value}</span>
     </div>
   )
 }

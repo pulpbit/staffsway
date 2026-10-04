@@ -98,18 +98,18 @@ export default function EmployeeTransferModal({ open, onClose, employee }: Props
     <Modal open={open} onClose={onClose} size="lg" title={`Transfer — ${employee?.first_name || ''} ${employee?.last_name || ''}`}>
       <div className="space-y-4">
         {/* Current assignment */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-canvas-soft rounded-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-slate-50 rounded-lg">
           <div>
-            <div className="text-[11px] font-mono text-mute uppercase">Current site</div>
-            <div className="text-[13px] text-ink mt-0.5">{employee?.site_name || '—'}</div>
+            <div className="text-[11px] font-mono text-slate-500 uppercase">Current site</div>
+            <div className="text-[13px] text-slate-900 mt-0.5">{employee?.site_name || '—'}</div>
           </div>
           <div>
-            <div className="text-[11px] font-mono text-mute uppercase">Client</div>
-            <div className="text-[13px] text-ink mt-0.5">{employee?.client_name || '—'}</div>
+            <div className="text-[11px] font-mono text-slate-500 uppercase">Client</div>
+            <div className="text-[13px] text-slate-900 mt-0.5">{employee?.client_name || '—'}</div>
           </div>
           <div>
-            <div className="text-[11px] font-mono text-mute uppercase">Designation</div>
-            <div className="text-[13px] text-ink mt-0.5">{employee?.designation || '—'}</div>
+            <div className="text-[11px] font-mono text-slate-500 uppercase">Designation</div>
+            <div className="text-[13px] text-slate-900 mt-0.5">{employee?.designation || '—'}</div>
           </div>
         </div>
 
@@ -129,7 +129,7 @@ export default function EmployeeTransferModal({ open, onClose, employee }: Props
               ]}
             />
             {targetSite && (
-              <p className="mt-1 text-[12px] text-mute inline-flex items-center gap-1">
+              <p className="mt-1 text-[12px] text-slate-500 inline-flex items-center gap-1">
                 {employee?.site_name || 'Unassigned'} <ArrowRight className="w-3 h-3" /> {targetSite.name}
               </p>
             )}
@@ -169,10 +169,10 @@ export default function EmployeeTransferModal({ open, onClose, employee }: Props
         </div>
 
         {/* History */}
-        <div className="pt-1 border-t border-hairline">
+        <div className="pt-1 border-t border-slate-200">
           <button
             onClick={() => setShowHistory((v) => !v)}
-            className="inline-flex items-center gap-1.5 mt-3 text-[12px] font-medium text-link hover:underline cursor-pointer"
+            className="inline-flex items-center gap-1.5 mt-3 text-[12px] font-medium text-blue-600 hover:underline cursor-pointer"
           >
             <History className="w-3.5 h-3.5" /> {showHistory ? 'Hide' : 'View'} transfer history
           </button>
@@ -182,21 +182,21 @@ export default function EmployeeTransferModal({ open, onClose, employee }: Props
               {historyLoading ? (
                 <LoadingState message="Loading history..." />
               ) : history.length === 0 ? (
-                <p className="text-[12px] text-mute">No previous transfers recorded.</p>
+                <p className="text-[12px] text-slate-500">No previous transfers recorded.</p>
               ) : (
                 <ul className="space-y-1.5">
                   {history.map((t) => (
-                    <li key={t.id} className="p-2.5 border border-hairline rounded-sm">
+                    <li key={t.id} className="p-2.5 border border-slate-200 rounded-lg">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[13px] text-ink inline-flex items-center gap-1.5 min-w-0">
+                        <span className="text-[13px] text-slate-900 inline-flex items-center gap-1.5 min-w-0">
                           <span className="truncate">{t.from_site_name || 'Unassigned'}</span>
-                          <ArrowRight className="w-3 h-3 text-mute shrink-0" />
+                          <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />
                           <span className="truncate font-medium">{t.to_site_name || 'Unassigned'}</span>
                         </span>
-                        <span className="text-[12px] text-mute whitespace-nowrap">{dateShort(t.effective_date)}</span>
+                        <span className="text-[12px] text-slate-500 whitespace-nowrap">{dateShort(t.effective_date)}</span>
                       </div>
                       {(t.from_designation !== t.to_designation || t.reason) && (
-                        <p className="mt-1 text-[12px] text-mute">
+                        <p className="mt-1 text-[12px] text-slate-500">
                           {t.from_designation !== t.to_designation && <>{t.from_designation || '—'} → {t.to_designation || '—'}</>}
                           {t.from_designation !== t.to_designation && t.reason ? ' · ' : ''}
                           {t.reason}

@@ -88,9 +88,9 @@ export default function SalaryRevisionModal({ open, onClose, employeeId, employe
     <Modal open={open} onClose={onClose} title={`Salary Revision — ${employeeName || ''}`} size="md">
       {!salary ? <LoadingState /> : (
         <div className="space-y-3">
-          <div className="flex items-center gap-4 text-[12px] text-body bg-canvas-soft rounded-sm p-2">
+          <div className="flex items-center gap-4 text-[12px] text-slate-600 bg-slate-50 rounded-lg p-2">
             <span>Current: Basic <b>{money(salary.basic)}</b> | Gross <b>{money(oldGross)}</b></span>
-            <span className="ml-auto">New Gross: <b className={newGross >= oldGross ? 'text-success' : 'text-error'}>{money(newGross)}</b></span>
+            <span className="ml-auto">New Gross: <b className={newGross >= oldGross ? 'text-emerald-600' : 'text-rose-600'}>{money(newGross)}</b></span>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Select
@@ -114,19 +114,19 @@ export default function SalaryRevisionModal({ open, onClose, employeeId, employe
             <Input label="New Designation (for promotion)" value={form.designation} onChange={e => setForm(f => ({ ...f, designation: e.target.value }))} placeholder={salary ? undefined : ''} />
           </div>
           <Input label="Remarks" value={form.remarks} onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} />
-          <p className="text-[11px] text-mute">A new salary structure is created from the effective date. Past payslips and payroll runs stay unchanged.</p>
-          <p className="text-[11px] text-mute">Hourly rate = (Basic + HRA + Conveyance + Other Allowance) ÷ days in month ÷ Working Hours/day. OT is paid at that hourly rate; the OT rate field is only a fallback.</p>
+          <p className="text-[11px] text-slate-500">A new salary structure is created from the effective date. Past payslips and payroll runs stay unchanged.</p>
+          <p className="text-[11px] text-slate-500">Hourly rate = (Basic + HRA + Conveyance + Other Allowance) ÷ days in month ÷ Working Hours/day. OT is paid at that hourly rate; the OT rate field is only a fallback.</p>
 
           {(revData?.data || []).length > 0 && (
             <div>
-              <p className="text-[12px] font-medium text-ink mb-1 mt-2">Revision History</p>
-              <div className="max-h-32 overflow-y-auto border border-hairline rounded-sm divide-y divide-hairline">
+              <p className="text-[12px] font-medium text-slate-900 mb-1 mt-2">Revision History</p>
+              <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-lg divide-y divide-slate-100">
                 {(revData?.data || []).map((rv: any) => (
                   <div key={rv.id} className="flex items-center gap-2 px-2 py-1.5 text-[11px]">
-                    <span className="font-mono text-mute">{rv.effective_from}</span>
-                    <span className="capitalize text-body">{rv.reason}</span>
-                    <span className="ml-auto text-body">{money(rv.old_basic)} → <b>{money(rv.new_basic)}</b></span>
-                    <span className="text-mute w-24 text-right truncate">{rv.remarks || ''}</span>
+                    <span className="font-mono text-slate-500">{rv.effective_from}</span>
+                    <span className="capitalize text-slate-600">{rv.reason}</span>
+                    <span className="ml-auto text-slate-600">{money(rv.old_basic)} → <b>{money(rv.new_basic)}</b></span>
+                    <span className="text-slate-500 w-24 text-right truncate">{rv.remarks || ''}</span>
                   </div>
                 ))}
               </div>

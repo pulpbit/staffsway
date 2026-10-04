@@ -8,7 +8,7 @@ import { SearchInput, NativeSelect } from '@/components/ui/actions'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { SalarySlipModal } from './SalarySlipView'
 import { money, monthYear } from '@/utils/format'
-import { FileText } from 'lucide-react'
+import { FileText, Eye, Printer, Download } from 'lucide-react'
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 const monthShort = (m: number) => new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: 'short' })
@@ -31,51 +31,54 @@ export default function SalarySlipsPage() {
   const slips = (data?.data || []) as any[]
 
   const cols: any[] = [
-    { key: 'slip_number', header: 'Slip No.', className: 'font-mono text-[12px] text-body' },
+    { key: 'slip_number', header: 'Slip Voucher', className: 'font-mono text-xs font-bold text-blue-700' },
     { key: 'employee', header: 'Employee', render: (r: any) => (
       <div className="min-w-0">
-        <p className="text-[13px] font-medium text-ink truncate">{r.first_name} {r.last_name}</p>
-        <p className="text-[11px] text-mute font-mono">{r.employee_code} — {r.designation}</p>
+        <p className="text-xs sm:text-[13px] font-bold text-slate-900 truncate">{r.first_name} {r.last_name}</p>
+        <p className="text-[11px] text-slate-500 font-mono">{r.employee_code} &bull; {r.designation}</p>
       </div>
     ) },
-    { key: 'period', header: 'Period', render: (r: any) => <span className="text-[12px] text-body">{monthYear(r.month, r.year)}</span> },
-    { key: 'gross', header: 'Gross', render: (r: any) => <span className="text-[12px] text-body tabular-nums">{money(r.gross)}</span> },
-    { key: 'deductions', header: 'Deductions', render: (r: any) => <span className="text-[12px] text-body tabular-nums">{money(r.total_deductions)}</span> },
-    { key: 'net', header: 'Net Pay', render: (r: any) => <span className="text-[13px] font-semibold text-ink tabular-nums">{money(r.net_salary)}</span> },
-    { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.payroll_status} tone={slipTone(r.payroll_status)} /> },
-    { key: 'actions', header: '', className: 'text-right', render: (r: any) => (
+    { key: 'period', header: 'Payroll Period', render: (r: any) => <span className="text-xs text-slate-700 font-semibold">{monthYear(r.month, r.year)}</span> },
+    { key: 'gross', header: 'Gross Earnings', render: (r: any) => <span className="text-xs font-bold text-slate-800 tabular-nums font-mono">₹{money(r.gross)}</span> },
+    { key: 'deductions', header: 'Total Deductions', render: (r: any) => <span className="text-xs font-bold text-rose-600 tabular-nums font-mono">₹{money(r.total_deductions)}</span> },
+    { key: 'net', header: 'Net Payout', render: (r: any) => <span className="text-xs font-black text-emerald-700 tabular-nums font-mono">₹{money(r.net_salary)}</span> },
+    { key: 'status', header: 'Disbursement', render: (r: any) => <StatusBadge status={r.payroll_status} tone={slipTone(r.payroll_status)} /> },
+    { key: 'actions', header: 'Action', className: 'text-right', render: (r: any) => (
       <div className="flex justify-end">
-        <button onClick={() => { setDetailId(r.id); setShowDetail(true) }} className="px-2 py-1 text-[11px] font-medium text-link hover:bg-link-soft rounded-xs cursor-pointer inline-flex items-center gap-1"><FileText className="w-3 h-3" />View</button>
+        <button onClick={() => { setDetailId(r.id); setShowDetail(true) }} className="px-3 py-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-2xs">
+          <Printer className="w-3.5 h-3.5" />
+          <span>Print Slip</span>
+        </button>
       </div>
     ) },
   ]
 
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
-        title="Salary Slips"
-        description="View and print employee salary slips per payroll run"
-        actions={<span className="text-[13px] text-mute tabular-nums">{slips.length} slip{slips.length === 1 ? '' : 's'}</span>}
+        title="Salary Slips & Vouchers"
+        description="Official salary vouchers, printable payslip certificates, and bank disbursement receipts"
+        actions={<span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">{slips.length} slip{slips.length === 1 ? '' : 's'} on record</span>}
       />
 
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
+      <div className="flex flex-col sm:flex-row gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
         <SearchInput
           className="sm:flex-1"
-          placeholder="Search by name, code or slip number..."
+          placeholder="Search by name, employee ID, slip number..."
           value={search}
           onChange={setSearch}
         />
-        <NativeSelect className="w-32 sm:w-28" value={month} onChange={(v) => setMonth(v)} options={[{ value: '', label: 'All Months' }, ...MONTHS.map(m => ({ value: String(m), label: monthShort(m) }))]} />
-        <NativeSelect className="w-28" value={year} onChange={(v) => setYear(v)} options={[{ value: '', label: 'All Years' }, ...YEARS.map(y => ({ value: String(y), label: String(y) }))]} />
+        <NativeSelect className="w-full sm:w-36" value={month} onChange={(v) => setMonth(v)} options={[{ value: '', label: 'All Months' }, ...MONTHS.map(m => ({ value: String(m), label: monthShort(m) }))]} />
+        <NativeSelect className="w-full sm:w-32" value={year} onChange={(v) => setYear(v)} options={[{ value: '', label: 'All Years' }, ...YEARS.map(y => ({ value: String(y), label: String(y) }))]} />
       </div>
 
-      <div className="bg-white card-shadow rounded-md overflow-hidden">
+      <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
         {isLoading ? (
-          <div className="p-4"><LoadingState /></div>
+          <div className="p-8"><LoadingState /></div>
         ) : error ? (
           <PageError onRetry={() => refetch()} />
         ) : slips.length === 0 ? (
-          <EmptyState icon={FileText} title="No salary slips" description="Slips are generated when a payroll is finalized. They become available for viewing and printing." />
+          <EmptyState icon={FileText} title="No salary slips generated yet" description="Slips are automatically prepared once a payroll run is finalized." />
         ) : (
           <Table columns={cols} data={slips} keyFn={(r) => String(r.id)} minWidth="980px" />
         )}

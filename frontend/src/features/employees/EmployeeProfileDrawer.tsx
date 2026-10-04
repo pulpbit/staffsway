@@ -117,42 +117,54 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
         <div className="p-6"><LoadingState /></div>
       ) : (
         <div className="flex flex-col">
-          <div className="p-4 border-b border-hairline bg-canvas-soft/40">
-            <div className="flex items-start gap-3">
-              <Avatar name={nameStr} size="lg" />
+          <div className="relative overflow-hidden p-5 border-b border-slate-200 bg-gradient-to-br from-slate-900 to-slate-800">
+            <div className="absolute -top-10 -right-8 w-32 h-32 rounded-full bg-blue-500/10" aria-hidden="true" />
+            <div className="relative flex items-start gap-3.5">
+              <Avatar name={nameStr} size="lg" tone="blue" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-[15px] font-semibold text-ink tracking-[-0.02em]">{nameStr}</h3>
+                  <h3 className="text-[15px] font-extrabold text-white tracking-tight">{nameStr}</h3>
                   <StatusBadge status={emp.status} />
                 </div>
-                <p className="text-[11px] font-mono text-mute mt-0.5">{emp.employee_code}</p>
-                <div className="mt-2 space-y-1">
+                <p className="text-[11px] font-mono text-slate-400 mt-0.5">{emp.employee_code}</p>
+                <div className="mt-2.5 space-y-1">
                   {emp.mobile && (
-                    <p className="flex items-center gap-1.5 text-[12px] text-body"><Phone className="w-3.5 h-3.5 text-mute" /> {emp.mobile}</p>
+                    <p className="flex items-center gap-1.5 text-[12px] text-slate-300"><Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {emp.mobile}</p>
                   )}
                   {emp.email && (
-                    <p className="flex items-center gap-1.5 text-[12px] text-body truncate"><Mail className="w-3.5 h-3.5 text-mute shrink-0" /> {emp.email}</p>
+                    <p className="flex items-center gap-1.5 text-[12px] text-slate-300 truncate"><Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" /> {emp.email}</p>
                   )}
                   {(emp.address || emp.state || emp.pincode) && (
-                    <p className="flex items-start gap-1.5 text-[12px] text-body"><MapPin className="w-3.5 h-3.5 text-mute shrink-0 mt-0.5" /> <span className="min-w-0 truncate">{emp.address}{emp.state ? `, ${stateShort(emp.state)}` : ''}{emp.pincode ? ` ${emp.pincode}` : ''}</span></p>
+                    <p className="flex items-start gap-1.5 text-[12px] text-slate-300"><MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" /> <span className="min-w-0 truncate">{emp.address}{emp.state ? `, ${stateShort(emp.state)}` : ''}{emp.pincode ? ` ${emp.pincode}` : ''}</span></p>
                   )}
                 </div>
               </div>
             </div>
-            <Button size="sm" className="mt-3" onClick={() => onEdit(emp.id)}><Pencil className="w-3.5 h-3.5" /> Edit Profile</Button>
+            <div className="relative mt-3.5 flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => onEdit(emp.id)}><Pencil className="w-3.5 h-3.5" /> Edit Profile</Button>
+              <Button size="sm" variant="secondary" onClick={() => employeeId && onViewAttendance?.(employeeId)} disabled={!employeeId}>
+                <CalendarCheck className="w-3.5 h-3.5" /> Attendance
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => employeeId && onGeneratePayslip?.(employeeId)} disabled={!employeeId}>
+                <FileText className="w-3.5 h-3.5" /> Payslip
+              </Button>
+            </div>
           </div>
 
-          <div className="px-4 pt-3 pb-1 flex items-center gap-1 border-b border-hairline">
+          <div className="px-4 pt-3 pb-1 flex items-center gap-1 border-b border-slate-200 bg-slate-50/40">
             {(['info', 'employment', 'documents', 'history'] as Tab[]).map((t) => {
               const pendingCount = pendingFor(t).length
+              const active = tab === t
               return (
                 <button
                   key={t}
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => setTab(t)}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 text-[12px] font-medium rounded-sm transition-colors ${tab === t ? 'bg-canvas-soft text-ink' : 'text-mute hover:text-body'}`}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-[12px] font-bold transition-all -mb-px border-b-2 cursor-pointer ${active ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
                 >
                   {t === 'info' ? 'Personnel Info' : t === 'employment' ? 'Employment' : t === 'documents' ? 'Documents' : 'History'}
-                  {pendingCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-error" />}
+                  {pendingCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />}
                 </button>
               )
             })}
@@ -234,31 +246,31 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
             {tab === 'documents' && (
               <section className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="mono-label">Documents on record</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Documents on record</p>
                 </div>
                 {documents.length === 0 ? (
-                  <p className="text-[13px] text-mute py-3 text-center">No documents on record yet.</p>
+                  <p className="text-[13px] text-slate-500 py-3 text-center">No documents on record yet.</p>
                 ) : (
-                  <div className="divide-y divide-hairline border border-hairline rounded-sm">
+                  <div className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
                     {documents.map((d) => (
                       <div key={d.id} className="flex items-center justify-between gap-2 px-3 py-2">
                         <div className="min-w-0">
-                          <p className="text-[13px] font-medium text-ink truncate">{d.document_type}{d.document_name ? <span className="text-mute font-normal"> · {d.document_name}</span> : null}</p>
-                          <p className="text-[11px] font-mono text-mute truncate">{d.document_number || '—'}</p>
+                          <p className="text-[13px] font-medium text-slate-900 truncate">{d.document_type}{d.document_name ? <span className="text-slate-500 font-normal"> · {d.document_name}</span> : null}</p>
+                          <p className="text-[11px] font-mono text-slate-500 truncate">{d.document_number || '—'}</p>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={() => docVerifyMut.mutate({ docId: d.id, verified: !d.verified })}
                             disabled={docVerifyMut.isPending}
                             title={d.verified ? 'Verified — click to unmark' : 'Mark verified'}
-                            className={`p-1.5 rounded-sm transition-colors ${d.verified ? 'text-success bg-success-soft' : 'text-mute hover:text-ink hover:bg-canvas-soft'}`}
+                            className={`p-1.5 rounded-lg transition-colors ${d.verified ? 'text-emerald-600 bg-emerald-50' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'}`}
                           >
                             <Check className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => docDeleteMut.mutate(d.id)}
                             disabled={docDeleteMut.isPending}
-                            className="p-1.5 rounded-sm text-mute hover:text-error hover:bg-error-soft transition-colors"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                             aria-label="Remove document"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -268,14 +280,14 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
                     ))}
                   </div>
                 )}
-                <div className="border-t border-hairline pt-3 space-y-2">
-                  <p className="mono-label">Add Document Record</p>
+                <div className="border-t border-slate-200 pt-3 space-y-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Add Document Record</p>
                   <div className="space-y-2">
-                    <select value={docForm.document_type} onChange={e => setDocForm(f => ({ ...f, document_type: e.target.value }))} className="w-full h-9 px-2 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid">
+                    <select value={docForm.document_type} onChange={e => setDocForm(f => ({ ...f, document_type: e.target.value }))} className="w-full h-9 px-2 text-[13px] bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500">
                       {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
-                    <input placeholder="Document name" className="w-full h-9 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid placeholder:text-mute" value={docForm.document_name} onChange={e => setDocForm(f => ({ ...f, document_name: e.target.value }))} />
-                    <input placeholder="Document number" className="w-full h-9 px-2.5 text-[13px] bg-white border border-hairline rounded-sm outline-none focus:border-navy-mid placeholder:text-mute" value={docForm.document_number} onChange={e => setDocForm(f => ({ ...f, document_number: e.target.value }))} />
+                    <input placeholder="Document name" className="w-full h-9 px-2.5 text-[13px] bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500 placeholder:text-slate-500" value={docForm.document_name} onChange={e => setDocForm(f => ({ ...f, document_name: e.target.value }))} />
+                    <input placeholder="Document number" className="w-full h-9 px-2.5 text-[13px] bg-white border border-slate-200 rounded-lg outline-none focus:border-blue-500 placeholder:text-slate-500" value={docForm.document_number} onChange={e => setDocForm(f => ({ ...f, document_number: e.target.value }))} />
                   </div>
                   <Button size="sm" loading={docAddMut.isPending} onClick={() => docAddMut.mutate()}><Plus className="w-3 h-3" /> Add</Button>
                 </div>
@@ -296,25 +308,25 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
                   {emp.deactivated_at && <TimelineItem title="Deactivated" date={dateShort(emp.deactivated_at)} tone="danger" />}
                   {emp.reactivated_at && <TimelineItem title="Reactivated" date={dateShort(emp.reactivated_at)} tone="success" />}
                   {!emp.joining_date && !emp.exit_date && !emp.deactivated_at && !emp.reactivated_at && (
-                    <p className="text-[13px] text-mute py-2 text-center">No timeline events recorded yet.</p>
+                    <p className="text-[13px] text-slate-500 py-2 text-center">No timeline events recorded yet.</p>
                   )}
                 </FieldGroup>
                 <FieldGroup title="Salary Revisions">
                   {revisions.length === 0 && emp.status === 'active' ? (
-                    <p className="text-[13px] text-mute py-2">No revisions yet.</p>
+                    <p className="text-[13px] text-slate-500 py-2">No revisions yet.</p>
                   ) : null}
                   {revisions.map((r) => (
-                    <div key={r.id} className="py-2.5 border-b border-hairline last:border-0">
+                    <div key={r.id} className="py-2.5 border-b border-slate-200 last:border-0">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <p className="text-[13px] font-medium text-ink capitalize">{String(r.reason || 'Revision').replace(/_/g, ' ')}</p>
-                        <p className="text-[11px] font-mono text-mute">{dateShort(r.effective_from)}</p>
+                        <p className="text-[13px] font-medium text-slate-900 capitalize">{String(r.reason || 'Revision').replace(/_/g, ' ')}</p>
+                        <p className="text-[11px] font-mono text-slate-500">{dateShort(r.effective_from)}</p>
                       </div>
-                      <p className="text-[12px] text-body mt-1 font-mono tabular-nums">
+                      <p className="text-[12px] text-slate-600 mt-1 font-mono tabular-nums">
                         Basic {money(Number(r.old_basic || 0))} → {money(Number(r.new_basic || 0))}
-                        <span className="text-mute"> · Gross {money(Number(r.old_gross || 0))} → {money(Number(r.new_gross || 0))}</span>
+                        <span className="text-slate-500"> · Gross {money(Number(r.old_gross || 0))} → {money(Number(r.new_gross || 0))}</span>
                       </p>
-                      {r.designation && <p className="text-[12px] text-mute mt-0.5">Designation: {r.designation}</p>}
-                      {r.remarks && <p className="text-[12px] text-mute mt-0.5">{r.remarks}</p>}
+                      {r.designation && <p className="text-[12px] text-slate-500 mt-0.5">Designation: {r.designation}</p>}
+                      {r.remarks && <p className="text-[12px] text-slate-500 mt-0.5">{r.remarks}</p>}
                     </div>
                   ))}
                 </FieldGroup>
@@ -323,8 +335,8 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
           </div>
 
           <div className="px-4 pb-4">
-            <div className="bg-canvas-soft/60 rounded-md p-3">
-              <p className="mono-label mb-2">Quick Actions</p>
+            <div className="bg-slate-50/60 rounded-xl p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Quick Actions</p>
               <div className="grid grid-cols-2 gap-2">
                 {quickActions.map((a) => (
                   <button
@@ -332,9 +344,9 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
                     // The drawer deliberately stays open: in-tab actions switch
                     // a pane in place, and modal-backed actions layer on top.
                     onClick={a.action}
-                    className="flex items-center gap-2 px-2.5 py-2 text-[12px] font-medium text-body bg-white border border-hairline rounded-sm hover:bg-canvas-soft hover:text-ink transition-colors text-left cursor-pointer"
+                    className="flex items-center gap-2 px-2.5 py-2 text-[12px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors text-left cursor-pointer"
                   >
-                    <a.icon className="w-3.5 h-3.5 text-mute shrink-0" />
+                    <a.icon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     {a.label}
                   </button>
                 ))}
@@ -343,7 +355,7 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
             <div className="mt-2 flex items-center gap-2">
               <button
                 onClick={() => onDelete?.(emp.id)}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-[12px] font-medium text-error bg-error-soft/40 border border-error/20 rounded-sm hover:bg-error-soft transition-colors cursor-pointer"
+                className="flex-1 inline-flex items-center justify-center gap-1.5 px-2.5 py-2 text-[12px] font-medium text-rose-600 bg-rose-50/40 border border-rose-200/60 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5 shrink-0" />
                 Delete record
@@ -353,12 +365,12 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
             {/* Status control. Deactivation is reversible and keeps the
                 employee on record; a permanent exit is routed through the
                 Exit process and records a real exit date. */}
-            <div className="mt-3 pt-3 border-t border-hairline">
-              <p className="mono-label mb-2">Employment Status</p>
+            <div className="mt-3 pt-3 border-t border-slate-200">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">Employment Status</p>
               {exited ? (
-                <div className="p-2.5 bg-canvas-soft rounded-sm">
-                  <p className="text-[12px] text-body leading-relaxed">
-                    Exited on <span className="font-medium text-ink">{dateShort(emp.exit_date)}</span>
+                <div className="p-2.5 bg-slate-50 rounded-lg">
+                  <p className="text-[12px] text-slate-600 leading-relaxed">
+                    Exited on <span className="font-medium text-slate-900">{dateShort(emp.exit_date)}</span>
                     {emp.exit_reason ? <> &middot; {formatStatus(emp.exit_reason)}</> : null}.
                   </p>
                   <Button size="sm" variant="secondary" className="mt-2" onClick={() => onExit?.(emp.id)}>
@@ -370,10 +382,10 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
                   <button
                     onClick={() => emp.status !== 'active' && onToggleStatus?.(emp.id, 'active')}
                     disabled={emp.status === 'active'}
-                    className={`inline-flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium rounded-sm border transition-colors ${
+                    className={`inline-flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium rounded-lg border transition-colors ${
                       emp.status === 'active'
-                        ? 'bg-success-soft text-success border-success/30'
-                        : 'bg-white text-body border-hairline hover:bg-canvas-soft hover:text-ink cursor-pointer'
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200/60'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900 cursor-pointer'
                     }`}
                   >
                     <CircleCheck className="w-3.5 h-3.5" />
@@ -382,10 +394,10 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
                   <button
                     onClick={() => emp.status !== 'inactive' && onToggleStatus?.(emp.id, 'inactive')}
                     disabled={emp.status === 'inactive'}
-                    className={`inline-flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium rounded-sm border transition-colors ${
+                    className={`inline-flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium rounded-lg border transition-colors ${
                       emp.status === 'inactive'
-                        ? 'bg-warning-soft text-warning-deep border-warning/30'
-                        : 'bg-white text-body border-hairline hover:bg-canvas-soft hover:text-ink cursor-pointer'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200/60'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900 cursor-pointer'
                     }`}
                   >
                     <CirclePause className="w-3.5 h-3.5" />
@@ -393,7 +405,7 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
                   </button>
                   <button
                     onClick={() => onExit?.(emp.id)}
-                    className="inline-flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium text-error bg-white border border-hairline rounded-sm hover:bg-error-soft transition-colors cursor-pointer"
+                    className="inline-flex flex-col items-center gap-1 px-2 py-2 text-[11px] font-medium text-rose-600 bg-white border border-slate-200 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     Exit
@@ -401,7 +413,7 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
                 </div>
               )}
               {emp.status === 'inactive' && emp.deactivated_at && (
-                <p className="mt-1.5 text-[11px] text-mute">Deactivated on {dateShort(emp.deactivated_at)}</p>
+                <p className="mt-1.5 text-[11px] text-slate-500">Deactivated on {dateShort(emp.deactivated_at)}</p>
               )}
             </div>
           </div>
@@ -414,7 +426,7 @@ export default function EmployeeProfileDrawer({ open, employeeId, name, code, on
 function FieldGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="mono-label mb-2">{title}</p>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">{title}</p>
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">{children}</dl>
     </div>
   )
@@ -423,10 +435,10 @@ function FieldGroup({ title, children }: { title: string; children: React.ReactN
 function Info({ label, value, pending = false, onEdit }: { label: string; value: string; pending?: boolean; onEdit?: () => void }) {
   return (
     <div className="min-w-0">
-      <dt className="mono-label mb-0.5">{label}</dt>
-      <dd className="text-[13px] font-medium text-ink break-words">
+      <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">{label}</dt>
+      <dd className="text-[13px] font-medium text-slate-900 break-words">
         {pending ? (
-          <button onClick={onEdit} className="inline-flex items-center gap-1 text-error font-medium hover:underline cursor-pointer text-[12px]">
+          <button onClick={onEdit} className="inline-flex items-center gap-1 text-rose-600 font-medium hover:underline cursor-pointer text-[12px]">
             <CircleAlert className="w-3.5 h-3.5" /> Pending — fill in
           </button>
         ) : (
@@ -440,14 +452,14 @@ function Info({ label, value, pending = false, onEdit }: { label: string; value:
 function TimelineItem({ title, date, meta, tone, pending = false, onEdit }: { title: string; date: string; meta?: string; tone?: 'success' | 'danger'; pending?: boolean; onEdit?: () => void }) {
   return (
     <div className="flex items-start gap-2.5 py-1.5">
-      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${tone === 'danger' ? 'bg-error' : tone === 'success' ? 'bg-success' : 'bg-navy-mid'}`} />
+      <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${tone === 'danger' ? 'bg-rose-600' : tone === 'success' ? 'bg-emerald-600' : 'bg-blue-700'}`} />
       <div className="min-w-0">
-        <p className="text-[13px] font-medium text-ink">
+        <p className="text-[13px] font-medium text-slate-900">
           {title}
-          {pending ? <span className="text-error text-[12px] ml-1 font-normal">(pending)</span> : null}
+          {pending ? <span className="text-rose-600 text-[12px] ml-1 font-normal">(pending)</span> : null}
         </p>
-        {meta && <p className="text-[12px] text-mute">{meta}</p>}
-        <p className="text-[12px] font-mono text-body">{date}</p>
+        {meta && <p className="text-[12px] text-slate-500">{meta}</p>}
+        <p className="text-[12px] font-mono text-slate-600">{date}</p>
       </div>
     </div>
   )

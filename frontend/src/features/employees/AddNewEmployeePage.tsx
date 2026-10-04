@@ -7,14 +7,14 @@ export default function AddNewEmployeePage() {
   const navigate = useNavigate()
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4">
+    <div className="min-h-full flex flex-col gap-4">
       <div className="shrink-0">
         <PageHeader
           title="Add New Employee"
           description="Register a new employee. The form opens with Aadhaar verification and unlocks once a new 12-digit Aadhaar is confirmed."
         />
       </div>
-      <Card className="flex-1 min-h-0 overflow-hidden flex flex-col">
+      <Card className="flex-1 min-h-[560px] overflow-hidden flex flex-col">
         <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin p-5">
           <EmployeeForm
             employeeId={null}

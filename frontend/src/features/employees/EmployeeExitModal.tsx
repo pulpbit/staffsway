@@ -149,24 +149,24 @@ export default function EmployeeExitModal({ open, onClose, employee }: Props) {
       ) : step === 'confirm' && create.data ? (
         /* ---- Step 2: confirm the permanent exit ---- */
         <div className="space-y-4">
-          <div className="flex gap-3 p-3 bg-warning-soft border border-warning/30 rounded-sm">
-            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-            <div className="text-[13px] text-body leading-relaxed">
-              <p className="font-medium text-ink mb-1">This permanently marks the employee as exited.</p>
+          <div className="flex gap-3 p-3 bg-amber-50 border border-amber-500/30 rounded-lg">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-[13px] text-slate-600 leading-relaxed">
+              <p className="font-medium text-slate-900 mb-1">This permanently marks the employee as exited.</p>
               <p>
-                Their exit date is set to <span className="font-medium text-ink">{dateShort(form.last_working_date)}</span> and they
+                Their exit date is set to <span className="font-medium text-slate-900">{dateShort(form.last_working_date)}</span> and they
                 will no longer appear in attendance, payroll or rosters. This can be reversed later from Exit Management.
               </p>
             </div>
           </div>
 
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 p-3 bg-canvas-soft rounded-sm">
-            <div><dt className="text-[11px] font-mono text-mute uppercase">Type</dt><dd className="text-[13px] text-ink mt-0.5">{typeLabel(form.separation_type)}</dd></div>
-            <div><dt className="text-[11px] font-mono text-mute uppercase">Resignation date</dt><dd className="text-[13px] text-ink mt-0.5">{dateShort(form.resignation_date)}</dd></div>
-            <div><dt className="text-[11px] font-mono text-mute uppercase">Last working day</dt><dd className="text-[13px] text-ink mt-0.5">{dateShort(form.last_working_date)}</dd></div>
-            <div><dt className="text-[11px] font-mono text-mute uppercase">Notice</dt><dd className="text-[13px] text-ink mt-0.5">{form.notice_served_days} of {form.notice_period_days} days</dd></div>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 p-3 bg-slate-50 rounded-lg">
+            <div><dt className="text-[11px] font-mono text-slate-500 uppercase">Type</dt><dd className="text-[13px] text-slate-900 mt-0.5">{typeLabel(form.separation_type)}</dd></div>
+            <div><dt className="text-[11px] font-mono text-slate-500 uppercase">Resignation date</dt><dd className="text-[13px] text-slate-900 mt-0.5">{dateShort(form.resignation_date)}</dd></div>
+            <div><dt className="text-[11px] font-mono text-slate-500 uppercase">Last working day</dt><dd className="text-[13px] text-slate-900 mt-0.5">{dateShort(form.last_working_date)}</dd></div>
+            <div><dt className="text-[11px] font-mono text-slate-500 uppercase">Notice</dt><dd className="text-[13px] text-slate-900 mt-0.5">{form.notice_served_days} of {form.notice_period_days} days</dd></div>
             {form.notice_buyout > 0 && (
-              <div><dt className="text-[11px] font-mono text-mute uppercase">Notice buyout</dt><dd className="text-[13px] text-ink mt-0.5">{form.notice_buyout} days</dd></div>
+              <div><dt className="text-[11px] font-mono text-slate-500 uppercase">Notice buyout</dt><dd className="text-[13px] text-slate-900 mt-0.5">{form.notice_buyout} days</dd></div>
             )}
           </dl>
 
@@ -183,16 +183,16 @@ export default function EmployeeExitModal({ open, onClose, employee }: Props) {
       ) : exited && pending ? (
         /* ---- Already exited: offer a reversal ---- */
         <div className="space-y-4">
-          <div className="p-3 bg-canvas-soft rounded-sm space-y-1.5">
-            <div className="flex items-center gap-2 text-[13px] text-ink font-medium">
-              <LogOut className="w-4 h-4 text-mute" /> Exited on {dateShort(employee?.exit_date || '')}
+          <div className="p-3 bg-slate-50 rounded-lg space-y-1.5">
+            <div className="flex items-center gap-2 text-[13px] text-slate-900 font-medium">
+              <LogOut className="w-4 h-4 text-slate-500" /> Exited on {dateShort(employee?.exit_date || '')}
             </div>
-            <p className="text-[12px] text-mute">
+            <p className="text-[12px] text-slate-500">
               Reason: {typeLabel(pending.separation_type || employee?.exit_reason || 'other')}
               {pending.reason ? ` — ${pending.reason}` : ''}
             </p>
           </div>
-          <p className="text-[13px] text-body leading-relaxed">
+          <p className="text-[13px] text-slate-600 leading-relaxed">
             This employee has already exited. Reverse the exit to bring them back — they will become
             inactive and can then be reactivated, edited or transferred normally.
           </p>
@@ -206,10 +206,10 @@ export default function EmployeeExitModal({ open, onClose, employee }: Props) {
       ) : pending ? (
         /* ---- A request is already in flight ---- */
         <div className="space-y-4">
-          <div className="p-3 bg-warning-soft border border-warning/30 rounded-sm">
-            <p className="text-[13px] text-body">
+          <div className="p-3 bg-amber-50 border border-amber-500/30 rounded-lg">
+            <p className="text-[13px] text-slate-600">
               An exit request is already{' '}
-              <span className="font-medium text-ink">{pending.status === 'pending' ? 'pending approval' : 'approved'}</span> for this
+              <span className="font-medium text-slate-900">{pending.status === 'pending' ? 'pending approval' : 'approved'}</span> for this
               employee (last working day {dateShort(pending.last_working_date || '')}). Open Exit Management to review it.
             </p>
           </div>
@@ -217,7 +217,7 @@ export default function EmployeeExitModal({ open, onClose, employee }: Props) {
             <Button variant="secondary" onClick={onClose}>Close</Button>
             <a
               href="/separation"
-              className="inline-flex items-center gap-1.5 px-3 h-8 text-[13px] font-medium text-link hover:bg-link-soft rounded-sm"
+              className="inline-flex items-center gap-1.5 px-3 h-8 text-[13px] font-medium text-blue-600 hover:bg-blue-50 rounded-lg"
             >
               <ExternalLink className="w-3.5 h-3.5" /> Open Exit Management
             </a>
@@ -226,11 +226,11 @@ export default function EmployeeExitModal({ open, onClose, employee }: Props) {
       ) : (
         /* ---- Step 1: collect the exit details ---- */
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2 p-2.5 bg-canvas-soft rounded-sm">
-            <span className="text-[12px] text-mute">
+          <div className="flex items-center justify-between gap-2 p-2.5 bg-slate-50 rounded-lg">
+            <span className="text-[12px] text-slate-500">
               {employee?.employee_code} · {employee?.designation || '—'}
             </span>
-            <span className="text-[12px] text-mute">Joined {dateShort(String(employee?.joining_date || '').slice(0, 10))}</span>
+            <span className="text-[12px] text-slate-500">Joined {dateShort(String(employee?.joining_date || '').slice(0, 10))}</span>
           </div>
 
           <div>
@@ -242,21 +242,21 @@ export default function EmployeeExitModal({ open, onClose, employee }: Props) {
               onChange={set('separation_type')}
               options={TYPES.map((t) => ({ value: t.value, label: t.label }))}
             />
-            <p className="mt-1 text-[11px] text-mute">Recorded as the exit reason on the employee record.</p>
+            <p className="mt-1 text-[11px] text-slate-500">Recorded as the exit reason on the employee record.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label htmlFor="ex-resig" required>Resignation date</Label>
-              <Input id="ex-resig" type="date" value={form.resignation_date} onChange={set('resignation_date')} className={errors.resignation_date ? 'border-error' : ''} />
-              {errors.resignation_date && <p className="mt-1 text-[11px] text-error">{errors.resignation_date}</p>}
+              <Input id="ex-resig" type="date" value={form.resignation_date} onChange={set('resignation_date')} className={errors.resignation_date ? 'border-rose-500' : ''} />
+              {errors.resignation_date && <p className="mt-1 text-[11px] text-rose-600">{errors.resignation_date}</p>}
             </div>
             <div>
               <Label htmlFor="ex-lwd" required>Last working day</Label>
-              <Input id="ex-lwd" type="date" value={form.last_working_date} onChange={set('last_working_date')} className={errors.last_working_date ? 'border-error' : ''} />
+              <Input id="ex-lwd" type="date" value={form.last_working_date} onChange={set('last_working_date')} className={errors.last_working_date ? 'border-rose-500' : ''} />
               {errors.last_working_date
-                ? <p className="mt-1 text-[11px] text-error">{errors.last_working_date}</p>
-                : <p className="mt-1 text-[11px] text-mute">Becomes the employee&apos;s exit date.</p>}
+                ? <p className="mt-1 text-[11px] text-rose-600">{errors.last_working_date}</p>
+                : <p className="mt-1 text-[11px] text-slate-500">Becomes the employee&apos;s exit date.</p>}
             </div>
           </div>
 
@@ -267,8 +267,8 @@ export default function EmployeeExitModal({ open, onClose, employee }: Props) {
             </div>
             <div>
               <Label htmlFor="ex-ns">Notice served (days)</Label>
-              <Input id="ex-ns" type="number" min={0} value={form.notice_served_days} onChange={set('notice_served_days')} className={errors.notice_served_days ? 'border-error' : ''} />
-              {errors.notice_served_days && <p className="mt-1 text-[11px] text-error">{errors.notice_served_days}</p>}
+              <Input id="ex-ns" type="number" min={0} value={form.notice_served_days} onChange={set('notice_served_days')} className={errors.notice_served_days ? 'border-rose-500' : ''} />
+              {errors.notice_served_days && <p className="mt-1 text-[11px] text-rose-600">{errors.notice_served_days}</p>}
             </div>
             <div>
               <Label htmlFor="ex-nb">Notice buyout (days)</Label>
@@ -282,11 +282,11 @@ export default function EmployeeExitModal({ open, onClose, employee }: Props) {
           </div>
 
           {history.length > 0 && (
-            <div className="pt-2 border-t border-hairline">
-              <div className="text-[11px] font-mono text-mute uppercase mb-1.5">Previous exit records</div>
+            <div className="pt-2 border-t border-slate-200">
+              <div className="text-[11px] font-mono text-slate-500 uppercase mb-1.5">Previous exit records</div>
               <ul className="space-y-1">
                 {history.map((h) => (
-                  <li key={h.id} className="text-[12px] text-mute">
+                  <li key={h.id} className="text-[12px] text-slate-500">
                     {typeLabel(h.separation_type)} · last working day {dateShort(h.last_working_date || '')} · {h.status}
                   </li>
                 ))}

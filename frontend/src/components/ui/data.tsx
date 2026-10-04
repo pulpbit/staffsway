@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { TableSkeleton } from './skeleton'
 import { type Tone } from './status'
@@ -6,7 +6,7 @@ import { type Tone } from './status'
 // ---------- Badge ----------
 export function Badge({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <span className={`inline-flex items-center px-2 h-5 rounded-full text-[11px] font-medium whitespace-nowrap ${className}`}>{children}</span>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-2xs ${className}`}>{children}</span>
   )
 }
 
@@ -19,28 +19,30 @@ interface StatCardProps {
   tone?: Tone
 }
 
-const statIconTone: Record<Tone, string> = {
-  success: 'bg-success-soft text-success-deep',
-  warning: 'bg-warning-soft text-warning-deep',
-  danger: 'bg-error-soft text-error-deep',
-  info: 'bg-info-soft text-info-deep',
-  neutral: 'bg-neutral-soft text-neutral-deep',
-  primary: 'bg-navy-soft text-navy-mid',
+const statCardGradients: Record<Tone, string> = {
+  primary: 'from-blue-600 to-indigo-700 text-white',
+  success: 'from-emerald-600 to-teal-700 text-white',
+  warning: 'from-amber-500 to-orange-600 text-white',
+  danger: 'from-rose-600 to-red-700 text-white',
+  info: 'from-sky-500 to-blue-600 text-white',
+  neutral: 'from-slate-700 to-slate-800 text-white',
 }
 
 export function StatCard({ icon: Icon, label, value, sub, tone = 'primary' }: StatCardProps) {
   return (
-    <div className="bg-white card-shadow rounded-md p-4 flex gap-3">
-      {Icon && (
-        <span className={`inline-flex w-9 h-9 shrink-0 items-center justify-center rounded-sm ${statIconTone[tone]}`}>
-          <Icon className="w-4.5 h-4.5" />
-        </span>
-      )}
-      <div className="min-w-0 flex flex-col">
-        <span className="mono-label">{label}</span>
-        <span className="text-[22px] leading-7 font-semibold text-ink tracking-[-0.03em] tabular-nums mt-0.5 truncate">{value}</span>
-        {sub && <span className="text-[11px] text-mute truncate mt-0.5">{sub}</span>}
+    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${statCardGradients[tone]} p-5 shadow-sm transition-transform hover:-translate-y-0.5`}>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-white/80">{label}</span>
+        {Icon && (
+          <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-xs text-white">
+            <Icon className="w-4.5 h-4.5" />
+          </div>
+        )}
       </div>
+      <div className="mt-2.5">
+        <span className="text-2xl sm:text-3xl font-extrabold tracking-tight tabular-nums truncate block text-white">{value}</span>
+      </div>
+      {sub && <div className="mt-2 text-[11px] font-medium text-white/80 border-t border-white/15 pt-1.5 truncate">{sub}</div>}
     </div>
   )
 }
@@ -53,19 +55,25 @@ export interface Column<T> {
   sortable?: boolean
   className?: string
   hideSm?: boolean
-  /** 'left' pins the column to the leading edge, 'right' to the trailing edge. */
   sticky?: 'left' | 'right'
 }
 
-// 'left' mirrors the row background; 'right' adds a hairline so the pinned
-// edge reads as a boundary while the body scrolls underneath it.
-const stickyClass = (side: 'left' | 'right', stripe: boolean) =>
+/** Sticky cells must be fully opaque, otherwise scrolled content bleeds through. */
+const stickyClass = (side: 'left' | 'right', bg: string) =>
   side === 'left'
-    ? `sticky left-0 z-10 ${stripe ? 'bg-canvas-soft' : 'bg-white'}`
-    : `sticky right-0 z-10 ${stripe ? 'bg-canvas-soft' : 'bg-white'} shadow-[-1px_0_0_0_rgba(1,27,63,0.08)]`
+    ? `sticky z-10 ${bg}`
+    : `sticky z-10 ${bg} shadow-[-1px_0_0_0_rgba(15,23,42,0.08)]`
 
 const stickyHeadClass = (side: 'left' | 'right') =>
-  side === 'left' ? 'sticky left-0 z-20 bg-canvas-soft' : 'sticky right-0 z-20 bg-canvas-soft shadow-[-1px_0_0_0_rgba(1,27,63,0.08)]'
+  side === 'left'
+    ? 'sticky z-30 bg-slate-100'
+    : 'sticky z-30 bg-slate-100 shadow-[-1px_0_0_0_rgba(15,23,42,0.08)]'
+
+function shallowEqualOffsets(a: Record<string, number>, b: Record<string, number>) {
+  const ka = Object.keys(a)
+  if (ka.length !== Object.keys(b).length) return false
+  return ka.every(k => a[k] === b[k])
+}
 
 // ---------- Table ----------
 interface TableProps<T> {
@@ -83,17 +91,64 @@ interface TableProps<T> {
   expandedKey?: string | number | null
   renderExpanded?: (row: T) => ReactNode
   bare?: boolean
+  maxHeight?: string
 }
 
-export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, emptyMessage = 'No data found.', emptyState, loading, rowClick, minWidth = '640px', expandedKey, renderExpanded, bare = false }: TableProps<T>) {
+export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, emptyMessage = 'No data found.', emptyState, loading, rowClick, minWidth = '640px', expandedKey, renderExpanded, bare = false, maxHeight = 'max-h-[calc(100vh-16rem)] min-h-[420px]' }: TableProps<T>) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const barRef = useRef<HTMLDivElement>(null)
   const [barLeft, setBarLeft] = useState(0)
   const [barRight, setBarRight] = useState(0)
   const [scrollWidth, setScrollWidth] = useState(0)
   const [canHoriz, setCanHoriz] = useState(false)
+  const headRefs = useRef<Record<string, HTMLTableCellElement>>({})
+  const [leftOffsets, setLeftOffsets] = useState<Record<string, number>>({})
+  const [rightOffsets, setRightOffsets] = useState<Record<string, number>>({})
 
-  // Measure horizontal overflow and keep the floating bar aligned with the table edges.
+  // Sticky columns must be offset cumulatively, otherwise they stack on top of
+  // each other. Widths are measured because content decides them, not a class.
+  useEffect(() => {
+    const leftCols = columns.filter(c => c.sticky === 'left')
+    const rightCols = columns.filter(c => c.sticky === 'right')
+    if (leftCols.length === 0 && rightCols.length === 0) return
+
+    const measure = () => {
+      const nextLeft: Record<string, number> = {}
+      let acc = 0
+      for (const c of leftCols) {
+        const el = headRefs.current[c.key]
+        if (!el) continue
+        nextLeft[c.key] = acc
+        acc += el.offsetWidth
+      }
+      const nextRight: Record<string, number> = {}
+      let racc = 0
+      for (const c of [...rightCols].reverse()) {
+        const el = headRefs.current[c.key]
+        if (!el) continue
+        nextRight[c.key] = racc
+        racc += el.offsetWidth
+      }
+      setLeftOffsets(prev => (shallowEqualOffsets(prev, nextLeft) ? prev : nextLeft))
+      setRightOffsets(prev => (shallowEqualOffsets(prev, nextRight) ? prev : nextRight))
+    }
+
+    measure()
+    const ro = new ResizeObserver(measure)
+    for (const c of leftCols) { const el = headRefs.current[c.key]; if (el) ro.observe(el) }
+    for (const c of rightCols) { const el = headRefs.current[c.key]; if (el) ro.observe(el) }
+    window.addEventListener('resize', measure)
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure) }
+  }, [columns])
+
+  const stickyStyle = (col: { key: string; sticky?: 'left' | 'right' }): CSSProperties | undefined => {
+    if (!col.sticky) return undefined
+    const offsets = col.sticky === 'left' ? leftOffsets : rightOffsets
+    const v = offsets[col.key]
+    if (v === undefined) return col.sticky === 'left' ? { left: 0 } : { right: 0 }
+    return col.sticky === 'left' ? { left: v } : { right: v }
+  }
+
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
@@ -128,51 +183,62 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
 
   return (
     <Fragment>
-      <div ref={scrollRef} onScroll={syncFromMain} className={bare ? '' : 'overflow-x-auto scrollbar-none-x -mx-4 sm:mx-0'}>
-        <table className="w-full" style={{ minWidth }}>
-          <thead>
-            <tr className="border-b border-hairline bg-canvas-soft/60">
+      <div ref={scrollRef} onScroll={syncFromMain} className={bare ? `overflow-auto scrollbar-thin ${maxHeight}` : `overflow-auto scrollbar-thin ${maxHeight} -mx-4 sm:mx-0 rounded-2xl border border-slate-200/80 bg-white shadow-xs`}>
+        <table className="w-full text-left" style={{ minWidth }}>
+          <thead className="sticky top-0 z-20">
+            <tr className="border-b border-slate-200/80 bg-slate-100">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`px-3 py-2.5 text-left text-[11px] font-medium font-mono text-mute uppercase tracking-[0.04em] select-none whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-ink' : ''} ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyHeadClass(col.sticky) : ''} ${col.className || ''}`}
+                  ref={col.sticky === 'left' ? (el) => { if (el) headRefs.current[col.key] = el } : undefined}
+                  style={stickyStyle(col)}
+                  className={`px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-slate-900' : ''} ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyHeadClass(col.sticky) : ''} ${col.className || ''}`}
                   onClick={() => col.sortable && onSort?.(col.key)}
                 >
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1.5">
                     {col.header}
-                    {col.sortable && sortKey === col.key && (sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
-                    {col.sortable && sortKey !== col.key && <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                    {col.sortable && sortKey === col.key && (sortDir === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />)}
+                    {col.sortable && sortKey !== col.key && <ArrowUpDown className="w-3.5 h-3.5 opacity-30" />}
                   </span>
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100 text-xs sm:text-[13px]">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-10 text-center text-[13px] text-mute">
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-slate-400 font-medium">
                   {emptyState ?? emptyMessage}
                 </td>
               </tr>
             ) : (
-              data.map((row, idx) => (
-                <Fragment key={keyFn(row)}>
-                  <tr onClick={() => rowClick?.(row)} className={`border-b border-hairline transition-colors ${rowClick ? 'cursor-pointer' : ''} ${idx % 2 === 1 ? 'bg-canvas-soft/40' : 'bg-white'} ${expandedKey === keyFn(row) ? 'bg-canvas-soft/60' : ''} hover:bg-canvas-soft/70`}>
-                    {columns.map((col) => (
-                      <td key={col.key} className={`px-3 py-2.5 text-[13px] align-middle ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyClass(col.sticky, idx % 2 === 1) : ''} ${col.className || ''}`}>
-                        {col.render ? col.render(row, idx) : String((row as Record<string, unknown>)[col.key] ?? '')}
-                      </td>
-                    ))}
-                  </tr>
-                  {expandedKey === keyFn(row) && renderExpanded && (
-                    <tr className="border-b border-hairline">
-                      <td colSpan={columns.length} className="px-4 py-4 bg-canvas-soft/40">
-                        {renderExpanded(row)}
-                      </td>
+              data.map((row, idx) => {
+                const isExpanded = expandedKey === keyFn(row)
+                // Sticky cells need opaque equivalents of the row's own background.
+                const rowBg = isExpanded ? 'bg-blue-50' : idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'
+                return (
+                  <Fragment key={keyFn(row)}>
+                    <tr onClick={() => rowClick?.(row)} className={`transition-colors ${rowClick ? 'cursor-pointer' : ''} ${isExpanded ? 'bg-blue-50' : idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'} hover:bg-blue-50`}>
+                      {columns.map((col) => (
+                        <td
+                          key={col.key}
+                          style={stickyStyle(col)}
+                          className={`px-4 py-3 align-middle ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyClass(col.sticky, rowBg) : ''} ${col.className || ''}`}
+                        >
+                          {col.render ? col.render(row, idx) : String((row as Record<string, unknown>)[col.key] ?? '')}
+                        </td>
+                      ))}
                     </tr>
-                  )}
-                </Fragment>
-              ))
+                    {isExpanded && renderExpanded && (
+                      <tr className="border-b border-slate-200/80">
+                        <td colSpan={columns.length} className="px-5 py-4 bg-slate-50">
+                          {renderExpanded(row)}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                )
+              })
             )}
           </tbody>
         </table>
@@ -182,7 +248,7 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
           ref={barRef}
           onScroll={syncFromBar}
           style={{ left: barLeft, right: barRight }}
-          className="fixed z-30 bottom-2 overflow-x-auto scrollbar-thin h-3 bg-white/95 backdrop-blur-md rounded-md border border-hairline card-shadow-lg"
+          className="fixed z-30 bottom-2 overflow-x-auto scrollbar-thin h-3 bg-white/95 backdrop-blur-md rounded-md border border-slate-200/80 shadow-lg"
           aria-hidden="true"
         >
           <div style={{ width: scrollWidth }} className="h-0.5" />
@@ -206,10 +272,10 @@ export function Pagination({ page, totalPages, total, pageSize, onPage }: Pagina
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1
   const end = Math.min(page * pageSize, total)
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 pt-3 text-[12px]">
-      <span className="text-mute tabular-nums">{start}–{end} of {total}</span>
-      <div className="flex items-center gap-1">
-        <button onClick={() => onPage(page - 1)} disabled={page <= 1} className="inline-flex items-center gap-1 px-2 h-7 rounded-sm text-body hover:text-ink hover:bg-canvas-soft disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-4 text-xs">
+      <span className="text-slate-500 font-medium tabular-nums">Showing <strong className="text-slate-800">{start}–{end}</strong> of <strong className="text-slate-800">{total}</strong> records</span>
+      <div className="flex items-center gap-1.5">
+        <button onClick={() => onPage(page - 1)} disabled={page <= 1} className="inline-flex items-center gap-1 px-3 h-8 rounded-xl bg-white border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs">
           <ChevronLeft className="w-3.5 h-3.5" /> Prev
         </button>
         {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
@@ -221,13 +287,13 @@ export function Pagination({ page, totalPages, total, pageSize, onPage }: Pagina
               key={p}
               onClick={() => onPage(p)}
               aria-current={p === page ? 'page' : undefined}
-              className={`w-7 h-7 text-[12px] font-medium rounded-sm transition-colors ${p === page ? 'bg-ink text-white' : 'text-body hover:bg-canvas-soft'}`}
+              className={`w-8 h-8 text-xs font-bold rounded-xl transition-all ${p === page ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200/80 text-slate-700 hover:bg-slate-50'}`}
             >
               {p}
             </button>
           )
         })}
-        <button onClick={() => onPage(page + 1)} disabled={page >= totalPages} className="inline-flex items-center gap-1 px-2 h-7 rounded-sm text-body hover:text-ink hover:bg-canvas-soft disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+        <button onClick={() => onPage(page + 1)} disabled={page >= totalPages} className="inline-flex items-center gap-1 px-3 h-8 rounded-xl bg-white border border-slate-200/80 text-slate-700 font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-2xs">
           Next <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -245,18 +311,18 @@ interface Tab {
 export function Tabs({ tabs, active, onChange, variant = 'pill', scrollable = false }: { tabs: Tab[]; active: string; onChange: (key: string) => void; variant?: 'pill' | 'underline'; scrollable?: boolean }) {
   if (variant === 'underline') {
     return (
-      <div role="tablist" className={`flex ${scrollable ? 'overflow-x-auto scrollbar-thin' : 'flex-wrap'} gap-1 border-b border-hairline`}>
+      <div role="tablist" className={`flex ${scrollable ? 'overflow-x-auto scrollbar-thin' : 'flex-wrap'} gap-2 border-b border-slate-200`}>
         {tabs.map((t) => (
           <button
             key={t.key}
             role="tab"
             aria-selected={active === t.key}
             onClick={() => onChange(t.key)}
-            className={`px-3 pb-2 pt-1.5 text-[13px] font-medium whitespace-nowrap transition-colors -mb-px border-b-2 ${active === t.key ? 'border-navy-mid text-ink' : 'border-transparent text-mute hover:text-body'}`}
+            className={`px-4 pb-2.5 pt-2 text-xs sm:text-[13px] font-bold whitespace-nowrap transition-all -mb-px border-b-2 cursor-pointer ${active === t.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
           >
             {t.label}
             {t.count !== undefined && (
-              <span className={`ml-1.5 inline-flex items-center px-1.5 h-4 rounded-full text-[10px] font-semibold align-middle ${active === t.key ? 'bg-navy-soft text-navy-mid' : 'bg-canvas-soft-2 text-mute'}`}>{t.count}</span>
+              <span className={`ml-2 inline-flex items-center px-2 h-4.5 rounded-full text-[10.5px] font-bold align-middle ${active === t.key ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'}`}>{t.count}</span>
             )}
           </button>
         ))}
@@ -264,17 +330,17 @@ export function Tabs({ tabs, active, onChange, variant = 'pill', scrollable = fa
     )
   }
   return (
-    <div role="tablist" className="inline-flex flex-wrap gap-0.5 bg-canvas-soft-2 rounded-sm p-0.5 w-full sm:w-auto">
+    <div role="tablist" className="inline-flex flex-wrap gap-1 bg-slate-100/90 rounded-xl p-1 w-full sm:w-auto border border-slate-200/70">
       {tabs.map((t) => (
         <button
           key={t.key}
           role="tab"
           aria-selected={active === t.key}
           onClick={() => onChange(t.key)}
-          className={`px-3 h-7 text-[12px] font-medium rounded-xs transition-colors ${active === t.key ? 'bg-white text-ink card-shadow' : 'text-mute hover:text-body'}`}
+          className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${active === t.key ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
         >
           {t.label}
-          {t.count !== undefined && <span className="ml-1 text-[10px] opacity-60">{t.count}</span>}
+          {t.count !== undefined && <span className="ml-1.5 text-[10.5px] font-semibold opacity-70">({t.count})</span>}
         </button>
       ))}
     </div>

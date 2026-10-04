@@ -48,8 +48,8 @@ export function AadhaarBoxes({
   }
 
   const border = invalid
-    ? 'border-error focus:border-error'
-    : 'border-hairline focus:border-navy-mid'
+    ? 'border-rose-300 bg-rose-50/40 focus:border-rose-500 focus:ring-rose-500/10'
+    : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/10'
 
   return (
     <div className="flex items-center gap-1.5">
@@ -68,7 +68,7 @@ export function AadhaarBoxes({
           placeholder="____"
           aria-label={`Aadhaar digits ${i + 1} of 3`}
           aria-invalid={invalid || undefined}
-          className={`w-[74px] h-10 px-2 text-center text-[15px] tracking-[0.25em] font-mono bg-white border ${border} rounded-sm outline-none transition-colors placeholder:text-mute`}
+          className={`w-[74px] h-10 px-2 text-center text-[15px] tracking-[0.25em] font-mono bg-white border ${border} rounded-xl outline-none transition-all duration-150 focus:ring-4 placeholder:text-slate-300`}
         />
       ))}
     </div>

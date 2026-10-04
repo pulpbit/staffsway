@@ -7,7 +7,7 @@ import { FilterBar, SearchInput, SelectFilter, NativeSelect } from '@/components
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { downloadCsv } from '@/utils/csv'
 import { toast } from 'sonner'
-import { Save, Lock, Download, CalendarCheck, CalendarX2, CalendarDays, Palmtree, Sun, Moon, BadgeCheck, IndianRupee } from 'lucide-react'
+import { Save, Lock, Download, CalendarCheck, CalendarX2, CalendarDays, Palmtree, Sun, Moon, BadgeCheck, IndianRupee, Clock } from 'lucide-react'
 import { monthYear, money } from '@/utils/format'
 import type { AttendanceSheetRow, AttendanceMark } from '@/types/api'
 import { MARK_ORDER, MARK_LABEL, MARK_CHIP, WEEKDAY_DOW, defaultMark, isPreJoining, effectiveMark, buildGridMarks, summarizeGrid, isOutsideEmployment, computeSummary, r2 } from './attendanceGrid'
@@ -246,13 +246,16 @@ export default function AttendancePage() {
 
   const dirtyCount = changes.size
 
+  const presentRate = totalDays > 0 ? Math.round((totals.p / (rows.length * totalDays)) * 100) : 0
+  const unpaidAbsences = totals.a + totals.l
+
   // Sticky left offsets accumulate.
   let leftAcc = 0
   const leftOffsets = LEFT_COLS.map((c) => { const o = leftAcc; leftAcc += c.w; return o })
   const rightAcc = RIGHT_COLS.reduce((s, c) => s + c.w, 0)
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col min-h-full gap-4">
       <PageHeader
         title="Monthly Attendance"
         description={`${monthYear(month, year)} · ${rows.length} active employee${rows.length === 1 ? '' : 's'} · ${totalDays} calendar days${monthLocked ? ' · month locked' : ''}`}
@@ -269,8 +272,47 @@ export default function AttendancePage() {
         }
       />
 
-      <div className="flex-1 min-h-0 bg-white card-shadow rounded-md overflow-hidden flex flex-col">
-        <FilterBar className="px-4 py-3 border-b border-hairline shrink-0">
+      {/* KPI summary row */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-4 shrink-0">
+        <KpiTile
+          gradient="from-emerald-600 to-teal-700"
+          icon={CalendarCheck}
+          label="Present Rate"
+          value={`${presentRate}%`}
+          foot={`${totals.p} present marks`}
+        />
+        <KpiTile
+          gradient="from-amber-500 to-orange-600"
+          icon={BadgeCheck}
+          label="Payable Days"
+          value={String(totals.pd)}
+          foot="P + R + HD + HF/2 + OT"
+        />
+        <KpiTile
+          gradient="from-rose-600 to-red-700"
+          icon={CalendarX2}
+          label="Unpaid Absences"
+          value={String(unpaidAbsences)}
+          foot={`${totals.a} absent · ${totals.l} leave`}
+        />
+        <KpiTile
+          gradient="from-violet-600 to-purple-700"
+          icon={Moon}
+          label="Overtime"
+          value={`${r2(totals.ot)}h`}
+          foot={`across ${totals.otd} OT days`}
+        />
+        <KpiTile
+          gradient="from-blue-600 to-indigo-700"
+          icon={IndianRupee}
+          label="Actual Salary"
+          value={`₹${money(totals.amt)}`}
+          foot="payable-days basis"
+        />
+      </div>
+
+      <div className="flex-1 min-h-[520px] bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
+        <FilterBar className="px-5 py-3.5 border-b border-slate-100 bg-slate-50/40 shrink-0">
           <NativeSelect className="w-40" value={String(month)} onChange={(v) => { setMonth(Number(v)); setChanges(new Map()) }} options={Array.from({ length: 12 }, (_, i) => i + 1).map((m) => ({ value: String(m), label: new Date(2000, m - 1).toLocaleDateString('en-US', { month: 'long' }) }))} />
           <NativeSelect className="w-24" value={String(year)} onChange={(v) => { setYear(Number(v)); setChanges(new Map()) }} options={[2024, 2025, 2026, 2027].map((y) => ({ value: String(y), label: String(y) }))} />
           <SelectFilter label="Client" value={clientFilter} onChange={(v) => { setClientFilter(v); setSiteFilter(''); setChanges(new Map()) }} options={[{ value: '', label: 'All Clients' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]} />
@@ -285,6 +327,12 @@ export default function AttendancePage() {
               options={WEEKDAYS.map((d) => ({ value: d, label: d }))}
             />
           )}
+          {dirtyCount > 0 && (
+            <span className="ml-auto inline-flex items-center gap-1.5 px-3 h-9 rounded-xl bg-amber-50 border border-amber-200/60 text-amber-800 text-[12px] font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              {dirtyCount} unsaved
+            </span>
+          )}
         </FilterBar>
 
         {(isLoading || marksMut.isPending) ? (
@@ -294,23 +342,23 @@ export default function AttendancePage() {
         ) : rows.length === 0 ? (
           <EmptyState title="No employees on the sheet" description="Add employees first, then enter their attendance here." />
         ) : (
-          <div className="flex-1 min-h-[280px] overflow-auto scrollbar-thin">
-            <table className="border-collapse text-[12px]" style={{ width: leftAcc + days.length * DAY_W + rightAcc, minWidth: leftAcc + days.length * DAY_W + rightAcc }}>
-              <thead>
+          <div className="flex-1 min-h-[420px] max-h-[calc(100vh-16rem)] overflow-auto scrollbar-thin">
+            <table className="border-separate border-spacing-0 text-[12px]" style={{ width: leftAcc + days.length * DAY_W + rightAcc, minWidth: leftAcc + days.length * DAY_W + rightAcc }}>
+              <thead className="sticky top-0 z-20">
                 <tr>
                   {LEFT_COLS.map((c, i) => (
-                    <th key={c.label} title={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, maxWidth: c.w, zIndex: 30 }} className="sticky top-0 px-2 py-1.5 text-left text-[10px] font-medium font-mono text-mute uppercase tracking-[0.04em] bg-canvas-soft border-b border-hairline overflow-hidden">
+                    <th key={c.label} title={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, maxWidth: c.w, zIndex: 30 }} className="sticky px-2 py-1.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200 overflow-hidden">
                       <span className="block truncate">{c.label}</span>
                     </th>
                   ))}
                   {days.map((d) => (
-                    <th key={d.date} className="sticky top-0 px-0 py-1 text-center border-l border-b border-hairline bg-canvas-soft" style={{ minWidth: DAY_W, width: DAY_W, zIndex: 20 }}>
-                      <span className="block text-[10px] font-medium text-mute leading-tight">{d.label}</span>
-                      <span className="block text-[11px] font-semibold text-ink tabular-nums leading-tight">{d.dayNo}</span>
+                    <th key={d.date} className="px-0 py-1 text-center border-l border-b border-slate-200 bg-slate-50" style={{ minWidth: DAY_W, width: DAY_W, zIndex: 20 }}>
+                      <span className="block text-[10px] font-medium text-slate-500 leading-tight">{d.label}</span>
+                      <span className="block text-[11px] font-bold text-slate-900 tabular-nums leading-tight">{d.dayNo}</span>
                     </th>
                   ))}
                   {RIGHT_COLS.map((c, i) => (
-                    <th key={c.key} className="px-1.5 py-1 text-center text-[10px] font-medium font-mono text-mute uppercase tracking-[0.02em] bg-canvas-soft border-b border-hairline" style={{ minWidth: c.w, width: c.w }}>{c.label}</th>
+                    <th key={c.key} className="px-1.5 py-1 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200" style={{ minWidth: c.w, width: c.w }}>{c.label}</th>
                   ))}
                 </tr>
               </thead>
@@ -321,16 +369,16 @@ export default function AttendancePage() {
                   const dirty = changes.has(row.employee_id)
                   const s = rowSummary(row)
                   const weeklyOffDow = WEEKDAY_DOW[row.weekly_off] ?? 0
-                  const stickyBg = dirty ? 'bg-link-soft' : idx % 2 === 1 ? 'bg-canvas-soft' : 'bg-white'
+                  const stickyBg = dirty ? 'bg-blue-50' : idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'
                   return (
-                    <tr key={row.employee_id} className={`border-b border-hairline transition-colors ${idx % 2 === 1 ? 'bg-canvas-soft/40' : ''} ${dirty ? 'bg-link-soft/30' : ''} hover:bg-canvas-soft/70`}>
+                    <tr key={row.employee_id} className={`border-b border-slate-100 transition-colors ${dirty ? 'bg-blue-50' : idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'} hover:bg-blue-50`}>
                       {LEFT_COLS.map((c, i) => (
-                        <td key={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, maxWidth: c.w, zIndex: 10 }} className={`sticky px-2 py-1.5 overflow-hidden shadow-[1px_0_0_0_rgba(1,27,63,0.06)] ${stickyBg}`}>
-                          {i === 0 && <span className="font-mono text-[11px] text-mute">{row.employee_code}</span>}
-                          {i === 1 && <span className="block text-[12px] font-medium text-ink leading-tight">{row.first_name} {row.last_name}</span>}
-                          {i === 2 && <span className="block text-[11px] text-mute leading-tight truncate" title={[row.father_name, row.spouse_name].filter(Boolean).join(' / ') || ''}>{[row.father_name, row.spouse_name].filter(Boolean).join(' / ') || '—'}</span>}
-                          {i === 3 && <span className="block text-[11px] text-body leading-tight truncate" title={row.designation || ''}>{row.designation || '—'}</span>}
-                          {i === 4 && <span className="font-mono text-[11px] text-body tabular-nums">₹{money(row.monthly_earnings)}</span>}
+                        <td key={c.label} style={{ left: leftOffsets[i], minWidth: c.w, width: c.w, maxWidth: c.w, zIndex: 10 }} className={`sticky px-2 py-1.5 overflow-hidden shadow-[1px_0_0_0_rgba(15,23,42,0.06)] ${stickyBg}`}>
+                          {i === 0 && <span className="font-mono text-[11px] text-slate-500">{row.employee_code}</span>}
+                          {i === 1 && <span className="block text-[12px] font-semibold text-slate-900 leading-tight">{row.first_name} {row.last_name}</span>}
+                          {i === 2 && <span className="block text-[11px] text-slate-500 leading-tight truncate" title={[row.father_name, row.spouse_name].filter(Boolean).join(' / ') || ''}>{[row.father_name, row.spouse_name].filter(Boolean).join(' / ') || '—'}</span>}
+                          {i === 3 && <span className="block text-[11px] text-slate-600 leading-tight truncate" title={row.designation || ''}>{row.designation || '—'}</span>}
+                          {i === 4 && <span className="font-mono text-[11px] text-slate-700 tabular-nums">₹{money(row.monthly_earnings)}</span>}
                         </td>
                       ))}
                       {days.map((d) => {
@@ -341,7 +389,7 @@ export default function AttendancePage() {
                         const preJoin = isPreJoining(date, row.joining_date)
                         const isOverride = !preJoin && mark !== null && mark !== defaultMark(date, weeklyOffDow, holidaySet, row.joining_date)
                         return (
-                          <td key={date} className="px-0.5 py-1 text-center border-l border-hairline" style={{ minWidth: DAY_W, width: DAY_W }}>
+                          <td key={date} className="px-0.5 py-1 text-center border-l border-slate-100" style={{ minWidth: DAY_W, width: DAY_W }}>
                             <button
                               type="button"
                               disabled={locked || preJoin}
@@ -349,7 +397,7 @@ export default function AttendancePage() {
                               onClick={(e) => !locked && !preJoin && setMenu({ empId: row.employee_id, date, x: e.clientX, y: e.clientY })}
                               onKeyDown={handleKey(row, date)}
                               title={`${d.label} ${d.dayNo} · ${MARK_LABEL[mark]}${isOverride ? ' (override)' : ''}`}
-                              className={`w-full h-7 rounded-sm text-[11px] font-semibold tabular-nums transition-colors relative ${locked || preJoin ? 'cursor-default' : 'cursor-pointer hover:ring-1 hover:ring-navy-mid'} ${MARK_CHIP[mark]} ${isOverride ? 'ring-1 ring-warning/40' : ''}`}
+                              className={`w-full h-7 rounded-lg text-[11px] font-bold tabular-nums transition-all relative ${locked || preJoin ? 'cursor-default' : 'cursor-pointer hover:scale-105 hover:shadow-sm'} ${MARK_CHIP[mark]} ${isOverride ? 'ring-2 ring-amber-400/70' : ''}`}
                             >
                               {MARK_TEXT[mark]}
                             </button>
@@ -365,12 +413,12 @@ export default function AttendancePage() {
                               disabled={locked}
                               onChange={(e) => setOt(row, Math.min(200, Math.max(0, Number(e.target.value) || 0)))}
                               aria-label="Overtime hours"
-                              className="w-full h-7 text-center text-[11px] bg-white border border-hairline rounded-sm outline-none transition-colors focus:border-navy-mid disabled:opacity-50 disabled:cursor-not-allowed tabular-nums"
+                              className="w-full h-7 text-center text-[11px] bg-white border border-slate-200 rounded-lg outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:opacity-50 disabled:cursor-not-allowed tabular-nums"
                             />
                           ) : c.key === 'SAL' ? (
-                            <span className="font-mono text-[11px] font-medium text-ink tabular-nums">₹{money(s.actual_salary)}</span>
+                            <span className="font-mono text-[11px] font-semibold text-slate-900 tabular-nums">₹{money(s.actual_salary)}</span>
                           ) : (
-                            <span className={`tabular-nums ${c.key === 'PD' ? 'font-semibold text-ink' : 'text-body'}`}>
+                            <span className={`tabular-nums ${c.key === 'PD' ? 'font-bold text-slate-900' : 'text-slate-600'}`}>
                               {c.key === 'PD' ? s.payable_days : (s as any)[String(c.key).toLowerCase()] ?? 0}
                             </span>
                           )}
@@ -381,25 +429,25 @@ export default function AttendancePage() {
                 })}
               </tbody>
               <tfoot>
-                <tr className="bg-canvas-soft border-t border-hairline shadow-[0_-1px_0_rgba(1,27,63,0.05)]">
-                  <td style={{ left: leftOffsets[0], zIndex: 30 }} className="sticky bottom-0 px-2 py-1.5 bg-canvas-soft">
-                    <span className="text-[11px] font-semibold text-ink uppercase tracking-wide">Total</span>
+                <tr className="bg-slate-50 border-t border-slate-200 shadow-[0_-1px_0_rgba(15,23,42,0.05)]">
+                  <td style={{ left: leftOffsets[0], zIndex: 30 }} className="sticky bottom-0 px-2 py-1.5 bg-slate-50">
+                    <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wide">Total</span>
                   </td>
                   {LEFT_COLS.slice(1).map((c, i) => (
-                    <td key={c.label} style={{ left: leftOffsets[i + 1], zIndex: 30 }} className="sticky bottom-0 px-2 py-1.5 bg-canvas-soft" />
+                    <td key={c.label} style={{ left: leftOffsets[i + 1], zIndex: 30 }} className="sticky bottom-0 px-2 py-1.5 bg-slate-50" />
                   ))}
                   {days.map((d) => {
                     const c = dayCounts[d.date]
                     const bits = c ? [c.P && `P${c.P}`, c.A && `A${c.A}`, c.R && `R${c.R}`, c.HD && `HD${c.HD}`, c.HF && `HF${c.HF}`, c.L && `L${c.L}`, c.X && `X${c.X}`].filter(Boolean) : []
                     return (
-                      <td key={d.date} className="sticky bottom-0 px-0.5 py-1 text-center border-l border-hairline bg-canvas-soft" style={{ minWidth: DAY_W, width: DAY_W, zIndex: 10 }}>
-                        <span className="text-[9px] leading-[1.35] text-mute tabular-nums block">{bits.join(' ')}</span>
+                      <td key={d.date} className="sticky bottom-0 px-0.5 py-1 text-center border-l border-slate-100 bg-slate-50" style={{ minWidth: DAY_W, width: DAY_W, zIndex: 10 }}>
+                        <span className="text-[9px] font-semibold leading-[1.35] text-slate-500 tabular-nums block">{bits.join(' ')}</span>
                       </td>
                     )
                   })}
                   {RIGHT_COLS.map((c, i) => (
-                    <td key={c.key} className="sticky bottom-0 px-1.5 py-1 text-center bg-canvas-soft" style={{ zIndex: 10 }}>
-                      <span className="font-mono text-[11px] font-semibold text-ink tabular-nums">
+                    <td key={c.key} className="sticky bottom-0 px-1.5 py-1 text-center bg-slate-50" style={{ zIndex: 10 }}>
+                      <span className="font-mono text-[11px] font-bold text-slate-900 tabular-nums">
                         {c.key === 'P' ? totals.p : c.key === 'A' ? totals.a : c.key === 'R' ? totals.rx : c.key === 'HD' ? totals.hd : c.key === 'HF' ? totals.hf : c.key === 'L' ? totals.l : c.key === 'OT' ? `${totals.ot}hrs` : c.key === 'PD' ? totals.pd : `₹${money(totals.amt)}`}
                       </span>
                     </td>
@@ -411,51 +459,50 @@ export default function AttendancePage() {
         )}
       </div>
 
-      {/* Stat summary cards */}
+      {/* Daily tallies */}
       <div className="flex gap-2 mt-3 shrink-0 overflow-x-auto scrollbar-thin pb-1">
-        <SummaryStat icon={CalendarCheck} tone="text-success bg-success-soft" label="Present" value={String(totals.p)} />
-        <SummaryStat icon={CalendarX2} tone="text-error bg-error-soft" label="Absent" value={String(totals.a)} />
-        <SummaryStat icon={Palmtree} tone="text-mute bg-neutral-soft" label="Rest" value={String(totals.rx)} />
-        <SummaryStat icon={CalendarDays} tone="text-info-deep bg-info-soft" label="Holidays" value={String(totals.hd)} />
-        <SummaryStat icon={Moon} tone="text-warning-deep bg-warning-soft" label="Half Days" value={String(totals.hf)} />
-        <SummaryStat icon={Sun} tone="text-error-deep bg-error-soft" label="Leave" value={String(totals.l)} />
-        <SummaryStat icon={BadgeCheck} tone="text-navy-mid bg-navy-soft" label="Payable Days" value={String(totals.pd)} />
-        <SummaryStat icon={IndianRupee} tone="text-success bg-success-soft" label="Actual Salary" value={`₹${money(totals.amt)}`} />
-        <SummaryStat icon={CalendarX2} tone="text-mute bg-neutral-soft" label="OT (Hrs/Days)" value={`${r2(totals.ot)} / ${totals.otd}`} />
+        <SummaryStat icon={CalendarCheck} tone="bg-emerald-50 text-emerald-600 border-emerald-200/60" label="Present" value={String(totals.p)} />
+        <SummaryStat icon={CalendarX2} tone="bg-rose-50 text-rose-600 border-rose-200/60" label="Absent" value={String(totals.a)} />
+        <SummaryStat icon={Palmtree} tone="bg-slate-100 text-slate-500 border-slate-200/60" label="Rest" value={String(totals.rx)} />
+        <SummaryStat icon={CalendarDays} tone="bg-sky-50 text-sky-600 border-sky-200/60" label="Holidays" value={String(totals.hd)} />
+        <SummaryStat icon={Moon} tone="bg-amber-50 text-amber-600 border-amber-200/60" label="Half Days" value={String(totals.hf)} />
+        <SummaryStat icon={Sun} tone="bg-rose-50 text-rose-700 border-rose-200/60" label="Leave" value={String(totals.l)} />
+        <SummaryStat icon={BadgeCheck} tone="bg-blue-50 text-blue-600 border-blue-200/60" label="Payable Days" value={String(totals.pd)} />
+        <SummaryStat icon={IndianRupee} tone="bg-emerald-50 text-emerald-600 border-emerald-200/60" label="Actual Salary" value={`₹${money(totals.amt)}`} />
+        <SummaryStat icon={Clock} tone="bg-violet-50 text-violet-600 border-violet-200/60" label="OT (Hrs/Days)" value={`${r2(totals.ot)} / ${totals.otd}`} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-3 rounded-md bg-white card-shadow mt-3 text-[12px] shrink-0">
-        <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-success text-[9px] inline-flex items-center justify-center font-bold text-white">P</span> Present</span>
-        <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-error text-[9px] inline-flex items-center justify-center font-bold text-white">A</span> Absent</span>
-        <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-neutral text-[9px] inline-flex items-center justify-center font-bold text-white">R</span> Weekly Rest</span>
-        <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-info text-[9px] inline-flex items-center justify-center font-bold text-white">HD</span> Holiday</span>
-        <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-warning text-[9px] inline-flex items-center justify-center font-bold text-ink">HF</span> Half Day (½ PD)</span>
-        <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-error-deep text-[9px] inline-flex items-center justify-center font-bold text-white">L</span> Leave (no pay)</span>
-        <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-neutral-soft ring-1 ring-inset ring-hairline text-[9px] inline-flex items-center justify-center font-bold text-mute">X</span> Not Joined (before DOJ)</span>
-        <span className="flex items-center gap-1.5 text-body"><span className="w-3.5 h-3.5 rounded-sm bg-warning-soft ring-1 ring-warning/40 text-[9px] inline-flex items-center justify-center font-bold text-warning-deep">A</span> Override</span>
-        <span className="text-mute ml-auto">{dirtyCount} unsaved employee{dirtyCount === 1 ? '' : 's'}</span>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-5 py-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs mt-3 text-[12px] shrink-0">
+        <span className="flex items-center gap-1.5 text-slate-600"><span className="w-5 h-5 rounded-md bg-emerald-500 text-[9px] inline-flex items-center justify-center font-bold text-white">P</span> Present</span>
+        <span className="flex items-center gap-1.5 text-slate-600"><span className="w-5 h-5 rounded-md bg-rose-500 text-[9px] inline-flex items-center justify-center font-bold text-white">A</span> Absent</span>
+        <span className="flex items-center gap-1.5 text-slate-600"><span className="w-5 h-5 rounded-md bg-slate-400 text-[9px] inline-flex items-center justify-center font-bold text-white">R</span> Weekly Rest</span>
+        <span className="flex items-center gap-1.5 text-slate-600"><span className="w-5 h-5 rounded-md bg-sky-500 text-[9px] inline-flex items-center justify-center font-bold text-white">HD</span> Holiday</span>
+        <span className="flex items-center gap-1.5 text-slate-600"><span className="w-5 h-5 rounded-md bg-amber-400 text-[9px] inline-flex items-center justify-center font-bold text-amber-950">HF</span> Half Day (½ PD)</span>
+        <span className="flex items-center gap-1.5 text-slate-600"><span className="w-5 h-5 rounded-md bg-rose-700 text-[9px] inline-flex items-center justify-center font-bold text-white">L</span> Leave (no pay)</span>
+        <span className="flex items-center gap-1.5 text-slate-600"><span className="w-5 h-5 rounded-md bg-slate-100 ring-1 ring-inset ring-slate-200 text-[9px] inline-flex items-center justify-center font-bold text-slate-400">X</span> Not Joined (before DOJ)</span>
+        <span className="flex items-center gap-1.5 text-slate-600"><span className="w-5 h-5 rounded-md bg-white ring-2 ring-amber-400 text-[9px] inline-flex items-center justify-center font-bold text-amber-500">•</span> Override applied</span>
       </div>
 
-      <p className="text-[11px] text-mute mt-2 shrink-0">
-        Click a day cell to mark an override (A / R / HD / HF / L), Right-click clears it. Keyboard: <b>P A R H F L</b> keys on a focused cell. Rest & holiday days default automatically; days before an employee's joining date are marked <b>X</b> (not payable). <b>Payable Days = P + R + HD + HF/2 + OT days</b>.
+      <p className="text-[11px] text-slate-500 leading-relaxed mt-2.5 mb-1 shrink-0">
+        Click a day cell to mark an override (A / R / HD / HF / L), Right-click clears it. Keyboard: <b className="text-slate-700">P A R H F L</b> keys on a focused cell. Rest & holiday days default automatically; days before an employee's joining date are marked <b className="text-slate-700">X</b> (not payable). <b className="text-slate-700">Payable Days = P + R + HD + HF/2 + OT days</b>.
       </p>
 
       {menu && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenu(null)} onContextMenu={(e) => { e.preventDefault(); setMenu(null) }} />
           <div
-            className="fixed z-50 w-40 bg-white rounded-md card-shadow-lg border border-hairline py-1"
-            style={{ left: Math.min(menu.x, typeof window !== 'undefined' ? window.innerWidth - 168 : menu.x), top: Math.min(menu.y, typeof window !== 'undefined' ? window.innerHeight - 280 : menu.y) }}
+            className="fixed z-50 w-44 bg-white rounded-xl shadow-lg border border-slate-200/80 py-1.5"
+            style={{ left: Math.min(menu.x, typeof window !== 'undefined' ? window.innerWidth - 192 : menu.x), top: Math.min(menu.y, typeof window !== 'undefined' ? window.innerHeight - 300 : menu.y) }}
           >
-            <p className="px-3 py-1.5 text-[10px] font-medium text-mute uppercase tracking-wide border-b border-hairline mb-1">Mark {menu.date}</p>
+            <p className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 mb-1">Mark {menu.date}</p>
             {MARK_ORDER.map((m) => (
-              <button key={m} onClick={() => { const row = rows.find((r) => r.employee_id === menu.empId); if (row) setMark(row, menu.date, m) }} className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-left hover:bg-canvas-soft">
-                <span className={`w-6 h-5 rounded-sm text-[10px] font-bold inline-flex items-center justify-center ${MARK_CHIP[m]}`}>{MARK_TEXT[m]}</span>
+              <button key={m} onClick={() => { const row = rows.find((r) => r.employee_id === menu.empId); if (row) setMark(row, menu.date, m) }} className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[12.5px] font-medium text-left rounded-lg text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+                <span className={`w-6 h-5 rounded-md text-[10px] font-bold inline-flex items-center justify-center ${MARK_CHIP[m]}`}>{MARK_TEXT[m]}</span>
                 {MARK_LABEL[m]}
               </button>
             ))}
-            <button onClick={() => clearMark(menu.empId, menu.date)} className="flex w-full items-center gap-2 px-3 py-1.5 text-[12px] text-left text-mute hover:bg-canvas-soft border-t border-hairline mt-1">
-              <span className="w-6 h-5 rounded-sm text-[10px] font-bold inline-flex items-center justify-center bg-neutral-soft text-mute">×</span>
+            <button onClick={() => clearMark(menu.empId, menu.date)} className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[12.5px] font-medium text-left rounded-lg text-slate-500 hover:bg-slate-50 transition-colors cursor-pointer border-t border-slate-100 mt-1">
+              <span className="w-6 h-5 rounded-md text-[10px] font-bold inline-flex items-center justify-center bg-slate-100 text-slate-400 ring-1 ring-inset ring-slate-200">×</span>
               Reset to default
             </button>
           </div>
@@ -465,13 +512,30 @@ export default function AttendancePage() {
   )
 }
 
+function KpiTile({ gradient, icon: Icon, label, value, foot }: { gradient: string; icon: any; label: string; value: string; foot: string }) {
+  return (
+    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-4 text-white shadow-sm transition-transform hover:-translate-y-0.5`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10.5px] font-bold uppercase tracking-wider text-white/85 truncate">{label}</span>
+        <span className="w-7 h-7 rounded-xl bg-white/15 flex items-center justify-center backdrop-blur-xs shrink-0">
+          <Icon className="w-4 h-4 text-white" />
+        </span>
+      </div>
+      <div className="mt-1.5 text-xl sm:text-2xl font-extrabold tracking-tight tabular-nums truncate">{value}</div>
+      <div className="mt-1.5 text-[10.5px] font-medium text-white/80 border-t border-white/15 pt-1.5 truncate">{foot}</div>
+    </div>
+  )
+}
+
 function SummaryStat({ icon: Icon, tone, label, value }: { icon: any; tone: string; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-md bg-white card-shadow px-3 py-2 shrink-0 min-w-[132px]">
-      <span className={`w-8 h-8 rounded-sm flex items-center justify-center shrink-0 ${tone}`}><Icon className="w-4 h-4" /></span>
+    <div className={`flex items-center gap-2.5 rounded-xl bg-white border px-3 py-2 shrink-0 min-w-[132px] ${tone}`}>
+      <span className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-current/10">
+        <Icon className="w-4 h-4" />
+      </span>
       <span className="min-w-0">
-        <span className="block text-[10px] text-mute uppercase tracking-wide font-medium truncate">{label}</span>
-        <span className="block text-[15px] font-semibold text-ink tabular-nums leading-tight truncate">{value}</span>
+        <span className="block text-[10px] text-slate-500 uppercase tracking-wider font-bold truncate">{label}</span>
+        <span className="block text-[15px] font-extrabold text-slate-900 tabular-nums leading-tight truncate">{value}</span>
       </span>
     </div>
   )

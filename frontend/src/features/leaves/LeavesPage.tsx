@@ -11,12 +11,12 @@ import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { fullName, dateShort } from '@/utils/format'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
-import { CalendarDays, Plus, Trash2, CheckCircle, XCircle, CalendarOff, Coins, Sparkles, CalendarClock } from 'lucide-react'
+import { CalendarDays, Plus, Trash2, CheckCircle, XCircle, CalendarOff, Coins, Sparkles, CalendarClock, ShieldAlert, Gift } from 'lucide-react'
 
 const PAGE_TABS = [
-  { key: 'requests', label: 'Leave Requests' },
-  { key: 'balances', label: 'Balances' },
-  { key: 'holidays', label: 'Holidays' },
+  { key: 'requests', label: 'Leave Applications' },
+  { key: 'balances', label: 'Leave Balances & Accrual' },
+  { key: 'holidays', label: 'Official Holidays' },
 ]
 
 const REQ_TONE: Record<string, Tone> = {
@@ -26,7 +26,6 @@ const REQ_TONE: Record<string, Tone> = {
   rejected: 'danger',
   cancelled: 'neutral',
 }
-const reqLabel = (s: string) => ({ pending_manager: 'Pending Manager', pending_hr: 'Pending HR', approved: 'Approved', rejected: 'Rejected', cancelled: 'Cancelled' } as Record<string, string>)[s] || s
 
 export default function LeavesPage() {
   const { user } = useAuth()
@@ -65,12 +64,12 @@ export default function LeavesPage() {
       start_date: applyForm.start_date, end_date: applyForm.end_date,
       reason: applyForm.reason || undefined,
     }),
-    onSuccess: (r) => { setShowApply(false); setApplyForm({ employee_id: '', leave_type_id: '', start_date: '', end_date: '', reason: '' }); invalidate('leave-requests', 'leave-balances'); toast.success(r.message || 'Applied.') },
+    onSuccess: (r) => { setShowApply(false); setApplyForm({ employee_id: '', leave_type_id: '', start_date: '', end_date: '', reason: '' }); invalidate('leave-requests', 'leave-balances'); toast.success(r.message || 'Leave applied.') },
     onError: (e: any) => toast.error(e?.error?.message || 'Failed to apply.'),
   })
   const approvalMut = useMutation({
     mutationFn: () => leaveApi.approve(approveFor!.row.id, { level: approveFor!.level, action: approveFor!.action, remarks: remarks || undefined }),
-    onSuccess: (r) => { setApproveFor(null); setRemarks(''); invalidate('leave-requests', 'leave-balances'); toast.success(r.message || 'Done.') },
+    onSuccess: (r) => { setApproveFor(null); setRemarks(''); invalidate('leave-requests', 'leave-balances'); toast.success(r.message || 'Status updated.') },
     onError: (e: any) => toast.error(e?.error?.message || 'Failed.'),
   })
   const cancelMut = useMutation({
@@ -105,68 +104,79 @@ export default function LeavesPage() {
   const balances = (balData?.data || []) as any[]
   const holidays = (holData?.data || []) as any[]
 
-  const actionBtn = 'px-2 py-1 text-[11px] font-medium rounded-xs transition-colors cursor-pointer inline-flex items-center gap-1'
-
   const reqCols: any[] = [
     { key: 'employee', header: 'Employee', render: (r: LeaveRequestRow) => (
       <span className="flex items-center gap-2.5 min-w-0">
-        <Avatar name={fullName(r.first_name, r.last_name)} />
+        <Avatar name={fullName(r.first_name, r.last_name)} size="sm" />
         <span className="min-w-0">
-          <span className="block text-[13px] font-medium text-ink truncate max-w-40">{fullName(r.first_name, r.last_name)}</span>
-          <span className="block text-[11px] text-mute font-mono">{r.employee_code}</span>
+          <span className="block text-xs sm:text-[13px] font-bold text-slate-900 truncate max-w-44">{fullName(r.first_name, r.last_name)}</span>
+          <span className="block text-[11px] text-blue-600 font-mono font-medium">{r.employee_code}</span>
         </span>
       </span>
     ) },
-    { key: 'type', header: 'Type', render: (r: LeaveRequestRow) => <span className="text-[12px] text-body">{r.type_name || 'LWP'}{r.type_code ? ` (${r.type_code})` : ''}</span> },
-    { key: 'dates', header: 'Dates', render: (r: LeaveRequestRow) => <span className="text-[12px] text-body whitespace-nowrap">{dateShort(r.start_date)} → {dateShort(r.end_date)}</span> },
-    { key: 'days', header: 'Days', render: (r: LeaveRequestRow) => <span className="text-[12px] font-medium text-ink tabular-nums">{r.days}</span> },
-    { key: 'reason', header: 'Reason', hideSm: true, render: (r: LeaveRequestRow) => <span className="text-[12px] text-mute">{r.reason || '—'}</span> },
-    { key: 'approvals', header: 'Approvals', hideSm: true, render: (r: LeaveRequestRow) => (
-      <div className="text-[11px] text-mute leading-relaxed whitespace-nowrap">
-        <div>Mgr: {r.manager_status === 'approved' ? `✓ ${r.manager_by || ''}` : r.manager_status === 'rejected' ? '✗' : '—'}</div>
-        <div>HR: {r.hr_status === 'approved' ? `✓ ${r.hr_by || ''}` : r.hr_status === 'rejected' ? '✗' : '—'}</div>
+    { key: 'type', header: 'Leave Category', render: (r: LeaveRequestRow) => <span className="text-xs font-semibold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200/60">{r.type_name || 'LWP'}{r.type_code ? ` (${r.type_code})` : ''}</span> },
+    { key: 'dates', header: 'Duration', render: (r: LeaveRequestRow) => <span className="text-xs text-slate-700 font-medium whitespace-nowrap">{dateShort(r.start_date)} &rarr; {dateShort(r.end_date)}</span> },
+    { key: 'days', header: 'Days', render: (r: LeaveRequestRow) => <span className="text-xs font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 tabular-nums">{r.days} day{r.days === 1 ? '' : 's'}</span> },
+    { key: 'reason', header: 'Reason', hideSm: true, render: (r: LeaveRequestRow) => <span className="text-xs text-slate-500 max-w-xs truncate block">{r.reason || '—'}</span> },
+    { key: 'approvals', header: 'Workflow Status', hideSm: true, render: (r: LeaveRequestRow) => (
+      <div className="text-[11px] leading-relaxed whitespace-nowrap">
+        <div className={r.manager_status === 'approved' ? 'text-emerald-700 font-bold' : r.manager_status === 'rejected' ? 'text-rose-600 font-bold' : 'text-slate-400'}>
+          Manager: {r.manager_status === 'approved' ? `✓ ${r.manager_by || 'Approved'}` : r.manager_status === 'rejected' ? '✗ Rejected' : 'Pending'}
+        </div>
+        <div className={r.hr_status === 'approved' ? 'text-emerald-700 font-bold' : r.hr_status === 'rejected' ? 'text-rose-600 font-bold' : 'text-slate-400'}>
+          HR Admin: {r.hr_status === 'approved' ? `✓ ${r.hr_by || 'Approved'}` : r.hr_status === 'rejected' ? '✗ Rejected' : 'Pending'}
+        </div>
       </div>
     ) },
-    { key: 'status', header: 'Status', render: (r: LeaveRequestRow) => <StatusBadge status={r.status} tone={REQ_TONE[r.status]} /> },
-    { key: 'actions', header: '', className: 'text-right', render: (r: LeaveRequestRow) => (
-      <div className="flex items-center justify-end gap-1 flex-wrap">
+    { key: 'status', header: 'Final Status', render: (r: LeaveRequestRow) => <StatusBadge status={r.status} tone={REQ_TONE[r.status]} /> },
+    { key: 'actions', header: 'Actions', className: 'text-right', render: (r: LeaveRequestRow) => (
+      <div className="flex items-center justify-end gap-1.5 flex-wrap">
         {canApproveManager && r.status === 'pending_manager' && <>
-          <button onClick={() => { setApproveFor({ row: r, level: 'manager', action: 'approve' }); setRemarks('') }} className={`${actionBtn} text-success hover:bg-success-soft`}><CheckCircle className="w-3 h-3" /> Mgr</button>
-          <button onClick={() => { setApproveFor({ row: r, level: 'manager', action: 'reject' }); setRemarks('') }} className={`${actionBtn} text-error hover:bg-error-soft`}><XCircle className="w-3 h-3" /> Reject</button>
+          <button onClick={() => { setApproveFor({ row: r, level: 'manager', action: 'approve' }); setRemarks('') }} className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer inline-flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Approve</button>
+          <button onClick={() => { setApproveFor({ row: r, level: 'manager', action: 'reject' }); setRemarks('') }} className="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer inline-flex items-center gap-1"><XCircle className="w-3.5 h-3.5" /> Reject</button>
         </>}
         {isHr && r.status === 'pending_hr' && <>
-          <button onClick={() => { setApproveFor({ row: r, level: 'hr', action: 'approve' }); setRemarks('') }} className={`${actionBtn} text-success hover:bg-success-soft font-semibold`}><CheckCircle className="w-3 h-3" /> HR</button>
-          <button onClick={() => { setApproveFor({ row: r, level: 'hr', action: 'reject' }); setRemarks('') }} className={`${actionBtn} text-error hover:bg-error-soft`}><XCircle className="w-3 h-3" /> Reject</button>
+          <button onClick={() => { setApproveFor({ row: r, level: 'hr', action: 'approve' }); setRemarks('') }} className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer inline-flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> Final HR</button>
+          <button onClick={() => { setApproveFor({ row: r, level: 'hr', action: 'reject' }); setRemarks('') }} className="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer inline-flex items-center gap-1"><XCircle className="w-3.5 h-3.5" /> Reject</button>
         </>}
-        {r.status.startsWith('pending') && <button onClick={() => cancelMut.mutate(r.id)} className={`${actionBtn} text-body hover:bg-canvas-soft`}>Cancel</button>}
+        {r.status.startsWith('pending') && <button onClick={() => cancelMut.mutate(r.id)} className="px-2 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>}
       </div>
     ) },
   ]
 
   return (
-    <div>
+    <div className="space-y-5">
       <PageHeader
-        title="Leave Management"
-        description={tab === 'requests' ? 'Applications with two-level approval (manager → HR)' : tab === 'balances' ? 'Accrual and available balances per employee' : 'Holidays excluded from leave day counts'}
+        title="Leave Management & Approvals"
+        description={tab === 'requests' ? 'Two-tier hierarchical approval workflow (Manager → HR Admin)' : tab === 'balances' ? 'Annual leave quota, monthly accrual, and encashment balance' : 'Official statutory & company holiday calendar'}
         actions={
           tab === 'requests' ? (
-            <Button onClick={() => setShowApply(true)}><Plus className="w-3.5 h-3.5" /> Apply Leave</Button>
+            <button
+              type="button"
+              onClick={() => setShowApply(true)}
+              className="h-10 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Apply Leave</span>
+            </button>
           ) : tab === 'balances' ? (
-            <NativeSelect className="w-24" value={String(year)} onChange={(v) => setYear(Number(v))} options={[2025, 2026, 2027].map((y) => ({ value: String(y), label: String(y) }))} />
+            <NativeSelect className="w-28" value={String(year)} onChange={(v) => setYear(Number(v))} options={[2025, 2026, 2027].map((y) => ({ value: String(y), label: String(y) }))} />
           ) : undefined
         }
       />
 
-      <div className="mb-4"><Tabs tabs={PAGE_TABS} active={tab} onChange={setTab} variant="underline" /></div>
+      <div className="bg-white p-2 rounded-2xl border border-slate-200/80 shadow-xs">
+        <Tabs tabs={PAGE_TABS} active={tab} onChange={setTab} variant="pill" />
+      </div>
 
       {tab === 'requests' && (
-        <div className="bg-white card-shadow rounded-md overflow-hidden">
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
           {isLoading ? (
-            <div className="p-4"><LoadingState /></div>
+            <div className="p-8"><LoadingState /></div>
           ) : error ? (
             <PageError onRetry={() => refetch()} />
           ) : requests.length === 0 ? (
-            <EmptyState icon={CalendarDays} title="No leave applications" description="Apply leave for an employee to get started." action={<Button onClick={() => setShowApply(true)}>Apply Leave</Button>} />
+            <EmptyState icon={CalendarDays} title="No leave applications on record" description="Apply leave for an employee to begin the approval process." action={<Button onClick={() => setShowApply(true)}>Apply Leave</Button>} />
           ) : (
             <Table columns={reqCols} data={requests} keyFn={(r) => String(r.id)} minWidth="1000px" />
           )}
@@ -174,35 +184,35 @@ export default function LeavesPage() {
       )}
 
       {tab === 'balances' && (
-        <div className="bg-white card-shadow rounded-md overflow-hidden">
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
           {balLoading ? (
-            <div className="p-4"><LoadingState /></div>
+            <div className="p-8"><LoadingState /></div>
           ) : balError ? (
             <PageError onRetry={() => balRefetch()} />
           ) : balances.length === 0 ? (
-            <EmptyState icon={Coins} title="No active employees" description="Balances are computed for active employees in the selected year." />
+            <EmptyState icon={Coins} title="No active employees found" description="Balances are computed automatically for active employees in the selected calendar year." />
           ) : (
             <Table
               columns={[
                 { key: 'emp', header: 'Employee', render: (r: any) => (
                   <span className="flex items-center gap-2.5 min-w-0">
-                    <Avatar name={fullName(r.employee.first_name, r.employee.last_name)} />
+                    <Avatar name={fullName(r.employee.first_name, r.employee.last_name)} size="sm" />
                     <span className="min-w-0">
-                      <span className="block text-[13px] font-medium text-ink truncate">{fullName(r.employee.first_name, r.employee.last_name)}</span>
-                      <span className="block text-[11px] text-mute font-mono">{r.employee.employee_code}</span>
+                      <span className="block text-xs sm:text-[13px] font-bold text-slate-900 truncate">{fullName(r.employee.first_name, r.employee.last_name)}</span>
+                      <span className="block text-[11px] text-blue-600 font-mono">{r.employee.employee_code}</span>
                     </span>
                   </span>
                 ) },
                 ...types.filter((t: any) => t.paid_default === 1).map((t: any) => ({
                   key: `t${t.id}`, header: `${t.code}${t.accrual_monthly ? ' ⟳' : ''}`, render: (r: any) => {
                     const b = (r.rows || []).find((x: BalanceRow) => x.leave_type_id === t.id)
-                    if (!b) return <span className="text-[12px] text-mute">—</span>
-                    return <span className={`text-[12px] tabular-nums ${b.available < 0 ? 'text-error font-medium' : 'text-body'}`} title={`${b.accrued} accrued · ${b.used} used · ${b.pending} pending · ${b.comp_off_extra} comp-off · ${b.encashed} encashed`}>{b.available}</span>
+                    if (!b) return <span className="text-xs text-slate-400">—</span>
+                    return <span className={`text-xs font-bold tabular-nums ${b.available < 0 ? 'text-rose-600' : 'text-slate-800'}`} title={`${b.accrued} accrued · ${b.used} used · ${b.pending} pending · ${b.comp_off_extra} comp-off · ${b.encashed} encashed`}>{b.available}</span>
                   },
                 })),
-                { key: 'actions', header: '', className: 'text-right', render: (r: any) => (
+                { key: 'actions', header: 'Action', className: 'text-right', render: (r: any) => (
                   <div className="flex justify-end">
-                    <button onClick={() => setBalFor(r.employee)} className="px-2 py-1 text-[11px] font-medium text-link hover:bg-link-soft rounded-xs cursor-pointer">Details</button>
+                    <button onClick={() => setBalFor(r.employee)} className="px-3 py-1 text-xs font-bold text-blue-700 hover:bg-blue-50 rounded-lg border border-blue-200 transition-colors cursor-pointer">View Statement</button>
                   </div>
                 ) },
               ]}
@@ -211,12 +221,14 @@ export default function LeavesPage() {
               minWidth="800px"
             />
           )}
-          <p className="text-[11px] text-mute px-4 py-2.5 border-t border-hairline">⟳ = monthly accrual. Column value is available balance (accrued + comp-off − encashed − used − pending).</p>
+          <div className="p-4 bg-slate-50 border-t border-slate-100 text-xs text-slate-500">
+            <strong>Note:</strong> &bull; ⟳ indicates monthly accrual. Available balance formula = (Accrued + Comp-off Credit &minus; Encashed &minus; Used &minus; Pending Approvals).
+          </div>
         </div>
       )}
 
       {tab === 'holidays' && (
-        <div className="bg-white card-shadow rounded-md p-4 max-w-xl">
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs max-w-2xl">
           {holLoading ? (
             <LoadingState />
           ) : holError ? (
@@ -224,153 +236,144 @@ export default function LeavesPage() {
           ) : (
             <>
               {isHr && (
-                <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                  <Input label="" type="date" value={holidayForm.date} onChange={e => setHolidayForm(f => ({ ...f, date: e.target.value }))} className="sm:w-40" />
-                  <Input label="" placeholder="Holiday name" value={holidayForm.name} onChange={e => setHolidayForm(f => ({ ...f, name: e.target.value }))} />
-                  <Button size="sm" loading={holidayAddMut.isPending} onClick={() => { if (!holidayForm.date || !holidayForm.name.trim()) { toast.error('Date and name required.'); return } holidayAddMut.mutate() }}><Plus className="w-3 h-3" /> Add</Button>
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 mb-5 flex flex-col sm:flex-row gap-3 items-end">
+                  <div className="w-full sm:w-44">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Date</label>
+                    <input type="date" value={holidayForm.date} onChange={e => setHolidayForm(f => ({ ...f, date: e.target.value }))} className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-blue-500" />
+                  </div>
+                  <div className="flex-1 w-full">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Holiday Title</label>
+                    <input placeholder="e.g. Diwali Festival" value={holidayForm.name} onChange={e => setHolidayForm(f => ({ ...f, name: e.target.value }))} className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:border-blue-500" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { if (!holidayForm.date || !holidayForm.name.trim()) { toast.error('Date and name required.'); return } holidayAddMut.mutate() }}
+                    disabled={holidayAddMut.isPending}
+                    className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Holiday</span>
+                  </button>
                 </div>
               )}
               {holidays.length === 0 ? (
-                <EmptyState icon={CalendarOff} title="No holidays configured" description="Holidays are excluded when counting leave days." />
+                <EmptyState icon={CalendarOff} title="No holidays configured" description="Holidays added here are excluded from employee leave day deductions." />
               ) : (
-                <table className="w-full text-[13px]">
-                  <tbody>
-                    {holidays.map((h: any) => (
-                      <tr key={h.id} className="border-b border-hairline last:border-0">
-                        <td className="py-2 font-medium text-ink w-32 tabular-nums">{dateShort(h.date)}</td>
-                        <td className="py-2 text-body">{h.name}</td>
-                        {isHr && <td className="py-2 text-right"><button onClick={() => setDelHolidayId(h.id)} className="p-1.5 text-[11px] text-error hover:bg-error-soft rounded-xs cursor-pointer" aria-label="Remove holiday"><Trash2 className="w-3.5 h-3.5" /></button></td>}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="divide-y divide-slate-100">
+                  {holidays.map((h: any) => (
+                    <div key={h.id} className="py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0 border border-purple-100">
+                          <Gift className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="text-xs sm:text-[13px] font-bold text-slate-900 block">{h.name}</span>
+                          <span className="text-[11px] text-slate-500 block font-mono">{dateShort(h.date)}</span>
+                        </div>
+                      </div>
+                      {isHr && (
+                        <button onClick={() => setDelHolidayId(h.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer" aria-label="Remove holiday">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </>
           )}
         </div>
       )}
 
-      {/* Apply modal */}
-      <Modal open={showApply} onClose={() => setShowApply(false)} title="Apply Leave" size="sm">
-        <div className="space-y-3">
-          <Select
-            label="Employee"
-            options={[{ value: '', label: 'Select Employee' }, ...employees.map(e => ({ value: String(e.id), label: `${e.employee_code} — ${fullName(e.first_name, e.last_name)}` }))]}
-            value={applyForm.employee_id}
-            onChange={e => setApplyForm((f: any) => ({ ...f, employee_id: e.target.value }))}
-          />
-          <Select
-            label="Leave Type"
-            options={[{ value: '', label: 'Leave Without Pay (no type)' }, ...types.map(t => ({ value: String(t.id), label: `${t.name} (${t.code})${Number(t.annual_quota) > 0 ? '' : ' — quota not set'}` }))]}
-            value={applyForm.leave_type_id}
-            onChange={e => setApplyForm((f: any) => ({ ...f, leave_type_id: e.target.value }))}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="From" type="date" value={applyForm.start_date} onChange={e => setApplyForm((f: any) => ({ ...f, start_date: e.target.value }))} />
-            <Input label="To" type="date" value={applyForm.end_date} onChange={e => setApplyForm((f: any) => ({ ...f, end_date: e.target.value }))} />
-          </div>
-          <Textarea label="Reason" value={applyForm.reason} onChange={e => setApplyForm((f: any) => ({ ...f, reason: e.target.value }))} />
-          <p className="text-[11px] text-mute flex items-center gap-1"><CalendarClock className="w-3 h-3" /> Sundays and configured holidays are excluded from the day count.</p>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => setShowApply(false)}>Cancel</Button>
-            <Button loading={applyMut.isPending} onClick={() => { if (!applyForm.employee_id || !applyForm.start_date || !applyForm.end_date) { toast.error('Employee and dates are required.'); return } applyMut.mutate() }}>Submit Application</Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Approval modal */}
-      <Modal open={!!approveFor} onClose={() => setApproveFor(null)} title={approveFor?.action === 'approve' ? (approveFor.level === 'hr' ? 'HR Approval' : 'Manager Approval') : 'Reject Request'} size="sm">
-        <div className="space-y-3">
-          <p className="text-[13px] text-body">
-            {approveFor && <>Approve <strong>{fullName(approveFor.row.first_name, approveFor.row.last_name)}</strong>'s {approveFor.row.type_name || 'LWP'} for <strong>{approveFor.row.days}</strong> day(s)?</>}
-          </p>
-          <Textarea label="Remarks (optional)" value={remarks} onChange={e => setRemarks(e.target.value)} />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="secondary" onClick={() => setApproveFor(null)}>Cancel</Button>
-            <Button variant={approveFor?.action === 'reject' ? 'danger' : 'primary'} loading={approvalMut.isPending}
-              onClick={() => approvalMut.mutate()}>{approveFor?.action === 'approve' ? 'Approve' : 'Reject'}</Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Balance detail modal */}
-      <Modal open={!!balFor} onClose={() => setBalFor(null)} title={`Balances ${year} — ${balFor ? fullName(balFor.first_name, balFor.last_name) : ''}`} size="lg">
-        {(balDetail?.data || []).length === 0 ? (
-          <LoadingState />
-        ) : (
-          <>
-            <div className="max-h-[45vh] overflow-y-auto scrollbar-thin">
-              <table className="w-full text-[12px] min-w-[560px]">
-                <thead className="sticky top-0 bg-canvas-soft">
-                  <tr className="text-left text-mute border-b border-hairline bg-canvas-soft/60">
-                    <th className="py-2 font-medium font-mono uppercase tracking-[0.04em] text-[11px]">Type</th>
-                    <th className="py-2 font-medium text-right font-mono uppercase tracking-[0.04em] text-[11px]">Entitled</th>
-                    <th className="py-2 font-medium text-right font-mono uppercase tracking-[0.04em] text-[11px]">Accrued</th>
-                    <th className="py-2 font-medium text-right font-mono uppercase tracking-[0.04em] text-[11px]">Used</th>
-                    <th className="py-2 font-medium text-right font-mono uppercase tracking-[0.04em] text-[11px]">Pending</th>
-                    <th className="py-2 font-medium text-right font-mono uppercase tracking-[0.04em] text-[11px]">Comp-off</th>
-                    <th className="py-2 font-medium text-right font-mono uppercase tracking-[0.04em] text-[11px]">Available</th>
-                    <th className="py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {((balDetail?.data || []) as BalanceRow[]).map(b => (
-                    <tr key={b.leave_type_id} className="border-b border-hairline last:border-0">
-                      <td className="py-2 text-ink font-medium">{b.name}{b.accrual_monthly ? ' ⟳' : ''}{b.is_comp_off ? ' ⭐' : ''}</td>
-                      <td className="py-2 text-right text-body tabular-nums">{b.entitled}</td>
-                      <td className="py-2 text-right text-body tabular-nums">{b.accrued}</td>
-                      <td className="py-2 text-right text-body tabular-nums">{b.used}</td>
-                      <td className="py-2 text-right text-body tabular-nums">{b.pending}</td>
-                      <td className="py-2 text-right text-body tabular-nums">{b.comp_off_extra}</td>
-                      <td className={`py-2 text-right font-medium tabular-nums ${b.available < 0 ? 'text-error' : 'text-ink'}`}>{b.available}</td>
-                      <td className="py-2 text-right whitespace-nowrap">
-                        {isHr && <>
-                          <button onClick={() => { setCompoffForm({ leave_type_id: String(b.leave_type_id), days: '1', remarks: '' }) }} title="Credit 1 comp-off day (use Details form for more)" className="px-1 py-0.5 text-[11px] text-link hover:bg-link-soft rounded-xs cursor-pointer"><Sparkles className="w-3 h-3 inline mr-0.5" />+1 Comp-off</button>
-                          {b.available > 0 && b.paid && <button onClick={() => setEncashFor({ employee: balFor, row: b })} title="Encash available balance" className="px-1 py-0.5 text-[11px] text-body hover:bg-canvas-soft rounded-xs cursor-pointer"><Coins className="w-3 h-3 inline mr-0.5" />Encash</button>}
-                        </>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {/* Apply Leave Modal */}
+      {showApply && (
+        <Modal open={showApply} onClose={() => setShowApply(false)} title="Apply Leave for Employee" size="md">
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Select Employee</label>
+              <select
+                value={applyForm.employee_id}
+                onChange={e => setApplyForm(f => ({ ...f, employee_id: e.target.value }))}
+                className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500"
+              >
+                <option value="">Choose employee...</option>
+                {employees.map((e: any) => (
+                  <option key={e.id} value={e.id}>{e.employee_code} &bull; {fullName(e.first_name, e.last_name)}</option>
+                ))}
+              </select>
             </div>
-            {isHr && (
-              <div className="border-t border-hairline mt-3 pt-3 flex items-end gap-2 flex-wrap">
-                <Select
-                  label="Adjustment type"
-                  options={[{ value: '', label: 'Select type for adjustment…' }, ...types.map(t => ({ value: String(t.id), label: t.name }))]}
-                  value={compoffForm.leave_type_id}
-                  onChange={e => setCompoffForm(f => ({ ...f, leave_type_id: e.target.value }))}
-                  wrapperClassName="flex-1 min-w-40"
-                />
-                <Input label="± days" type="number" placeholder="±days" value={compoffForm.days} onChange={e => setCompoffForm(f => ({ ...f, days: e.target.value }))} className="w-24" />
-                <Button variant="secondary" size="sm" loading={compoffMut.isPending} onClick={() => { if (!compoffForm.leave_type_id || !Number(compoffForm.days)) { toast.error('Pick a type and non-zero days.'); return } compoffMut.mutate() }}>Apply Adjustment</Button>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Leave Type</label>
+              <select
+                value={applyForm.leave_type_id}
+                onChange={e => setApplyForm(f => ({ ...f, leave_type_id: e.target.value }))}
+                className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500"
+              >
+                <option value="">Choose leave type (or LWP)...</option>
+                {types.map((t: any) => (
+                  <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Start Date</label>
+                <input type="date" value={applyForm.start_date} onChange={e => setApplyForm(f => ({ ...f, start_date: e.target.value }))} className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500" />
               </div>
-            )}
-            <p className="text-[11px] text-mute mt-2">⭐ comp-off eligible type · +/− adjustments credit or revoke comp-off days · Encash pays basic ÷ 26 per day.</p>
-          </>
-        )}
-      </Modal>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">End Date</label>
+                <input type="date" value={applyForm.end_date} onChange={e => setApplyForm(f => ({ ...f, end_date: e.target.value }))} className="w-full h-10 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500" />
+              </div>
+            </div>
 
-      {/* Encash confirm */}
-      <ConfirmDialog
-        open={!!encashFor}
-        onClose={() => setEncashFor(null)}
-        onConfirm={() => encashMut.mutate()}
-        title="Encash Leave"
-        message={encashFor ? `Encash ${encashFor.row.available} day(s) of ${encashFor.row.name} for ${fullName(encashFor.employee.first_name, encashFor.employee.last_name)}? Amount = days × (latest Basic ÷ 26).` : ''}
-        loading={encashMut.isPending}
-      />
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">Reason / Note</label>
+              <textarea rows={3} value={applyForm.reason} onChange={e => setApplyForm(f => ({ ...f, reason: e.target.value }))} placeholder="Provide details regarding the leave request..." className="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500" />
+            </div>
 
-      <ConfirmDialog
-        open={delHolidayId !== null}
-        onClose={() => setDelHolidayId(null)}
-        onConfirm={() => delHolidayId !== null && holidayDelMut.mutate(delHolidayId)}
-        title="Remove Holiday"
-        message="Remove this holiday? Existing leave day counts were already computed at application time."
-        danger
-        loading={holidayDelMut.isPending}
-      />
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button type="button" onClick={() => setShowApply(false)} className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+              <button type="button" onClick={() => applyMut.mutate()} disabled={!applyForm.employee_id || !applyForm.start_date || !applyForm.end_date || applyMut.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer disabled:opacity-40">Submit Leave Application</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Approve Modal */}
+      {approveFor && (
+        <Modal open={!!approveFor} onClose={() => setApproveFor(null)} title={`${approveFor.action === 'approve' ? 'Approve' : 'Reject'} Leave Request`} size="sm">
+          <div className="space-y-4 pt-2">
+            <p className="text-xs text-slate-600">
+              Are you sure you want to <strong>{approveFor.action}</strong> leave for <strong>{fullName(approveFor.row.first_name, approveFor.row.last_name)}</strong> ({dateShort(approveFor.row.start_date)} &rarr; {dateShort(approveFor.row.end_date)})?
+            </p>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Remarks (Optional)</label>
+              <textarea rows={2} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Add approval/rejection remarks..." className="w-full p-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button type="button" onClick={() => setApproveFor(null)} className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+              <button type="button" onClick={() => approvalMut.mutate()} disabled={approvalMut.isPending} className={`px-5 py-2 text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer ${approveFor.action === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-rose-600 hover:bg-rose-700'}`}>
+                Confirm {approveFor.action === 'approve' ? 'Approval' : 'Rejection'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {delHolidayId && (
+        <ConfirmDialog
+          open={!!delHolidayId}
+          onClose={() => setDelHolidayId(null)}
+          onConfirm={() => delHolidayId && holidayDelMut.mutate(delHolidayId)}
+          title="Remove Holiday"
+          message="Are you sure you want to remove this official holiday?"
+          confirmText="Remove"
+          danger
+          loading={holidayDelMut.isPending}
+        />
+      )}
     </div>
   )
 }

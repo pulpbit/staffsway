@@ -51,7 +51,7 @@ export default function JoiningFormModal({ employeeId, onClose }: Props) {
       <Modal open onClose={onClose} title="Joining Form" size="lg">
         <div>
           <div className="flex items-center justify-between gap-2 mb-3 print:hidden">
-            <p className="text-[12px] text-mute">
+            <p className="text-[12px] text-slate-500">
               Generated on {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
             </p>
             <div className="flex items-center gap-2">
@@ -59,7 +59,7 @@ export default function JoiningFormModal({ employeeId, onClose }: Props) {
               <Button variant="secondary" onClick={onClose}><X className="w-3.5 h-3.5" /> Close</Button>
             </div>
           </div>
-          <div className="max-h-[58vh] overflow-y-auto bg-white border border-hairline rounded-sm p-6 print:hidden">
+          <div className="max-h-[58vh] overflow-y-auto bg-white border border-slate-200 rounded-lg p-6 print:hidden">
             {content}
           </div>
         </div>
@@ -76,21 +76,21 @@ function Section({ title, rows }: { title: string; rows: FieldRow[] }) {
   for (let i = 0; i < rows.length; i += 2) chunked.push(rows.slice(i, i + 2))
   return (
     <div className="mb-2 break-inside-avoid">
-      <p className="text-[10px] font-bold uppercase tracking-[0.08em] border-b-2 border-neutral-400 pb-0.5 mb-1">{title}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.08em] border-b-2 border-slate-400-400 pb-0.5 mb-1">{title}</p>
       <table className="w-full border-collapse">
         <tbody>
           {chunked.map((pair, i) => (
             <tr key={i}>
               {pair.map(([k, v]) => (
                 <Fragment key={k}>
-                  <td className="border border-neutral-300 bg-neutral-100/70 px-1.5 py-[3px] font-medium w-[42%] text-[10.5px]">{k}</td>
-                  <td className="border border-neutral-300 px-1.5 py-[3px] text-[11px] w-[58%] break-words">{v}</td>
+                  <td className="border border-slate-400-300 bg-slate-100/70 px-1.5 py-[3px] font-medium w-[42%] text-[10.5px]">{k}</td>
+                  <td className="border border-slate-400-300 px-1.5 py-[3px] text-[11px] w-[58%] break-words">{v}</td>
                 </Fragment>
               ))}
               {pair.length === 1 && (
                 <>
-                  <td className="border border-neutral-300 bg-neutral-100/70 w-[42%]" />
-                  <td className="border border-neutral-300 w-[58%]" />
+                  <td className="border border-slate-400-300 bg-slate-100/70 w-[42%]" />
+                  <td className="border border-slate-400-300 w-[58%]" />
                 </>
               )}
             </tr>
@@ -124,16 +124,16 @@ function JoiningFormBody({ employee: e, settings }: { employee: Employee; settin
   const name = fullName(e.first_name, e.last_name)
 
   return (
-    <div className="text-[11px] text-neutral-900 leading-snug">
+    <div className="text-[11px] text-slate-600-900 leading-snug">
       <div className="text-center mb-3">
         <p className="text-[16px] font-bold tracking-tight uppercase">{settings.company_name}</p>
-        {settings.company_tagline && <p className="text-[10px] text-neutral-600">{settings.company_tagline}</p>}
-        {companyLine1 && <p className="text-[10px] text-neutral-600">{companyLine1}</p>}
-        {companyLine2 && <p className="text-[10px] text-neutral-600">{companyLine2}</p>}
-        {companyLine3 && <p className="text-[10px] text-neutral-600">{companyLine3}</p>}
-        <hr className="mt-2 border-t-2 border-neutral-300" />
+        {settings.company_tagline && <p className="text-[10px] text-slate-600-600">{settings.company_tagline}</p>}
+        {companyLine1 && <p className="text-[10px] text-slate-600-600">{companyLine1}</p>}
+        {companyLine2 && <p className="text-[10px] text-slate-600-600">{companyLine2}</p>}
+        {companyLine3 && <p className="text-[10px] text-slate-600-600">{companyLine3}</p>}
+        <hr className="mt-2 border-t-2 border-slate-400-300" />
         <p className="text-[13px] font-bold tracking-[0.12em] mt-1.5">JOINING FORM</p>
-        <p className="text-[10px] text-neutral-600 mt-0.5">Employee Joining Details &amp; Declaration</p>
+        <p className="text-[10px] text-slate-600-600 mt-0.5">Employee Joining Details &amp; Declaration</p>
       </div>
 
       <Section title="1. Personal Details" rows={[
@@ -207,7 +207,7 @@ function JoiningFormBody({ employee: e, settings }: { employee: Employee; settin
       </div>
 
       <div className="mb-2 break-inside-avoid">
-        <p className="text-[10px] font-bold uppercase tracking-[0.08em] border-b-2 border-neutral-400 pb-0.5 mb-1">7. Declaration</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.08em] border-b-2 border-slate-400-400 pb-0.5 mb-1">7. Declaration</p>
         <p className="text-justify text-[11px]">
           I, <strong>{name}</strong>, hereby declare that the particulars furnished in this form are true, complete and
           correct to the best of my knowledge. I have read and understood the terms and conditions of my employment and
@@ -221,15 +221,15 @@ function JoiningFormBody({ employee: e, settings }: { employee: Employee; settin
         <div>
           <p>____________________________</p>
           <p className="mt-1 font-medium">Signature of Employee</p>
-          <p className="mt-1 text-neutral-500">Date: ________________</p>
+          <p className="mt-1 text-slate-600-500">Date: ________________</p>
         </div>
         <div className="text-right">
           <p>For &amp; on behalf of <strong>{settings.company_name}</strong></p>
           <p className="mt-6 font-medium">Authorized Signatory / HR</p>
-          <p className="mt-1 text-neutral-500">Date: ________________</p>
+          <p className="mt-1 text-slate-600-500">Date: ________________</p>
         </div>
       </div>
-      <p className="mt-3 text-center text-[10px] text-neutral-400 tracking-wide">This is a computer generated joining form.</p>
+      <p className="mt-3 text-center text-[10px] text-slate-600-400 tracking-wide">This is a computer generated joining form.</p>
     </div>
   )
 }

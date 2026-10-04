@@ -15,13 +15,13 @@ export const MARK_LABEL: Record<AttendanceMark, string> = {
 }
 
 export const MARK_CHIP: Record<AttendanceMark, string> = {
-  P: 'bg-success text-white',
-  A: 'bg-error text-white',
-  R: 'bg-neutral text-white',
-  HD: 'bg-info text-white',
-  HF: 'bg-warning text-ink',
-  L: 'bg-error-deep text-white',
-  X: 'bg-neutral-soft text-mute ring-1 ring-inset ring-hairline',
+  P: 'bg-emerald-500 text-white',
+  A: 'bg-rose-500 text-white',
+  R: 'bg-slate-400 text-white',
+  HD: 'bg-sky-500 text-white',
+  HF: 'bg-amber-400 text-amber-950',
+  L: 'bg-rose-700 text-white',
+  X: 'bg-slate-100 text-slate-400 ring-1 ring-inset ring-slate-200',
 }
 
 export const r2 = (n: number) => Math.round(n * 100) / 100
