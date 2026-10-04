@@ -165,6 +165,34 @@
   }
 }
 
+/* Responsive table horizontal scroll */
+.responsive-table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.responsive-table-container table {
+  min-width: 100%;
+}
+.responsive-table-container th:first-child,
+.responsive-table-container td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: white;
+}
+.responsive-table-container th,
+.responsive-table-container td {
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .responsive-table-container {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
 .print-join { display: none; }
 
 @media print {

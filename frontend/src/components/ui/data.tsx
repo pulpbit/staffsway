@@ -188,7 +188,7 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
 
   return (
     <Fragment>
-      <div ref={scrollRef} onScroll={syncFromMain} className={bare ? `overflow-auto scrollbar-thin ${maxHeight}` : `overflow-auto scrollbar-thin ${maxHeight} -mx-4 sm:mx-0 rounded-2xl border border-slate-200/80 bg-white shadow-xs`}>
+      <div ref={scrollRef} onScroll={syncFromMain} className={bare ? `overflow-auto scrollbar-thin ${maxHeight}` : `overflow-auto scrollbar-thin ${maxHeight} -mx-4 sm:mx-0 rounded-2xl border border-slate-200/80 bg-white shadow-xs responsive-table-container`}>
         <table className="w-full text-left" style={{ minWidth }}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b border-slate-200/80 bg-slate-100">
@@ -228,7 +228,7 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
                         <td
                           key={col.key}
                           style={stickyStyle(col)}
-                          className={`px-4 py-3 align-middle ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyClass(col.sticky, rowBg) : ''} ${col.className || ''}`}
+                          className={`px-4 py-3 align-middle whitespace-nowrap ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyClass(col.sticky, rowBg) : ''} ${col.className || ''}`}
                         >
                           {col.render ? col.render(row, idx) : String((row as Record<string, unknown>)[col.key] ?? '')}
                         </td>
