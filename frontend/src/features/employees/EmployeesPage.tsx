@@ -27,7 +27,7 @@ import { downloadCsv } from '@/utils/csv'
 import { stateShort } from '@/utils/states'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { toast } from 'sonner'
-import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download, ScrollText, CalendarCheck, Sparkles, FileSignature } from 'lucide-react'
+import { Plus, UserPlus, Upload, Pencil, Eye, Users, CalendarDays, LogOut, SlidersHorizontal, ChevronDown, X, Download, ScrollText, CalendarCheck, Sparkles, FileSignature, MoreHorizontal } from 'lucide-react'
 import EmployeeForm from './EmployeeForm'
 import JoiningFormModal from './JoiningFormModal'
 import EmployeeLetterModal from '@/features/letters/EmployeeLetterModal'
@@ -122,6 +122,7 @@ export default function EmployeesPage() {
   const [transferFor, setTransferFor] = useState<any>(null)
   const [leaveFor, setLeaveFor] = useState<any>(null)
   const [exitFor, setExitFor] = useState<any>(null)
+  const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null)
   const queryClient = useQueryClient()
 
   const openEdit = (id: number, field?: string) => {
@@ -167,12 +168,25 @@ export default function EmployeesPage() {
       setShowImport(true)
       setSearchParams({}, { replace: true })
     }
+  }, [searchParams])
+
+  // Close action menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setActionMenuOpen(null)
+    document.addEventListener('mousedown', (e) => {
+      const menu = document.querySelector('[data-action-menu]')
+      if (menu && menu.contains(e.target as Node)) return
+      setActionMenuOpen(null)
+    })
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
     const joinId = (location.state as { joinId?: number } | null)?.joinId
     if (joinId) {
       setJoiningFor(Number(joinId))
       navigate(location.pathname, { replace: true, state: {} })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const params = { search, page: String(page), page_size: '50', sort, order, ...filters, ...advanced }
@@ -252,9 +266,9 @@ export default function EmployeesPage() {
   }
 
   const columns: Column<any>[] = [
-    { key: 'employee_code', header: 'Emp. ID', sticky: 'left', sortable: true, className: 'w-24', render: (r) => <span className="font-mono text-xs font-bold text-blue-700 whitespace-nowrap bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{r.employee_code}</span> },
-    { key: 'status', header: 'Status', sticky: 'left', className: 'w-24', render: (r) => <StatusBadge status={r.status} /> },
-    { key: 'name', header: 'Employee Name', sticky: 'left', sortable: true, className: 'min-w-56', render: (r) => (
+    { key: 'employee_code', header: 'Emp. ID', sortable: true, className: 'w-24', render: (r) => <span className="font-mono text-xs font-bold text-blue-700 whitespace-nowrap bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{r.employee_code}</span> },
+    { key: 'status', header: 'Status', className: 'w-24', render: (r) => <StatusBadge status={r.status} /> },
+    { key: 'name', header: 'Employee Name', sortable: true, className: 'min-w-56', render: (r) => (
       <span className="flex items-center gap-2.5 min-w-0">
         <Avatar name={fullName(r.first_name, r.last_name)} size="sm" />
         <button onClick={() => openEdit(r.id)} className="text-xs sm:text-[13px] font-bold text-slate-900 hover:text-blue-600 truncate max-w-48 cursor-pointer text-left">{fullName(r.first_name, r.last_name)}</button>
@@ -279,23 +293,56 @@ export default function EmployeesPage() {
     { key: 'bank_ifsc', header: 'IFSC', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.bank_ifsc || '—'}</span> },
     { key: 'uan', header: 'UAN', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.uan || '—'}</span> },
     { key: 'esi_number', header: 'ESIC No.', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.esi_number || '—'}</span> },
-    { key: 'actions', header: 'Actions', sticky: 'right', className: 'w-36', render: (r) => (
-      <div className="flex items-center gap-1.5">
-        <button onClick={() => openView(r)} title="View employee profile" aria-label="View profile" className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation">
-          <Eye className="w-4 h-4" />
+    { key: 'actions', header: 'Actions', sticky: 'right', className: 'w-12', render: (r) => (
+      <div className="relative inline-block">
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setActionMenuOpen(r.id)
+          }}
+          className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation"
+          aria-label="More actions"
+        >
+          <MoreHorizontal className="w-5 h-5" />
         </button>
-        <button onClick={() => openEdit(r.id)} title="Edit employee record" aria-label="Edit employee" disabled={r.status === 'exited'} className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation disabled:opacity-30 disabled:cursor-not-allowed">
-          <Pencil className="w-4 h-4" />
-        </button>
-        <button onClick={() => setAttFor(r)} title="View attendance history" aria-label="View attendance" className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation">
-          <CalendarCheck className="w-4 h-4" />
-        </button>
-        <button onClick={() => setJoiningFor(r.id)} title="Print joining form" aria-label="Generate joining form" className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation">
-          <ScrollText className="w-4 h-4" />
-        </button>
-        <button onClick={() => setLetterFor(r.id)} title="Generate offer or appointment letter" aria-label="Generate letter" disabled={r.status !== 'active'} className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation disabled:opacity-30 disabled:cursor-not-allowed">
-          <FileSignature className="w-4 h-4" />
-        </button>
+        {actionMenuOpen === r.id && (
+          <div className="fixed z-50 w-44 bg-white rounded-xl border border-slate-200/80 shadow-lg shadow-slate-200/50 overflow-hidden animate-fade-in">
+            <button
+              onClick={() => { openView(r); setActionMenuOpen(null) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+            >
+              <Eye className="w-4 h-4" /> View Profile
+            </button>
+            {r.status !== 'exited' && (
+              <button
+                onClick={() => { openEdit(r.id); setActionMenuOpen(null) }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+              >
+                <Pencil className="w-4 h-4" /> Edit Employee
+              </button>
+            )}
+            <button
+              onClick={() => { setJoiningFor(r.id); setActionMenuOpen(null) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+            >
+              <ScrollText className="w-4 h-4" /> Joining Form
+            </button>
+            {r.status === 'active' && (
+              <button
+                onClick={() => { setLetterFor(r.id); setActionMenuOpen(null) }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+              >
+                <FileSignature className="w-4 h-4" /> Appointment Letter
+              </button>
+            )}
+            <button
+              onClick={() => { setAttFor(r); setActionMenuOpen(null) }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+            >
+              <CalendarCheck className="w-4 h-4" /> View Attendance
+            </button>
+          </div>
+        )}
       </div>
     ) },
   ]
