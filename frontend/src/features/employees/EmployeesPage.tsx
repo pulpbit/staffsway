@@ -125,30 +125,32 @@ export default function EmployeesPage() {
   const [exitFor, setExitFor] = useState<any>(null)
   const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null)
   const [actionMenuPos, setActionMenuPos] = useState<{ top: number; left: number } | null>(null)
-  const actionMenuBtnRef = useRef<HTMLDivElement | null>(null)
+  const actionMenuAnchorRef = useRef<HTMLElement | null>(null)
   const actionMenuRef = useRef<HTMLDivElement | null>(null)
   const queryClient = useQueryClient()
 
   const closeActionMenu = useCallback(() => {
     setActionMenuOpen(null)
     setActionMenuPos(null)
+    actionMenuAnchorRef.current = null
   }, [])
 
-  const toggleActionMenu = useCallback((id: number) => {
+  // The anchor rect comes from the click event itself, not a ref lookup: the
+  // trigger's ref is only attached while the menu is open, so reading it on the
+  // first click would find null and the menu could never render.
+  const toggleActionMenu = useCallback((id: number, anchor: HTMLElement) => {
     if (actionMenuOpen === id) {
       closeActionMenu()
       return
     }
-    const btn = actionMenuBtnRef.current
-    if (btn) {
-      const r = btn.getBoundingClientRect()
-      const menuW = 176
-      const menuH = 176
-      const left = Math.min(Math.max(8, r.right - menuW), window.innerWidth - menuW - 8)
-      const opensUp = window.innerHeight - r.bottom < menuH + 12
-      const top = opensUp ? Math.max(8, r.top - menuH - 4) : r.bottom + 4
-      setActionMenuPos({ top, left })
-    }
+    const r = anchor.getBoundingClientRect()
+    const menuW = 176
+    const menuH = 184
+    const left = Math.min(Math.max(8, r.right - menuW), window.innerWidth - menuW - 8)
+    const opensUp = window.innerHeight - r.bottom < menuH + 12
+    const top = opensUp ? Math.max(8, r.top - menuH - 4) : r.bottom + 4
+    actionMenuAnchorRef.current = anchor
+    setActionMenuPos({ top, left })
     setActionMenuOpen(id)
   }, [actionMenuOpen, closeActionMenu])
 
@@ -203,7 +205,7 @@ export default function EmployeesPage() {
     const onPointerDown = (e: MouseEvent) => {
       const t = e.target as Node
       if (actionMenuRef.current?.contains(t)) return
-      if (actionMenuBtnRef.current?.contains(t)) return
+      if (actionMenuAnchorRef.current?.contains(t)) return
       closeActionMenu()
     }
     const onKeyDown = (e: KeyboardEvent) => {
@@ -336,15 +338,12 @@ export default function EmployeesPage() {
     { key: 'uan', header: 'UAN', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.uan || '—'}</span> },
     { key: 'esi_number', header: 'ESIC No.', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.esi_number || '—'}</span> },
     { key: 'actions', header: 'Actions', sticky: 'right', className: 'w-12', render: (r) => (
-      <div
-        ref={actionMenuOpen === r.id ? actionMenuBtnRef : undefined}
-        className="flex items-center justify-center"
-      >
+      <div className="flex items-center justify-center">
         <button
           onClick={(e) => {
             e.stopPropagation()
             e.preventDefault()
-            toggleActionMenu(r.id)
+            toggleActionMenu(r.id, e.currentTarget)
           }}
           aria-label="More actions"
           aria-haspopup="menu"
