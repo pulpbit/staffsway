@@ -306,7 +306,7 @@ export default function EmployeesPage() {
           <MoreHorizontal className="w-5 h-5" />
         </button>
         {actionMenuOpen === r.id && (
-          <div className="fixed z-50 w-44 bg-white rounded-xl border border-slate-200/80 shadow-lg shadow-slate-200/50 overflow-hidden animate-fade-in">
+          <div data-action-menu className="fixed z-50 w-44 bg-white rounded-xl border border-slate-200/80 shadow-lg shadow-slate-200/50 overflow-hidden animate-fade-in">
             <button
               onClick={() => { openView(r); setActionMenuOpen(null) }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
