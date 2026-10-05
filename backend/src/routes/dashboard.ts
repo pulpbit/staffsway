@@ -180,7 +180,11 @@ dashboardRoutes.get('/management', async (c) => {
     .slice(0, 5)
 
   const payrollStatus = (insights as any)?.payroll_status || null
-  const salaryPending = payrollStatus !== 'paid' ? 1 : 0
+  // Salary is only outstanding if there is somebody to pay and the run for the
+  // selected month has not been paid. Without this guard a missing payroll row
+  // (status null) read as pending work on an otherwise empty database.
+  const hasPayrollWork = totalActive > 0 || enrolled > 0
+  const salaryPending = hasPayrollWork && payrollStatus !== 'paid' ? 1 : 0
 
   // Payroll money figures for the selected month, summed from payroll_items.
   // Derived rather than hardcoded so an empty database reports zero.
@@ -218,7 +222,7 @@ dashboardRoutes.get('/management', async (c) => {
     { key: 'leaves', title: 'Review pending leave requests', count: n((insights as any)?.pending_leaves), route: '/leave', status: n((insights as any)?.pending_leaves) > 0 ? 'pending' : 'done' },
     { key: 'separations', title: 'Process pending separations', count: n((insights as any)?.pending_separations), route: '/separation', status: n((insights as any)?.pending_separations) > 0 ? 'pending' : 'done' },
     { key: 'attendance', title: `Finalise attendance for ${month}/${year}`, count: n((insights as any)?.pending_attendance), route: '/attendance', status: n((insights as any)?.pending_attendance) > 0 ? 'in_progress' : 'done' },
-    { key: 'payroll', title: payrollStatus === 'paid' ? `Salary processed for ${month}/${year}` : `Process salary for ${month}/${year}`, count: salaryPending, route: '/payroll', status: salaryPending > 0 ? 'pending' : 'done' },
+    { key: 'payroll', title: payrollStatus === 'paid' ? `Salary processed for ${month}/${year}` : hasPayrollWork ? `Process salary for ${month}/${year}` : `No payroll run for ${month}/${year}`, count: salaryPending, route: '/payroll', status: salaryPending > 0 ? 'pending' : 'done' },
     { key: 'hr', title: 'Respond to open HR requests', count: n((insights as any)?.open_hr_requests), route: '/helpdesk', status: n((insights as any)?.open_hr_requests) > 0 ? 'pending' : 'done' },
     { key: 'records', title: 'Complete missing employee records', count: totalGaps, route: '/employees', status: totalGaps > 0 ? 'pending' : 'done' },
   ]
