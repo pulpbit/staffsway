@@ -172,13 +172,14 @@ export default function EmployeesPage() {
 
   // Close action menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => setActionMenuOpen(null)
-    document.addEventListener('mousedown', (e) => {
+    const handleClickOutside = (e: MouseEvent) => {
       const menu = document.querySelector('[data-action-menu]')
-      if (menu && menu.contains(e.target as Node)) return
+      const trigger = document.querySelector('[aria-label="More actions"]')
+      if (menu && (menu.contains(e.target as Node) || (trigger && trigger.contains(e.target as Node)))) return
       setActionMenuOpen(null)
-    })
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
   }, [])
 
   useEffect(() => {
