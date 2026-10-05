@@ -7,9 +7,11 @@ import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui
 import { Modal } from '@/components/ui/overlay'
 import { fullName, dateShort } from '@/utils/format'
 import { toast } from 'sonner'
+import { useAuth } from '@/context/AuthContext'
 import {
   Plus, Search, MessageSquare, Clock, CheckCircle2, AlertTriangle, Send,
-  UserCheck, Shield, HelpCircle, ArrowRight, CornerDownRight, Sparkles, Filter
+  UserCheck, Shield, HelpCircle, ArrowRight, CornerDownRight, Sparkles, Filter,
+  User, AlertCircle
 } from 'lucide-react'
 
 const TABS = [
@@ -60,7 +62,14 @@ export default function HelpdeskPage() {
   const [catFilter, setCatFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [detailFor, setDetailFor] = useState<any>(null)
-  const [form, setForm] = useState({ employee_id: '', subject: '', message: '', category: 'other', priority: 'medium' })
+  const { user } = useAuth()
+  const [form, setForm] = useState({
+    employee_id: user?.employee_id?.toString() || '',
+    subject: '',
+    message: '',
+    category: 'other',
+    priority: 'medium',
+  })
   const qc = useQueryClient()
 
   const { data: summary } = useQuery({ queryKey: ['hd-summary'], queryFn: () => helpdeskApi.summary() })
@@ -72,7 +81,7 @@ export default function HelpdeskPage() {
   const { data: reqData, isLoading, error, refetch } = useQuery({ queryKey: ['helpdesk', params], queryFn: () => helpdeskApi.list(params) })
 
   const createMut = useMutation({
-    mutationFn: () => helpdeskApi.create({ ...form, employee_id: Number(form.employee_id) }),
+    mutationFn: () => helpdeskApi.create({ ...form, employee_id: user?.employee_id ? Number(user.employee_id) : 0 }),
     onSuccess: () => { setShowForm(false); qc.invalidateQueries({ queryKey: ['helpdesk'] }); qc.invalidateQueries({ queryKey: ['hd-summary'] }); toast.success('Ticket submitted successfully.') },
     onError: (e: any) => toast.error(e?.error?.message || 'Failed.'),
   })
@@ -233,13 +242,36 @@ export default function HelpdeskPage() {
       {/* Create Modal */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Log Helpdesk Inquiry" size="md">
         <div className="space-y-4 pt-1">
+          {user?.employee_id ? (
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200/80 flex items-center gap-2">
+              <User className="w-4 h-4 text-emerald-600" />
+              <div>
+                <p className="text-xs font-medium text-emerald-800">Logged in as</p>
+                <p className="text-xs font-semibold text-emerald-900">
+                  {fullName(user?.name?.split(' ')[0], user?.name?.split(' ').slice(1).join(' ') || '')} 
+                  <span className="text-[10px] font-normal text-emerald-600">(ID: {user.employee_id})</span>
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200/80 flex items-center gap-2 text-rose-700">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span className="text-xs">No employee ID linked to your account. Contact HR to link your employee profile.</span>
+            </div>
+          )}
           <Select label="Inquiry Category" options={Object.entries(CATEGORY_LABELS).map(([v, l]) => ({ value: v, label: l }))} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} />
           <Select label="Priority Level" options={[{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }, { value: 'urgent', label: 'Urgent' }]} value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))} />
           <Input label="Summary Subject" placeholder="e.g. Discrepancy in overtime computation" value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} />
           <Textarea label="Detailed Description" placeholder="Explain the grievance, date of occurrence, or documentation required..." value={form.message} onChange={e => setForm(f => ({ ...f, message: e.target.value }))} />
           <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
             <Button variant="secondary" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button loading={createMut.isPending} onClick={() => createMut.mutate()}>Submit Ticket</Button>
+            <Button loading={createMut.isPending} onClick={() => {
+              if (!user?.employee_id) {
+                toast.error('No employee ID linked to your account. Contact HR.')
+                return
+              }
+              createMut.mutate()
+            }}>Submit Ticket</Button>
           </div>
         </div>
       </Modal>
