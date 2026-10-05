@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "staffsway-demo"
-database_id = "b4665e7a-2427-42e3-aba6-1d1dae3d5d22"
+database_name = "staffsway-db"
+database_id = "9335cd14-464c-4585-bdab-ed89d56e539f"
 migrations_dir = "migrations"
 migrations_table = "d1_migrations"

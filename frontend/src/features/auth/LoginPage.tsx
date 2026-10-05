@@ -18,15 +18,14 @@ import {
   Cloud,
   Sparkles,
   Building2,
-  CheckCircle2,
 } from 'lucide-react'
 
 type Mode = 'staff' | 'employee'
 
 export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('staff')
-  const [email, setEmail] = useState('admin@staffsway.in')
-  const [password, setPassword] = useState('Demo@1992')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
   const [empPwd, setEmpPwd] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -50,20 +49,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const fillStaffDemo = () => {
-    setMode('staff')
-    setEmail('admin@staffsway.in')
-    setPassword('Demo@1992')
-    toast.info('Staff demo credentials applied')
-  }
-
-  const fillEmployeeDemo = () => {
-    setMode('employee')
-    setUsername('SW0001')
-    setEmpPwd('150892')
-    toast.info('Employee demo credentials applied (SW0001 / 150892)')
   }
 
   const features = [
@@ -193,7 +178,7 @@ export default function LoginPage() {
 
             {/* Better HR Better Business Banner / Hero illustration area */}
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 p-6 text-white shadow-lg flex items-center justify-between">
-              <div className="relative z-10 space-y-1.5 max-w-sm">
+              <div className="relative z-10 space-y-1.5 max-w-md">
                 <div className="inline-block px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[11px] font-bold uppercase tracking-wider backdrop-blur-sm">
                   Smart Solution
                 </div>
@@ -203,20 +188,9 @@ export default function LoginPage() {
                 </p>
               </div>
               <div className="hidden sm:flex items-center gap-2 relative z-10">
-                <button
-                  type="button"
-                  onClick={fillStaffDemo}
-                  className="px-3.5 py-2 bg-white text-blue-700 hover:bg-blue-50 text-xs font-bold rounded-lg shadow transition-all cursor-pointer"
-                >
-                  Staff Demo
-                </button>
-                <button
-                  type="button"
-                  onClick={fillEmployeeDemo}
-                  className="px-3.5 py-2 bg-blue-950/60 hover:bg-blue-950/80 text-white text-xs font-bold rounded-lg border border-white/20 transition-all cursor-pointer"
-                >
-                  My Space Demo
-                </button>
+                <span className="px-3.5 py-2 bg-white/15 hover:bg-white/20 text-white text-xs font-bold rounded-lg border border-white/20 transition-all">
+                  Staff &amp; My Space Access
+                </span>
               </div>
               {/* Decorative background glow */}
               <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
@@ -282,7 +256,7 @@ export default function LoginPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
-                        placeholder="admin@staffsway.in"
+                        placeholder="you@company.com"
                         className="w-full h-11 pl-10 pr-3.5 text-sm bg-slate-50/50 border border-slate-300 rounded-xl text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10 outline-none transition-all"
                       />
                     </div>
@@ -420,26 +394,6 @@ export default function LoginPage() {
                   </button>
                 </form>
               )}
-
-              {/* OR Divider */}
-              <div className="relative my-5">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-200" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase font-bold text-slate-400">
-                  <span className="bg-white px-3">OR</span>
-                </div>
-              </div>
-
-              {/* Secondary Demo Quick Access / Google-styled button */}
-              <button
-                type="button"
-                onClick={mode === 'staff' ? fillStaffDemo : fillEmployeeDemo}
-                className="w-full h-10 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-              >
-                <CheckCircle2 className="w-4 h-4 text-blue-600" />
-                <span>Auto-fill Demo Credentials</span>
-              </button>
 
               <p className="text-center text-xs text-slate-500 mt-6">
                 Not a member?{' '}

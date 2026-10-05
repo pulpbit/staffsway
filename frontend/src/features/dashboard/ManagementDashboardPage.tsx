@@ -134,6 +134,18 @@ export default function ManagementDashboardPage() {
   const netPay = d.salary_cost || Number(payroll?.net_total || 0)
   const processedEmployees = Number(payroll?.item_count || 0)
 
+  // Money breakdown summed from payroll_items server-side. These are real
+  // database totals, so an empty database shows zero rather than placeholder
+  // figures.
+  const financials = d.financials || { earnings: 0, deductions: 0, net: 0, pf: 0, esi: 0 }
+  const prevNet = Number(d.prev_net || 0)
+  const payrollTrendPct = d.payroll_trend_pct as number | null
+
+  // Leave counts come from the dashboard insights query.
+  const leaveCounts = d.leave_counts || { pending: 0, approved: 0, rejected: 0 }
+
+  const upcomingHoliday = (d.holidays || [])[0] || null
+
   // Clients & Sites
   const totalClients = Number(kpi.clients || 0)
   const totalSites = Number(kpi.sites || 0)
@@ -330,10 +342,12 @@ export default function ManagementDashboardPage() {
             <span className="text-2xl sm:text-[26px] font-extrabold tracking-tight">{formatRupees(netPay)}</span>
           </div>
           <div className="mt-2.5 flex items-center justify-between text-[11px] font-medium text-purple-100 border-t border-white/15 pt-2">
-            <span>Last Mo: ₹ 7,98,450</span>
-            <span className="inline-flex items-center gap-0.5 bg-emerald-400/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded text-[10px]">
-              <TrendingUp className="w-3 h-3" /> +6.0%
-            </span>
+            <span>Last Mo: {prevNet > 0 ? formatRupees(prevNet) : 'No prior payroll'}</span>
+            {payrollTrendPct !== null && (
+              <span className="inline-flex items-center gap-0.5 bg-emerald-400/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded text-[10px]">
+                <TrendingUp className="w-3 h-3" /> {payrollTrendPct >= 0 ? '+' : ''}{payrollTrendPct}%
+              </span>
+            )}
           </div>
         </div>
 
@@ -346,12 +360,12 @@ export default function ManagementDashboardPage() {
             </div>
           </div>
           <div className="mt-2.5">
-            <span className="text-3xl font-extrabold tracking-tight">18</span>
+            <span className="text-3xl font-extrabold tracking-tight">{leaveCounts.pending}</span>
           </div>
           <div className="mt-2.5 flex items-center justify-between text-[11px] font-medium text-amber-100 border-t border-white/15 pt-2">
-            <span>Approved: <strong className="text-white">52</strong></span>
+            <span>Approved: <strong className="text-white">{leaveCounts.approved}</strong></span>
             <span>&bull;</span>
-            <span>Rejected: <strong className="text-white">3</strong></span>
+            <span>Rejected: <strong className="text-white">{leaveCounts.rejected}</strong></span>
           </div>
         </div>
 
@@ -369,7 +383,7 @@ export default function ManagementDashboardPage() {
           <div className="mt-2.5 flex items-center justify-between text-[11px] font-medium text-teal-100 border-t border-white/15 pt-2">
             <span>Sites: <strong className="text-white">{totalSites} Active</strong></span>
             <span>&bull;</span>
-            <span>Coverage: <strong className="text-white">Pan-India</strong></span>
+            <span>Clients: <strong className="text-white">{totalClients} Active</strong></span>
           </div>
         </div>
 
@@ -846,9 +860,11 @@ export default function ManagementDashboardPage() {
             )}
           </div>
 
-          <div className="mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-500 text-center">
-            Next long weekend in <strong className="text-slate-800">4 weeks</strong>
-          </div>
+          {upcomingHoliday && (
+            <div className="mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-500 text-center">
+              Next holiday: <strong className="text-slate-800">{upcomingHoliday.name} ({upcomingHoliday.date})</strong>
+            </div>
+          )}
         </div>
 
       </div>
@@ -1087,27 +1103,27 @@ export default function ManagementDashboardPage() {
           
           <div className="pt-2 sm:pt-0 sm:px-3">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Earnings</span>
-            <span className="text-lg font-extrabold text-slate-900 block mt-1">₹ 20,70,000</span>
+            <span className="text-lg font-extrabold text-slate-900 block mt-1">{formatRupees(financials.earnings)}</span>
           </div>
 
           <div className="pt-2 sm:pt-0 sm:px-3">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total Deductions</span>
-            <span className="text-lg font-extrabold text-rose-600 block mt-1">₹ 3,50,000</span>
+            <span className="text-lg font-extrabold text-rose-600 block mt-1">{formatRupees(financials.deductions)}</span>
           </div>
 
           <div className="pt-2 sm:pt-0 sm:px-3">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Net Payroll</span>
-            <span className="text-lg font-extrabold text-blue-600 block mt-1">₹ 17,20,000</span>
+            <span className="text-lg font-extrabold text-blue-600 block mt-1">{formatRupees(financials.net)}</span>
           </div>
 
           <div className="pt-2 sm:pt-0 sm:px-3">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">PF Contribution</span>
-            <span className="text-lg font-extrabold text-purple-600 block mt-1">₹ 1,80,000</span>
+            <span className="text-lg font-extrabold text-purple-600 block mt-1">{formatRupees(financials.pf)}</span>
           </div>
 
           <div className="pt-2 sm:pt-0 sm:px-3">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">ESI Contribution</span>
-            <span className="text-lg font-extrabold text-emerald-600 block mt-1">₹ 45,000</span>
+            <span className="text-lg font-extrabold text-emerald-600 block mt-1">{formatRupees(financials.esi)}</span>
           </div>
 
         </div>

@@ -13,7 +13,7 @@ dashboardRoutes.get('/management', async (c) => {
   const year = Number(c.req.query('year') || now.getFullYear())
   const mm = String(month).padStart(2, '0')
 
-  const [empToday, onLeaveToday, joiningsMonth, exitsMonth, deptManpower, attTrend, salaryTrend, monthAtt, prevYearEmp, pendingInfo, insights, birthdays, clientsWithCounts, upcomingHolidays, dueCompliance] = await Promise.all([
+  const [empToday, onLeaveToday, joiningsMonth, exitsMonth, deptManpower, attTrend, salaryTrend, monthAtt, prevYearEmp, pendingInfo, insights, payFinancials, prevPay, birthdays, clientsWithCounts, upcomingHolidays, dueCompliance] = await Promise.all([
     db.prepare(`SELECT COUNT(*) as total FROM employees WHERE status = 'active'`).first(),
     db.prepare(`
       SELECT COUNT(*) as on_leave FROM leave_requests
@@ -76,8 +76,28 @@ dashboardRoutes.get('/management', async (c) => {
         (SELECT COUNT(*) FROM employees WHERE status = 'active' AND (bank_account IS NULL OR TRIM(bank_account) = '' OR bank_ifsc IS NULL OR TRIM(bank_ifsc) = '')) AS missing_bank,
         (SELECT COUNT(*) FROM attendance_monthly WHERE month = ? AND year = ? AND status != 'approved') AS pending_attendance,
         (SELECT status FROM payroll WHERE month = ? AND year = ?) AS payroll_status,
-        (SELECT COUNT(*) FROM compliance_records WHERE status != 'done' AND year = ?) AS pending_compliance
+        (SELECT COUNT(*) FROM compliance_records WHERE status != 'done' AND year = ?) AS pending_compliance,
+        (SELECT COUNT(*) FROM leave_requests WHERE status = 'approved') AS approved_leaves,
+        (SELECT COUNT(*) FROM leave_requests WHERE status = 'rejected') AS rejected_leaves
     `).bind(month, year, month, year, year).first(),
+    // Money figures for the selected month, summed from payroll_items.
+    db.prepare(`
+      SELECT
+        COALESCE(SUM(i.gross), 0) AS earnings,
+        COALESCE(SUM(i.total_deductions), 0) AS deductions,
+        COALESCE(SUM(i.net_salary), 0) AS net,
+        COALESCE(SUM(i.pf), 0) AS pf,
+        COALESCE(SUM(i.esic), 0) AS esi
+      FROM payroll_items i
+      JOIN payroll p ON p.id = i.payroll_id
+      WHERE p.month = ? AND p.year = ?
+    `).bind(month, year).first(),
+    db.prepare(`
+      SELECT COALESCE(SUM(i.net_salary), 0) AS prev_net
+      FROM payroll_items i
+      JOIN payroll p ON p.id = i.payroll_id
+      WHERE (p.year < ?) OR (p.year = ? AND p.month < ?)
+    `).bind(year, year, month).first(),
     // Birthdays in the next 30 days. Compares MM-DD so it works across the
     // year boundary, which a plain julianday range would miss in December.
     db.prepare(`
@@ -162,6 +182,20 @@ dashboardRoutes.get('/management', async (c) => {
   const payrollStatus = (insights as any)?.payroll_status || null
   const salaryPending = payrollStatus !== 'paid' ? 1 : 0
 
+  // Payroll money figures for the selected month, summed from payroll_items.
+  // Derived rather than hardcoded so an empty database reports zero.
+  const financials = {
+    earnings: n((payFinancials as any)?.earnings),
+    deductions: n((payFinancials as any)?.deductions),
+    net: n((payFinancials as any)?.net),
+    pf: n((payFinancials as any)?.pf),
+    esi: n((payFinancials as any)?.esi),
+  }
+  const prevNet = n((prevPay as any)?.prev_net)
+  const payrollTrendPct = prevNet > 0
+    ? Math.round(((financials.net - prevNet) / prevNet) * 1000) / 10
+    : null
+
   const alerts = [
     { key: 'birthdays', label: 'Upcoming Birthdays', count: upcomingBirthdays.length, tone: 'rose' },
     { key: 'pf', label: 'Missing PF / UAN', count: n((insights as any)?.missing_pf), tone: 'purple' },
@@ -223,6 +257,14 @@ dashboardRoutes.get('/management', async (c) => {
       upcoming_birthdays: upcomingBirthdays,
       field_gaps: fieldGaps,
       tasks,
+      financials,
+      prev_net: prevNet,
+      payroll_trend_pct: payrollTrendPct,
+      leave_counts: {
+        pending: n((insights as any)?.pending_leaves),
+        approved: n((insights as any)?.approved_leaves),
+        rejected: n((insights as any)?.rejected_leaves),
+      },
       active_clients: activeClients,
       top_clients: topClients,
       top_client_max: topClientMax,

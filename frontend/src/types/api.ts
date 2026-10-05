@@ -595,6 +595,10 @@ export interface ManagementDashboard {
   top_client_max: number
   holidays: { date: string; name: string }[]
   due_compliance: { obligation: string; due_date: string; status: string }[]
+  financials: { earnings: number; deductions: number; net: number; pf: number; esi: number }
+  prev_net: number
+  payroll_trend_pct: number | null
+  leave_counts: { pending: number; approved: number; rejected: number }
 }
 
 export interface PayrollPreview {
