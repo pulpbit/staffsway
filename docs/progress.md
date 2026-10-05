@@ -5,6 +5,61 @@ deployed (GitHub Actions → Cloudflare Workers + Pages) unless noted.
 
 ---
 
+## 2026-10-05 — Client Cloudflare migration + demo placeholder removal
+
+Delivered the running system into the client own Cloudflare account and moved it onto a real domain.
+Frontend https://staffsway.in, API https://api.staffsway.in, D1 staffsway-db.
+
+### Migration sequence
+1. Created D1 staffsway-db and applied all 29 migrations to the empty remote database (63 tables).
+   Verified the whole set applies clean from scratch rather than assuming — the repo has no 0019
+   and 0031 was deleted, so numbering gaps were checked explicitly.
+2. Set SESSION_SECRET (64-char random). Previously unset, so production was signing JWTs with the
+   hardcoded dev fallback from utils/jwt.ts:getSecret.
+3. Seeded the first admin (Vijay Sharma) by generating a PBKDF2 hash with a new
+   backend/scripts/gen-admin-hash.mjs, which mirrors utils/hash.ts so the two cannot drift. No signup
+   endpoint exists, so this insert is the only path to the first account.
+4. Created Pages project staffsway-app, deployed Worker + Pages.
+5. Attached staffsway.in and www.staffsway.in to Pages, api.staffsway.in to the Worker.
+6. Repointed the GitHub Actions secrets from the old account to the client, then confirmed the pipeline
+   works end to end by pushing and reading the run log.
+
+### DNS note
+The apex A record pointed at Namecheap parking IP, which blocks attaching a custom domain to Pages.
+Replaced the apex A and the www parking CNAME with CNAMEs to Pages. The 5 Namecheap MX records and
+the SPF TXT were left untouched and re-verified after the change — mail is unaffected.
+
+### Dashboard placeholders removed
+The earlier mock-removal pass had missed several hardcoded figures that would have been shown to the client:
+- Financial summary bar (earnings / deductions / net / PF / ESI) was literal text. Now sums payroll_items
+  for the selected month.
+- Pending Leaves card was 18 / 52 / 3. Now counts leave_requests by status.
+- Last Mo: ₹ 7,98,450 with a fabricated +6.0% — now the prior month real net salary and a computed
+  percentage.
+- Coverage: Pan-India → active client count. Next long weekend in 4 weeks → next real holiday, hidden
+  when there are none.
+
+### Salary-pending false positive
+salaryPending was payrollStatus !== paid, so a missing payroll row (null) counted as outstanding work.
+On the empty client database this showed Salary Pending 1 and Process salary with zero employees and zero
+attendance rows. Now gated on totalActive > 0 || enrolled > 0, and the task title distinguishes
+No payroll run for X/Y from Process salary.
+
+### Login autofill removed
+The login page pre-seeded admin@staffsway.in / Demo@1992 and offered three demo fill buttons (auto-fill,
+Staff Demo, My Space Demo). Those accounts do not exist in the client database, so every autofill would
+have failed on submit. Fields now start empty.
+
+### Still open
+- Staffsway@123 is the live production admin password.
+- Both Cloudflare API tokens were pasted in plaintext during the migration and need rotating; the GitHub
+  one is duplicated into Actions secrets.
+- Old PulpBit deployment (staffsway-backend.pulpbit.workers.dev) is still online with demo data and no
+  longer receives deploys.
+- CORS is still * on the Worker.
+
+---
+
 ## 2026-10-04 — Full UI redesign pass + table/scroll fixes (commit `11eaf8e`)
 
 Scope: **46 frontend files**. No backend, API, permission, or calculation changes —

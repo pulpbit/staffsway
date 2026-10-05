@@ -6,14 +6,14 @@
 
 - Plan mode research: complete.
 - Implementation: **not started** (backend + frontend + tests remain).
-- Decision context: production frontend is deployed to Cloudflare Pages (`staffsway.pages.dev`), backend worker live at `https://staffsway-backend.pulpbit.workers.dev`. The user plans to **migrate this project to a client's Cloudflare account later**, so account/config must come purely from server-side env — **no hardcoded account/token defaults**.
+- **Update 5 Oct 2026:** the migration this plan anticipated has now happened. Production is the client's Cloudflare account — Pages `staffsway-app` at `https://staffsway.in`, Worker `staffsway-backend` at `https://api.staffsway.in`, D1 `staffsway-db` (id `9335cd14-464c-4585-bdab-ed89d56e539f`) in account `f7b5649c9584f101d2f96bcf25f750d8`. The env-only design below is unchanged and still correct; the fallback id and account reference below are stale and need updating to the new values before implementation starts.
 
 ## Decided (locked in)
 
 - **Navigation**: standalone sidebar **menu item** under the existing `System` group (`NAV_GROUPS` in `frontend/src/layouts/AppLayout.tsx`, currently holds `/settings`) → route `/system-usage`. Role-gated in `SidebarNav` to `super_admin` / `admin`.
 - **Activity window**: last **24 hours** (same convention as `wrangler d1 info`).
 - **Capacity limit**: `D1_LIMIT_BYTES` env optional, default **10 GiB** in a single config module (`backend/src/utils/d1config.ts`). App-side thresholds: 0–70 Normal, 70–85 Warning, 85–95 High, >95 Critical (app thresholds only — never presented as a Cloudflare claim).
-- **Cloudflare account (migration-safe)**: `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `D1_DATABASE_ID` come from **env only, no hardcoded account/id defaults**. `D1_DATABASE_ID` falls back to the existing id in `backend/wrangler.toml` (`b4665e7a-2427-42e3-aba6-1d1dae3d5d22`). Current known account id: `6cbeb7d08d0af64e10c11c3364996448` (PulpBit) — used only as a reference for later migration, never hardcoded.
+- **Cloudflare account (migration-safe)**: `CF_API_TOKEN`, `CF_ACCOUNT_ID`, `D1_DATABASE_ID` come from **env only, no hardcoded account/id defaults**. `D1_DATABASE_ID` falls back to the id in `backend/wrangler.toml`, now `9335cd14-464c-4585-bdab-ed89d56e539f`. Production account id is `f7b5649c9584f101d2f96bcf25f750d8` — reference only, never hardcoded.
 - Until config is set, **storage + activity show "unavailable" honestly** (no fake numbers). Records + health always work (D1 binding is account-independent). No R2 anywhere.
 
 ## Cloudflare metrics (verified against official docs + wrangler output)
@@ -21,7 +21,7 @@
 - **Real storage size** — REST API:
   `GET https://api.cloudflare.com/client/v4/accounts/{account_id}/d1/database/{database_id}?fields=file_size`
   → `result.file_size` (bytes) + `num_tables`. Header `Authorization: Bearer <token>`.
-  Cross-check: after configuring a token, `usedBytes` should equal `npx wrangler d1 info staffsway-demo --json` → `database_size` (currently **651,264 bytes ~ 636 KB**; 59 tables).
+  Cross-check: after configuring a token, `usedBytes` should equal `npx wrangler d1 info staffsway-db --json` → `database_size`. Re-measure at implementation time; the figure recorded when this plan was written was **651,264 bytes ~ 636 KB** / 59 tables, and the client's database has since been created from scratch with 63 tables.
 - **Activity metrics** — GraphQL Analytics API:
   `POST https://api.cloudflare.com/client/v4/graphql`
   `viewer { accounts(filter: {accountTag: "..."}) { d1AnalyticsAdaptiveGroups(filter: {databaseId, datetime_geq, datetime_leq}) { sum { readQueries writeQueries rowsRead rowsWritten } } } }`
@@ -90,10 +90,10 @@
 
 - Backend: Hono + D1, everything mounted under `/api`, `authMiddleware` global, `requireRole(...)`. Roles: `super_admin, admin, hr, payroll, finance, manager, employee`.
 - Local dev: `npm run dev` (wrangler, port 8787); frontend `npm run dev` (vite, `http://localhost:5173`, binds IPv6 — `127.0.0.1:5173` fails, use `localhost`).
-- Login: `admin@staffsway.in` / `Demo@1992`.
-- Deploys that worked: `npx wrangler d1 migrations apply staffsway-demo --remote`, `npx wrangler deploy`, `npm run build` + `npx wrangler pages deploy dist --project-name staffsway --branch main --commit-dirty=true`.
-- `.env.production` = `VITE_API_URL=https://staffsway-backend.pulpbit.workers.dev/api`.
-- Remote D1: payroll id=1 Jul 2026 `paid` (no items/slips), id=2 Aug 2026 `paid` (no items/slips), id=3 Sep 2026 `finalized` (12 items + 12 slips). Jul/Aug item-less state was already flagged to the user; do not touch without approval.
+- Local login (after seeding locally): `admin@staffsway.in` / `Demo@1992`. Production login is `staffsway.jobs@gmail.com` — the seeded demo accounts do not exist in the client's database.
+- Deploys that worked: `npx wrangler d1 migrations apply staffsway-db --remote`, `npx wrangler deploy`, `npm run build` + `npx wrangler pages deploy dist --project-name staffsway-app --branch main --commit-dirty=true`.
+- `.env.production` = `VITE_API_URL=https://api.staffsway.in/api`.
+- Production D1 is **empty apart from one admin user** (63 tables, no business data). The payroll rows described below lived in the old PulpBit database and no longer exist in production.
 - Remote D1 does not support `UPDATE ... FROM` — use correlated subqueries on remote.
 - Browser automation unavailable until `npx playwright install` (Playwright chromium missing).
 - Logs/PIDs in `C:\Users\abdul\AppData\Local\Temp\opencode\` (`sw-out.log`, `sw-err.log`, `sw-backend.pid`, `sw-fe*.log`, `sw-fe.pid`).

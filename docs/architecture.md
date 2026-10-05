@@ -7,7 +7,7 @@ Browser SPA (React 18 + Vite + Tailwind v4)
 Cloudflare Worker — Hono 4 (backend/)
         │  Zod validation per route
         ▼
-D1 SQLite (staffsway-demo)          — single datastore (text/metadata only,
+D1 SQLite (staffsway-db)          — single datastore (text/metadata only,
                                       no file storage by product decision)
 ```
 

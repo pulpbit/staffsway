@@ -13,5 +13,6 @@ Blockers or scope-affecting unknowns. Resolve before final invoice.
 | 7 | ~~R2 bucket provisioning~~ RESOLVED: no file storage — documents are text records only | — | Closed by product decision |
 | 8 | Salary slip template: company letterhead PDF requirements? | Slip print/PDF | Current HTML slip layout |
 | 9 | Existing employee data format for one-time import (Excel?) | Data migration | Manual entry via UI |
-| 10 | Domain name for deployment + who manages DNS? | Go-live | workers.dev + pages.dev URLs |
+| 10 | ~~Domain name for deployment + who manages DNS?~~ RESOLVED: client domain staffsway.in is live in the client Cloudflare account (apex + www on Pages, api.staffsway.in on the Worker). Namecheap still hosts MX + SPF | — | Closed |
 | 11 | Is the 2026-10-04 dashboard design language (slate/blue cards, gradient KPI tiles, soft badges) approved as the baseline for the remaining pages? | Further UI work — rework if it is not the intended look | Current design language stands |
+| 12 | Who receives the admin credentials, and is the initial password acceptable or should a fresh one be issued before handover? | Client go-live handover | Rotate before handover |

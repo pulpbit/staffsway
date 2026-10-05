@@ -96,25 +96,28 @@ npm run dev         # Starts Vite dev server on :5173 (proxies /api to :8787)
 
 Visit **http://localhost:5173**
 
-### Demo credentials
+### Credentials
+
+There is no self-service signup. The login form starts empty; accounts are created by
+inserting a row into the `users` table (see `docs/deployment.md`).
+
+Running the local seed (section 5) creates a demo admin:
 
 ```
 Email:    admin@staffsway.in
-Password: Demo@123
+Password: Demo@1992
 ```
 
-### Important: Running New Migrations
+The seed is for local development only. It has never been run against production.
 
-If modules (Performance, Assets, Training, Separation, Helpdesk) show "Failed to load", the migrations haven't been applied yet:
+### Important: Applying Migrations
+
+If modules (Performance, Assets, Training, Separation, Helpdesk) show "Failed to load", the
+migrations have not been applied. Apply every migration in one step rather than file by file:
 
 ```bash
 cd backend
-npx wrangler d1 execute staffsway-demo --local --file=./migrations/0008_performance.sql
-npx wrangler d1 execute staffsway-demo --local --file=./migrations/0009_documents_ext.sql
-npx wrangler d1 execute staffsway-demo --local --file=./migrations/0010_asset_management.sql
-npx wrangler d1 execute staffsway-demo --local --file=./migrations/0011_training_management.sql
-npx wrangler d1 execute staffsway-demo --local --file=./migrations/0012_separation.sql
-npx wrangler d1 execute staffsway-demo --local --file=./migrations/0013_helpdesk.sql
+npx wrangler d1 migrations apply staffsway-db --local
 ```
 
 ## Demo Data
@@ -197,14 +200,25 @@ Writes are restricted per module via middleware in `backend/src/index.ts`:
 cd backend
 
 # Create remote D1 database
-wrangler d1 create staffsway-demo
+wrangler d1 create staffsway-db
 # Copy the returned database_id into wrangler.toml (replace the placeholder UUID)
 
 # Apply migrations to remote database
-wrangler d1 migrations apply staffsway-demo --remote
+wrangler d1 migrations apply staffsway-db --remote
 
-# Seed remote database
-wrangler d1 execute staffsway-demo --remote --file=./db/seed.sql
+# Create the first admin (there is no signup endpoint).
+# Generate the hash with the repo helper, then insert it:
+#   node scripts/gen-admin-hash.mjs "<password>"
+#   wrangler d1 execute staffsway-db --remote --command \
+#     "INSERT OR REPLACE INTO users (id,name,email,password_hash,role,status) \
+#      VALUES (1,'<name>','<email>','<hash>','admin','active');"
+
+# Set the JWT signing secret (32+ chars). Required - without it the worker
+# falls back to an insecure hardcoded dev secret.
+wrangler secret put SESSION_SECRET --name staffsway-backend
+
+# Do NOT seed production. ./db/seed.sql is demo data for local use only and
+# populates reports with fake employees. Run it against --local only.
 
 # Deploy worker
 wrangler deploy
