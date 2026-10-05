@@ -50,6 +50,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from 'recharts'
+import type { DashboardData, ManagementDashboard } from '@/types/api'
 import { monthYear, fullName } from '@/utils/format'
 import { PENDING_LABELS } from '@/utils/pending'
 import { Avatar } from '@/components/ui/actions'
@@ -90,101 +91,138 @@ export default function ManagementDashboardPage() {
   })
 
   const isLoading = mgmtLoading || mainLoading
-  const d = (mgmtData?.data as any) || {}
-  const m = (mainDashData?.data as any) || {}
+  const d = (mgmtData?.data || {}) as Partial<ManagementDashboard>
+  const m = (mainDashData?.data || {}) as DashboardData
+  const kpi = (m.kpi || {}) as Record<string, number | Record<string, number> | null>
 
   const handleRefresh = () => {
     refetchMgmt()
     refetchMain()
   }
 
-  // Attendance stats calculation
-  const totalEmployees = d.employees || m.kpi?.employees || 128
-  const activeEmployees = m.kpi?.active_employees || (totalEmployees > 16 ? totalEmployees - 16 : totalEmployees)
-  const inactiveEmployees = m.kpi?.inactive_employees || (totalEmployees > activeEmployees ? totalEmployees - activeEmployees : 16)
-  
-  const presentCount = d.present_subtotal || Math.round(totalEmployees * 0.83) || 106
-  const absentCount = d.absent_subtotal || Math.round(totalEmployees * 0.09) || 12
-  const onLeaveCount = d.on_leave || Math.max(1, totalEmployees - presentCount - absentCount) || 10
-  const totalRecorded = presentCount + absentCount + onLeaveCount || 1
-  const attendanceRate = Math.round((presentCount / totalRecorded) * 100) || 87
+  const hour = now.getHours()
+  const greeting = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening'
+
+  // Attendance stats. Values come from the API; when nothing has been recorded
+  // for the month the totals are 0 and the donut renders an explicit empty state.
+  const totalEmployees = d.employees || 0
+  const activeEmployees = Number(kpi.active_employees || 0)
+  const inactiveEmployees = Number(kpi.inactive_employees || 0)
+
+  const presentCount = d.present_subtotal || 0
+  const absentCount = d.absent_subtotal || 0
+  const onLeaveCount = d.on_leave || 0
+  const totalRecorded = presentCount + absentCount + onLeaveCount
+  const attendanceRate = totalRecorded > 0 ? Math.round((presentCount / totalRecorded) * 100) : 0
 
   // Attendance donut data
-  const attendanceDonut = [
-    { name: 'Present', value: presentCount, color: '#10b981', percent: Math.round((presentCount / totalRecorded) * 100) },
-    { name: 'Absent', value: absentCount, color: '#ef4444', percent: Math.round((absentCount / totalRecorded) * 100) },
-    { name: 'On Leave', value: onLeaveCount, color: '#f59e0b', percent: Math.round((onLeaveCount / totalRecorded) * 100) },
-  ]
+  const attendanceDonut = totalRecorded > 0
+    ? [
+        { name: 'Present', value: presentCount, color: '#10b981', percent: Math.round((presentCount / totalRecorded) * 100) },
+        { name: 'Absent', value: absentCount, color: '#ef4444', percent: Math.round((absentCount / totalRecorded) * 100) },
+        { name: 'On Leave', value: onLeaveCount, color: '#f59e0b', percent: Math.round((onLeaveCount / totalRecorded) * 100) },
+      ]
+    : []
 
   // Department distribution
-  const deptData = (d.department_manpower && d.department_manpower.length > 0)
-    ? d.department_manpower
-    : [
-        { name: 'Production', value: 32 },
-        { name: 'Operations', value: 24 },
-        { name: 'Security', value: 18 },
-        { name: 'Admin', value: 16 },
-        { name: 'Sales', value: 12 },
-        { name: 'Others', value: 10 },
-      ]
+  const deptData = d.department_manpower || []
 
   // Payroll summary values
-  const grossSalary = m.kpi?.payroll?.gross_total || (d.salary_cost ? d.salary_cost * 1.18 : 1248320)
-  const deductions = m.kpi?.payroll?.deduction_total || (d.salary_cost ? d.salary_cost * 0.18 : 198450)
-  const netPay = d.salary_cost || m.kpi?.payroll?.net_total || 1049870
-  const processedEmployees = m.kpi?.payroll?.item_count || Math.round(totalEmployees * 0.96) || 124
+  const payroll = (kpi.payroll || null) as Record<string, number> | null
+  const grossSalary = Number(payroll?.gross_total || 0)
+  const deductions = Number(payroll?.deduction_total || 0)
+  const netPay = d.salary_cost || Number(payroll?.net_total || 0)
+  const processedEmployees = Number(payroll?.item_count || 0)
 
   // Clients & Sites
-  const totalClients = m.kpi?.clients || 12
-  const totalSites = m.kpi?.sites || 28
+  const totalClients = Number(kpi.clients || 0)
+  const totalSites = Number(kpi.sites || 0)
 
   // Pending information
   const pending = d.pending_info || []
 
-  // Recent employees from API or realistic fallback
-  const recentEmployeesList = (m.recent_employees && m.recent_employees.length > 0)
-    ? m.recent_employees
-    : [
-        { id: 1, employee_code: 'SS001', first_name: 'Amit', last_name: 'Kumar', designation: 'Production', status: 'active' },
-        { id: 2, employee_code: 'SS002', first_name: 'Neha', last_name: 'Singh', designation: 'Admin', status: 'active' },
-        { id: 3, employee_code: 'SS003', first_name: 'Rajesh', last_name: 'Verma', designation: 'Operations', status: 'active' },
-        { id: 4, employee_code: 'SS004', first_name: 'Priya', last_name: 'Sharma', designation: 'Sales', status: 'on_leave' },
-        { id: 5, employee_code: 'SS005', first_name: 'Sunil', last_name: 'Yadav', designation: 'Security', status: 'active' },
-      ]
+  // Recent employees from the API
+  const recentEmployeesList = m.recent_employees || []
 
-  // Reminders & Alerts Schedule
+  // Reminders & Alerts: statutory obligations actually outstanding, plus the
+  // upcoming birthdays computed server-side.
+  const alerts = (d.alerts as typeof d.alerts) || []
+  const dueCompliance = d.due_compliance || []
+  const upcomingBirthdays = d.upcoming_birthdays || []
   const reminders = [
-    { title: 'EPF Return Filing', subtitle: `For ${monthYear(month === 1 ? 12 : month - 1, month === 1 ? year - 1 : year)}`, due: 'Due Today 05:00 PM', type: 'due' },
-    { title: 'ESIC Return Filing', subtitle: `For ${monthYear(month === 1 ? 12 : month - 1, month === 1 ? year - 1 : year)}`, due: 'Due Tomorrow 05:00 PM', type: 'due' },
-    { title: 'PF Monthly Contribution', subtitle: `For ${monthYear(month, year)}`, due: `Due 25 ${MONTHS[month - 1]?.slice(0, 3)} ${year}`, type: 'upcoming' },
-    { title: 'Labour Return Filing', subtitle: `For ${monthYear(month, year)}`, due: `Due 20 ${MONTHS[(month % 12)]?.slice(0, 3)} ${year}`, type: 'upcoming' },
-    { title: 'Salary Process', subtitle: `${monthYear(month, year)}`, due: `Due 25 ${MONTHS[month - 1]?.slice(0, 3)} ${year}`, type: 'upcoming' },
+    ...dueCompliance.map((c) => ({
+      title: c.obligation,
+      subtitle: `Statutory filing`,
+      due: `Due ${c.due_date}`,
+      type: 'due' as const,
+    })),
+    ...upcomingBirthdays.slice(0, 3).map((b) => ({
+      title: `${b.name}'s birthday`,
+      subtitle: b.designation || b.employee_code,
+      due: b.in_days === 0 ? 'Today' : `In ${b.in_days} day${b.in_days === 1 ? '' : 's'}`,
+      type: 'upcoming' as const,
+    })),
   ]
 
   // Upcoming Holidays
-  const holidays = [
-    { date: '02 Oct 2026', day: '(Fri)', name: 'Gandhi Jayanti' },
-    { date: '07 Nov 2026', day: '(Sat)', name: 'Diwali Celebration' },
-    { date: '25 Dec 2026', day: '(Fri)', name: 'Christmas Day' },
-  ]
+  const holidays = (d.holidays || []).map((h) => {
+    const dt = new Date(h.date)
+    return {
+      date: dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      day: `(${dt.toLocaleDateString('en-GB', { weekday: 'short' })})`,
+      name: h.name,
+    }
+  })
 
-  // Recent Activities feed
-  const recentActivities = [
-    { name: 'Rohit Kumar', action: 'marked Present', time: '09:12 AM', tag: 'Production', icon: UserCheck, color: 'text-emerald-600 bg-emerald-50' },
-    { name: 'Pooja Sharma', action: 'applied for Leave', time: '08:45 AM', tag: 'Casual Leave', icon: CalendarDays, color: 'text-amber-600 bg-amber-50' },
-    { name: 'Payroll Department', action: `processed salary for ${processedEmployees} employees`, time: '06:10 PM', tag: `${monthYear(month, year)}`, icon: IndianRupee, color: 'text-blue-600 bg-blue-50' },
-    { name: 'New Employee Joined', action: 'Suresh Yadav onboarded', time: '11:20 AM', tag: 'Operations', icon: UserPlus, color: 'text-purple-600 bg-purple-50' },
-    { name: 'Client Account Updated', action: 'ABC Manufacturing Ltd. roster synced', time: '04:15 PM', tag: 'FARIDABAD', icon: Building2, color: 'text-sky-600 bg-sky-50' },
-  ]
+  // Recent Activities feed, built from the events tables server-side.
+  const activityIcon: Record<string, { icon: typeof UserCheck; color: string }> = {
+    leave: { icon: CalendarDays, color: 'text-amber-600 bg-amber-50' },
+    employee: { icon: UserPlus, color: 'text-purple-600 bg-purple-50' },
+    attendance: { icon: UserCheck, color: 'text-emerald-600 bg-emerald-50' },
+    hr_request: { icon: Building2, color: 'text-sky-600 bg-sky-50' },
+  }
+  const recentActivities = (m.activity || []).map((a) => {
+    const meta = activityIcon[a.kind] || activityIcon.attendance
+    return {
+      name: a.who,
+      action: a.action,
+      time: new Date(a.at.replace(' ', 'T')).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+      tag: a.tag,
+      icon: meta.icon,
+      color: meta.color,
+    }
+  })
 
   // Top clients by employee count
-  const topClients = [
-    { name: 'ABC Manufacturing Ltd.', count: 42, pct: '100%' },
-    { name: 'XYZ Services Pvt. Ltd.', count: 28, pct: '68%' },
-    { name: 'Global Tech Solutions', count: 22, pct: '52%' },
-    { name: 'Sunrise Industries', count: 18, pct: '42%' },
-    { name: 'Apex Logistics & Warehousing', count: 18, pct: '42%' },
-  ]
+  const topClientMax = d.top_client_max || 0
+  const topClients = (d.top_clients || []).map((c) => ({
+    name: c.name,
+    count: c.staff,
+    pct: `${topClientMax > 0 ? Math.round((c.staff / topClientMax) * 100) : 0}%`,
+  }))
+
+  // Field-level record gaps, ordered by how many employees are affected.
+  const FIELD_LABELS: Record<string, string> = {
+    dob: 'Date of Birth',
+    father_name: 'Father Name',
+    gender: 'Gender',
+    marital_status: 'Marital Status',
+    mobile: 'Primary Contact',
+    email: 'Email',
+    address: 'Present Address',
+    permanent_state: 'Permanent Address',
+    uan: 'PF / UAN',
+    esi_number: 'ESIC',
+    bank_account: 'Bank Details',
+    bank_ifsc: 'Bank IFSC',
+  }
+  const fieldGaps = Object.entries(d.field_gaps || {})
+    .map(([field, count]) => ({ field, label: FIELD_LABELS[field] || field, count: count as number }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8)
+
+  const insightTasks = d.tasks || []
+  const insightClients = d.active_clients || []
 
   return (
     <div className="space-y-6 max-w-400 mx-auto antialiased">
@@ -194,7 +232,7 @@ export default function ManagementDashboardPage() {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
-              Good Morning, {user?.name || 'Vijay Sharma'}!
+              Good {greeting}, {user?.name || 'there'}!
             </span>
             <span className="text-2xl animate-pulse">👋</span>
           </div>
@@ -349,25 +387,32 @@ export default function ManagementDashboardPage() {
             <h3 className="text-sm font-bold text-slate-900">Reminders & Alerts</h3>
           </div>
           <div className="space-y-2">
-            {[
-              { label: 'Upcoming Birthdays', icon: Cake, color: 'bg-pink-100 text-pink-700', count: 3 },
-              { label: 'Labour Compliance', icon: Shield, color: 'bg-blue-100 text-blue-700', count: 2 },
-              { label: 'ESIC Return', icon: ShieldCheck, color: 'bg-emerald-100 text-emerald-700', count: 1 },
-              { label: 'PF Return', icon: DollarSign, color: 'bg-purple-100 text-purple-700', count: 1 },
-              { label: 'Salary Pending', icon: DollarSign, color: 'bg-amber-100 text-amber-700', count: 2 },
-            ].map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className={`w-7 h-7 rounded-lg ${item.color} flex items-center justify-center`}>
-                    <item.icon className="w-3.5 h-3.5" />
+            {alerts.length > 0 ? alerts.map((item) => {
+              const toneMap: Record<string, { chip: string; icon: typeof Cake }> = {
+                rose: { chip: 'bg-rose-100 text-rose-700 border-rose-200', icon: Cake },
+                purple: { chip: 'bg-purple-100 text-purple-700 border-purple-200', icon: DollarSign },
+                emerald: { chip: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: ShieldCheck },
+                amber: { chip: 'bg-amber-100 text-amber-700 border-amber-200', icon: IndianRupee },
+                blue: { chip: 'bg-blue-100 text-blue-700 border-blue-200', icon: Shield },
+              }
+              const tone = toneMap[item.tone] || toneMap.blue
+              const Icon = tone.icon
+              return (
+                <div key={item.key} className={`flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100 ${item.count > 0 ? '' : 'opacity-50'}`}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${tone.chip.split(' ').filter((c) => c.startsWith('bg-') || c.startsWith('text-')).join(' ')}`}>
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-800 truncate">{item.label}</span>
                   </div>
-                  <span className="text-xs font-semibold text-slate-800">{item.label}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${item.count > 0 ? tone.chip : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                    {item.count}
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
-                  {item.count}
-                </span>
-              </div>
-            ))}
+              )
+            }) : (
+              <p className="text-xs text-slate-500 p-3">No alerts to report.</p>
+            )}
           </div>
         </div>
 
@@ -380,25 +425,16 @@ export default function ManagementDashboardPage() {
             <h3 className="text-sm font-bold text-slate-900">Pending Information</h3>
           </div>
           <div className="space-y-1.5">
-            {[
-              'Father Name',
-              'DOB',
-              'Gender',
-              'Marital Status',
-              'Primary Contact',
-              'Present Address',
-              'Permanent Address',
-              'PF',
-              'ESIC',
-              'Bank Details',
-            ].map((field, idx) => (
-              <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100">
-                <span className="text-xs font-medium text-slate-700">{field}</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
-                  Missing
+            {fieldGaps.length > 0 ? fieldGaps.map((f) => (
+              <div key={f.field} className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+                <span className="text-xs font-medium text-slate-700 truncate">{f.label}</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
+                  {f.count} missing
                 </span>
               </div>
-            ))}
+            )) : (
+              <p className="text-xs text-emerald-700 p-3">Every active employee record is complete.</p>
+            )}
           </div>
         </div>
 
@@ -408,35 +444,43 @@ export default function ManagementDashboardPage() {
             <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
               <ClipboardList className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900">Tasks</h3>
-            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold">5</span>
+            <h3 className="text-sm font-bold text-slate-900">Pending Work</h3>
+            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold">
+              {insightTasks.filter((t) => t.count > 0).length}
+            </span>
           </div>
           <div className="space-y-2">
-            {[
-              { title: 'Review pending leave requests', status: 'pending' },
-              { title: 'Approve salary for October', status: 'pending' },
-              { title: 'Submit ESIC return', status: 'in_progress' },
-              { title: 'Process payroll for October', status: 'pending' },
-              { title: 'Update employee records', status: 'completed' },
-            ].map((task, idx) => (
-              <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100">
+            {insightTasks.length > 0 ? insightTasks.map((task) => (
+              <button
+                key={task.key}
+                onClick={() => navigate(task.route)}
+                className="w-full text-left flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100"
+              >
                 <div className="flex items-center gap-2 min-w-0">
-                  <input
-                    type="checkbox"
-                    checked={task.status === 'completed'}
-                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  <span className={`text-xs font-medium ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title}</span>
+                  <span className={`w-4 h-4 shrink-0 rounded-full border-2 flex items-center justify-center ${
+                    task.count > 0
+                      ? task.status === 'in_progress'
+                        ? 'border-blue-500'
+                        : 'border-amber-400'
+                      : 'border-emerald-500 bg-emerald-500'
+                  }`}>
+                    {task.count === 0 && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </span>
+                  <span className={`text-xs font-medium truncate ${task.count > 0 ? 'text-slate-800' : 'text-slate-400'}`}>{task.title}</span>
                 </div>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  task.status === 'pending' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
-                  task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                  'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${
+                  task.count > 0
+                    ? task.status === 'in_progress'
+                      ? 'bg-blue-100 text-blue-700 border-blue-200'
+                      : 'bg-amber-100 text-amber-700 border-amber-200'
+                    : 'bg-emerald-100 text-emerald-700 border-emerald-200'
                 }`}>
-                  {task.status === 'pending' ? 'Pending' : task.status === 'in_progress' ? 'In Progress' : 'Done'}
+                  {task.count > 0 ? task.count : 'Clear'}
                 </span>
-              </div>
-            ))}
+              </button>
+            )) : (
+              <p className="text-xs text-slate-500 p-3">Loading pending work...</p>
+            )}
           </div>
         </div>
 
@@ -447,25 +491,22 @@ export default function ManagementDashboardPage() {
               <Users2 className="w-4 h-4" />
             </div>
             <h3 className="text-sm font-bold text-slate-900">Active Clients</h3>
-            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold">12</span>
+            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[10px] font-bold">{totalClients}</span>
           </div>
           <div className="space-y-2">
-            {[
-              { name: 'ABC Manufacturing Ltd.', employees: 42, status: 'Active' },
-              { name: 'XYZ Services Pvt. Ltd.', employees: 28, status: 'Active' },
-              { name: 'Global Tech Solutions', employees: 22, status: 'Active' },
-              { name: 'Sunrise Industries', employees: 18, status: 'Active' },
-            ].map((client, idx) => (
-              <div key={idx} className="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100">
+            {insightClients.length > 0 ? insightClients.map((client) => (
+              <div key={client.id} className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50 border border-slate-100">
                 <div className="min-w-0">
                   <span className="text-xs font-semibold text-slate-800 truncate block">{client.name}</span>
                   <span className="text-[11px] font-bold text-slate-900">{client.employees} employees</span>
                 </div>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 capitalize">
                   {client.status}
                 </span>
               </div>
-            ))}
+            )) : (
+              <p className="text-xs text-slate-500 p-3">No active clients.</p>
+            )}
           </div>
         </div>
 
@@ -476,24 +517,25 @@ export default function ManagementDashboardPage() {
               <TrendingUpIcon className="w-4 h-4" />
             </div>
             <h3 className="text-sm font-bold text-slate-900">Top Client by Staff</h3>
-            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-bold">1</span>
+            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-bold">{topClients.length}</span>
           </div>
           <div className="space-y-3">
-            {[
-              { name: 'ABC Manufacturing Ltd.', staff: 42, pct: 100 },
-              { name: 'XYZ Services Pvt. Ltd.', staff: 28, pct: 67 },
-              { name: 'Global Tech Solutions', staff: 22, pct: 52 },
-            ].map((client, idx) => (
-              <div key={idx} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
+            {topClients.length > 0 ? topClients.map((client) => (
+              <div key={client.name} className="space-y-1">
+                <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="font-bold text-slate-800 truncate">{client.name}</span>
-                  <span className="font-mono font-bold text-slate-900">{client.staff} staff</span>
+                  <span className="font-mono font-bold text-slate-900">{client.count} staff</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full bg-purple-600 rounded-full" style={{ width: `${client.pct}%` }} />
+                  <div
+                    className="h-full bg-purple-600 rounded-full"
+                    style={{ width: `${topClientMax > 0 ? (client.count / topClientMax) * 100 : 0}%` }}
+                  />
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-xs text-slate-500 p-3">No client headcount recorded yet.</p>
+            )}
           </div>
         </div>
 
@@ -513,32 +555,41 @@ export default function ManagementDashboardPage() {
           </div>
 
           <div className="relative my-auto flex items-center justify-center py-2">
-            <ResponsiveContainer width="100%" height={190}>
-              <PieChart>
-                <Pie
-                  data={attendanceDonut}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={78}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
-                  {attendanceDonut.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            {/* Center Label */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Attendance</span>
-              <span className="text-2xl font-extrabold text-slate-900">{attendanceRate}%</span>
-            </div>
+            {attendanceDonut.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={190}>
+                  <PieChart>
+                    <Pie
+                      data={attendanceDonut}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={78}
+                      paddingAngle={4}
+                      dataKey="value"
+                    >
+                      {attendanceDonut.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                {/* Center Label */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Attendance</span>
+                  <span className="text-2xl font-extrabold text-slate-900">{attendanceRate}%</span>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-slate-500 text-center py-10">
+                No attendance recorded for {monthYear(month, year)}.
+              </p>
+            )}
           </div>
 
           {/* Breakdown Legend */}
+          {attendanceDonut.length > 0 && (
           <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 text-center">
             {attendanceDonut.map((item) => (
               <div key={item.name} className="p-1.5 rounded-lg bg-slate-50">
@@ -552,6 +603,7 @@ export default function ManagementDashboardPage() {
               </div>
             ))}
           </div>
+          )}
 
           <div className="mt-3 py-1.5 px-3 rounded-lg bg-emerald-50 text-emerald-800 text-[11px] font-semibold flex items-center justify-between border border-emerald-200/60">
             <span className="flex items-center gap-1.5">
@@ -577,22 +629,28 @@ export default function ManagementDashboardPage() {
           </div>
 
           <div className="py-2">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={deptData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  cursor={{ fill: '#f8fafc' }}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
-                />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                  {deptData.map((_: unknown, index: number) => (
-                    <Cell key={`bar-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {deptData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={deptData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}
+                  />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                    {deptData.map((_: unknown, index: number) => (
+                      <Cell key={`bar-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-xs text-slate-500 text-center py-12">
+                No department data recorded yet.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 justify-center">
@@ -611,7 +669,7 @@ export default function ManagementDashboardPage() {
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-rose-500" />
               <h3 className="text-sm font-bold text-slate-900">Reminders &amp; Alerts</h3>
-              <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold">5</span>
+              <span className="px-1.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold">{reminders.length}</span>
             </div>
             <button
               onClick={() => navigate('/compliance')}
@@ -622,7 +680,7 @@ export default function ManagementDashboardPage() {
           </div>
 
           <div className="space-y-2.5 py-1">
-            {reminders.map((rem, idx) => (
+            {reminders.length > 0 ? reminders.map((rem, idx) => (
               <div
                 key={idx}
                 className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition-colors border border-slate-100"
@@ -641,7 +699,9 @@ export default function ManagementDashboardPage() {
                   {rem.type === 'due' ? 'Due' : 'Upcoming'}
                 </span>
               </div>
-            ))}
+            )) : (
+              <p className="text-xs text-slate-500 p-3">Nothing due. No birthdays or filings outstanding.</p>
+            )}
           </div>
         </div>
 
@@ -762,21 +822,28 @@ export default function ManagementDashboardPage() {
           </div>
 
           <div className="space-y-3">
-            {holidays.map((h, idx) => (
-              <div
-                key={idx}
-                className="p-3 rounded-xl bg-purple-50/50 border border-purple-100/80 flex items-center gap-3"
-              >
-                <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex flex-col items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                  <span className="text-[10px] font-normal leading-none">{h.date.split(' ')[1]}</span>
-                  <span className="text-sm font-black leading-tight">{h.date.split(' ')[0]}</span>
+            {holidays.length > 0 ? holidays.map((h, idx) => {
+              const dt = new Date(h.date)
+              return (
+                <div
+                  key={idx}
+                  className="p-3 rounded-xl bg-purple-50/50 border border-purple-100/80 flex items-center gap-3"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex flex-col items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                    <span className="text-[10px] font-normal leading-none">
+                      {dt.toLocaleDateString('en-GB', { month: 'short' })}
+                    </span>
+                    <span className="text-sm font-black leading-tight">{dt.getDate()}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs font-bold text-slate-900 truncate">{h.name}</h4>
+                    <p className="text-[11px] text-purple-700 font-medium">{h.date} {h.day}</p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <h4 className="text-xs font-bold text-slate-900 truncate">{h.name}</h4>
-                  <p className="text-[11px] text-purple-700 font-medium">{h.date} {h.day}</p>
-                </div>
-              </div>
-            ))}
+              )
+            }) : (
+              <p className="text-xs text-slate-500 p-3">No holidays recorded for this month.</p>
+            )}
           </div>
 
           <div className="mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-500 text-center">
@@ -805,25 +872,29 @@ export default function ManagementDashboardPage() {
           </div>
 
           <div className="space-y-2.5">
-            {['ESIC Statutory', 'PF & Pension', 'LWF Return', 'Labour Laws'].map((comp) => (
+            {dueCompliance.length > 0 ? dueCompliance.map((c) => (
               <div
-                key={comp}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100"
+                key={c.obligation}
+                className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100"
               >
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span className="text-xs font-semibold text-slate-800">{comp}</span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="text-xs font-semibold text-slate-800 truncate">{c.obligation}</span>
                 </div>
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-full">
-                  Compliant
+                <span className="text-[11px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  Due {c.due_date}
                 </span>
               </div>
-            ))}
+            )) : (
+              <p className="text-xs text-slate-500 p-3">No statutory filings outstanding.</p>
+            )}
           </div>
 
           <div className="mt-3 pt-3 border-t border-slate-100 text-[11px] text-slate-500 flex items-center justify-between">
-            <span>Overall Score</span>
-            <span className="font-bold text-emerald-600">100% On-Track</span>
+            <span>Outstanding</span>
+            <span className={`font-bold ${dueCompliance.length > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+              {dueCompliance.length > 0 ? `${dueCompliance.length} due` : 'All Clear'}
+            </span>
           </div>
         </div>
 
@@ -838,7 +909,7 @@ export default function ManagementDashboardPage() {
           </div>
 
           <div className="space-y-3">
-            {recentActivities.map((act, idx) => {
+            {recentActivities.length > 0 ? recentActivities.map((act, idx) => {
               const Icon = act.icon
               return (
                 <div key={idx} className="flex items-start gap-3">
@@ -852,12 +923,14 @@ export default function ManagementDashboardPage() {
                     <div className="flex items-center gap-2 text-[10.5px] text-slate-400 mt-0.5">
                       <span>{act.time}</span>
                       <span>&bull;</span>
-                      <span className="uppercase font-mono">{act.tag}</span>
+                      <span className="uppercase font-mono truncate">{act.tag}</span>
                     </div>
                   </div>
                 </div>
               )
-            })}
+            }) : (
+              <p className="text-xs text-slate-500 p-3">No recent activity recorded.</p>
+            )}
           </div>
         </div>
 
@@ -877,7 +950,7 @@ export default function ManagementDashboardPage() {
           </div>
 
           <div className="space-y-3">
-            {topClients.map((client) => (
+            {topClients.length > 0 ? topClients.map((client) => (
               <div key={client.name} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold text-slate-800 truncate max-w-44">{client.name}</span>
@@ -887,14 +960,16 @@ export default function ManagementDashboardPage() {
                   <div className="h-full bg-blue-600 rounded-full" style={{ width: client.pct }} />
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-xs text-slate-500 p-3">No client headcount recorded yet.</p>
+            )}
           </div>
 
           <button
             onClick={() => navigate('/sites')}
             className="mt-3 text-xs font-bold text-blue-600 hover:underline flex items-center justify-center gap-1 cursor-pointer"
           >
-            <span>Manage All 28 Site Deployments</span>
+            <span>Manage All {totalSites} Site Deployments</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>

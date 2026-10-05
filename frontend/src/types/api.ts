@@ -509,14 +509,53 @@ export interface ShiftType {
   end_time: string | null
 }
 
+export interface DashboardEmployee {
+  id: number
+  employee_code: string
+  first_name: string
+  last_name: string
+  designation?: string | null
+  status?: string
+  site_name?: string | null
+  client_name?: string | null
+}
+
 export interface DashboardData {
   month: number
   year: number
-  kpi: Record<string, unknown>
-  totals: Record<string, unknown>
-  recent_employees: Record<string, unknown>[]
-  recent_payroll: Record<string, unknown>[]
-  charts: Record<string, unknown[]>
+  kpi: {
+    employees: number
+    active_employees: number
+    inactive_employees: number
+    clients: number
+    sites: number
+    present_days: number
+    absent_days: number
+    ot_hours: number
+    payroll: {
+      gross_total: number
+      net_total: number
+      deduction_total: number
+      item_count: number
+      status: string
+    } | null
+  }
+  totals: {
+    attendance_records: number
+    payroll_counts: { total: number; draft: number; finalized: number; paid: number }
+    client_active: number
+    site_active: number
+  }
+  recent_employees: DashboardEmployee[]
+  recent_payroll: { id: number; month: number; year: number; status: string; gross_total: number; net_total: number }[]
+  activity: { kind: string; who: string; action: string; tag: string; at: string }[]
+  charts: {
+    attendance_trend: { month: number; year: number; present: number; absent: number; ot: number }[]
+    payroll_trend: { month: number; year: number; status: string; gross_total: number; net_total: number }[]
+    employees_by_client: { name: string; value: number }[]
+    employees_by_designation: { name: string; value: number }[]
+    employees_by_department: { name: string; value: number }[]
+  }
 }
 
 export interface PendingInfoRow {
@@ -546,6 +585,16 @@ export interface ManagementDashboard {
   attendance_trend: { month: number; year: number; present: number; absent: number; ot: number; paid_leave: number }[]
   salary_cost_trend: { month: number; year: number; net_total: number }[]
   pending_info: PendingInfoRow[]
+  payroll_status: string | null
+  alerts: { key: string; label: string; count: number; tone: string }[]
+  upcoming_birthdays: { id: number; employee_code: string; name: string; designation: string | null; date: string; in_days: number }[]
+  field_gaps: Record<string, number>
+  tasks: { key: string; title: string; count: number; route: string; status: 'pending' | 'in_progress' | 'done' }[]
+  active_clients: { id: number; name: string; employees: number; status: string }[]
+  top_clients: { id: number; name: string; staff: number }[]
+  top_client_max: number
+  holidays: { date: string; name: string }[]
+  due_compliance: { obligation: string; due_date: string; status: string }[]
 }
 
 export interface PayrollPreview {
