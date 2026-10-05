@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams, useLocation, useNavigate } from 'react-router-dom'
 import { employeeApi, clientApi, siteApi, recruitmentApi } from '@/services/api'
@@ -123,7 +124,33 @@ export default function EmployeesPage() {
   const [leaveFor, setLeaveFor] = useState<any>(null)
   const [exitFor, setExitFor] = useState<any>(null)
   const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null)
+  const [actionMenuPos, setActionMenuPos] = useState<{ top: number; left: number } | null>(null)
+  const actionMenuBtnRef = useRef<HTMLDivElement | null>(null)
+  const actionMenuRef = useRef<HTMLDivElement | null>(null)
   const queryClient = useQueryClient()
+
+  const closeActionMenu = useCallback(() => {
+    setActionMenuOpen(null)
+    setActionMenuPos(null)
+  }, [])
+
+  const toggleActionMenu = useCallback((id: number) => {
+    if (actionMenuOpen === id) {
+      closeActionMenu()
+      return
+    }
+    const btn = actionMenuBtnRef.current
+    if (btn) {
+      const r = btn.getBoundingClientRect()
+      const menuW = 176
+      const menuH = 176
+      const left = Math.min(Math.max(8, r.right - menuW), window.innerWidth - menuW - 8)
+      const opensUp = window.innerHeight - r.bottom < menuH + 12
+      const top = opensUp ? Math.max(8, r.top - menuH - 4) : r.bottom + 4
+      setActionMenuPos({ top, left })
+    }
+    setActionMenuOpen(id)
+  }, [actionMenuOpen, closeActionMenu])
 
   const openEdit = (id: number, field?: string) => {
     setEditId(id)
@@ -172,15 +199,28 @@ export default function EmployeesPage() {
 
   // Close action menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const menu = document.querySelector('[data-action-menu]')
-      const trigger = document.querySelector('[aria-label="More actions"]')
-      if (menu && (menu.contains(e.target as Node) || (trigger && trigger.contains(e.target as Node)))) return
-      setActionMenuOpen(null)
+    if (actionMenuOpen === null) return
+    const onPointerDown = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (actionMenuRef.current?.contains(t)) return
+      if (actionMenuBtnRef.current?.contains(t)) return
+      closeActionMenu()
     }
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
-  }, [])
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeActionMenu()
+    }
+    const onScrollOrResize = () => closeActionMenu()
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    window.addEventListener('resize', onScrollOrResize)
+    window.addEventListener('scroll', onScrollOrResize, true)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('resize', onScrollOrResize)
+      window.removeEventListener('scroll', onScrollOrResize, true)
+    }
+  }, [actionMenuOpen, closeActionMenu])
 
   useEffect(() => {
     const joinId = (location.state as { joinId?: number } | null)?.joinId
@@ -222,6 +262,7 @@ export default function EmployeesPage() {
   })
 
   const employees = (data?.data || []) as any[]
+  const actionMenuRow = actionMenuOpen === null ? null : employees.find((e: any) => e.id === actionMenuOpen) || null
   const meta: any = data?.meta || { total: 0, page: 1, page_size: 10, total_pages: 0 }
   const stat = stats?.data || { total: 0, active: 0, inactive: 0, exited: 0, joined_this_month: 0, exit_this_month: 0, on_leave_today: 0 }
   const departments = filterMeta?.data?.departments || []
@@ -295,55 +336,23 @@ export default function EmployeesPage() {
     { key: 'uan', header: 'UAN', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.uan || '—'}</span> },
     { key: 'esi_number', header: 'ESIC No.', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.esi_number || '—'}</span> },
     { key: 'actions', header: 'Actions', sticky: 'right', className: 'w-12', render: (r) => (
-      <div className="relative inline-block">
+      <div
+        ref={actionMenuOpen === r.id ? actionMenuBtnRef : undefined}
+        className="flex items-center justify-center"
+      >
         <button
           onClick={(e) => {
             e.stopPropagation()
-            setActionMenuOpen(r.id)
+            e.preventDefault()
+            toggleActionMenu(r.id)
           }}
-          className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation"
           aria-label="More actions"
+          aria-haspopup="menu"
+          aria-expanded={actionMenuOpen === r.id}
+          className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation"
         >
           <MoreHorizontal className="w-5 h-5" />
         </button>
-        {actionMenuOpen === r.id && (
-          <div data-action-menu className="fixed z-50 w-44 bg-white rounded-xl border border-slate-200/80 shadow-lg shadow-slate-200/50 overflow-hidden animate-fade-in">
-            <button
-              onClick={() => { openView(r); setActionMenuOpen(null) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-            >
-              <Eye className="w-4 h-4" /> View Profile
-            </button>
-            {r.status !== 'exited' && (
-              <button
-                onClick={() => { openEdit(r.id); setActionMenuOpen(null) }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-              >
-                <Pencil className="w-4 h-4" /> Edit Employee
-              </button>
-            )}
-            <button
-              onClick={() => { setJoiningFor(r.id); setActionMenuOpen(null) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 hover:text-purple-600 transition-colors"
-            >
-              <ScrollText className="w-4 h-4" /> Joining Form
-            </button>
-            {r.status === 'active' && (
-              <button
-                onClick={() => { setLetterFor(r.id); setActionMenuOpen(null) }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-              >
-                <FileSignature className="w-4 h-4" /> Appointment Letter
-              </button>
-            )}
-            <button
-              onClick={() => { setAttFor(r); setActionMenuOpen(null) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
-            >
-              <CalendarCheck className="w-4 h-4" /> View Attendance
-            </button>
-          </div>
-        )}
       </div>
     ) },
   ]
@@ -521,6 +530,55 @@ export default function EmployeesPage() {
           </>
         )}
       </div>
+
+      {/*
+        Portal-ed so the menu escapes the sticky Actions cell. The sticky cell
+        sets its own z-index, which would trap a nested menu behind the rows
+        below it.
+      */}
+      {actionMenuOpen !== null && actionMenuRow && actionMenuPos &&
+        createPortal(
+          <div
+            ref={actionMenuRef}
+            role="menu"
+            style={{ top: actionMenuPos.top, left: actionMenuPos.left }}
+            className="fixed z-[9999] w-44 bg-white rounded-xl border border-slate-200/80 shadow-lg shadow-slate-200/50 py-1 overflow-hidden animate-fade-in"
+          >
+            <button
+              role="menuitem"
+              onClick={() => { openView(actionMenuRow); closeActionMenu() }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-left"
+            >
+              <Eye className="w-4 h-4 shrink-0" /> View Profile
+            </button>
+            {actionMenuRow.status !== 'exited' && (
+              <button
+                role="menuitem"
+                onClick={() => { openEdit(actionMenuRow.id); closeActionMenu() }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-left"
+              >
+                <Pencil className="w-4 h-4 shrink-0" /> Edit Employee
+              </button>
+            )}
+            <button
+              role="menuitem"
+              onClick={() => { setJoiningFor(actionMenuRow.id); closeActionMenu() }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-purple-50 hover:text-purple-600 transition-colors text-left"
+            >
+              <ScrollText className="w-4 h-4 shrink-0" /> Joining Form
+            </button>
+            {actionMenuRow.status === 'active' && (
+              <button
+                role="menuitem"
+                onClick={() => { setLetterFor(actionMenuRow.id); closeActionMenu() }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors text-left"
+              >
+                <FileSignature className="w-4 h-4 shrink-0" /> Appointment Letter
+              </button>
+            )}
+          </div>,
+          document.body
+        )}
 
       {showForm && (
         <Modal open={showForm} onClose={() => { setShowForm(false); setFocusField(null) }} title={editId ? 'Edit Employee Dossier' : 'Register New Employee'} size="xl">
