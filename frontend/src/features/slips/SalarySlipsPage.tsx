@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { slipApi } from '@/services/api'
 import { Table } from '@/components/ui/data'
 import { PageHeader } from '@/components/ui/layout'
-import { StatusBadge, statusTone, type Tone } from '@/components/ui/status'
+import { StatusBadge, StatusDot, statusTone, type Tone } from '@/components/ui/status'
 import { SearchInput, NativeSelect } from '@/components/ui/actions'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { SalarySlipModal } from './SalarySlipView'
@@ -42,7 +42,7 @@ export default function SalarySlipsPage() {
     { key: 'gross', header: 'Gross Earnings', render: (r: any) => <span className="text-xs font-bold text-slate-800 tabular-nums font-mono">₹{money(r.gross)}</span> },
     { key: 'deductions', header: 'Total Deductions', render: (r: any) => <span className="text-xs font-bold text-rose-600 tabular-nums font-mono">₹{money(r.total_deductions)}</span> },
     { key: 'net', header: 'Net Payout', render: (r: any) => <span className="text-xs font-black text-emerald-700 tabular-nums font-mono">₹{money(r.net_salary)}</span> },
-    { key: 'status', header: 'Disbursement', render: (r: any) => <StatusBadge status={r.payroll_status} tone={slipTone(r.payroll_status)} /> },
+    { key: 'status', header: 'Status', className: 'w-9', render: (r: any) => <StatusDot status={r.payroll_status} tone={slipTone(r.payroll_status)} /> },
     { key: 'actions', header: 'Action', className: 'text-right', render: (r: any) => (
       <div className="flex justify-end">
         <button onClick={() => { setDetailId(r.id); setShowDetail(true) }} className="px-3 py-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer inline-flex items-center gap-1.5 shadow-2xs">

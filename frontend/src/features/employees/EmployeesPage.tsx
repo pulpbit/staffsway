@@ -8,7 +8,7 @@ import { Table, Pagination, StatCard, CardTable } from '@/components/ui/data'
 import type { Column, CardColumn } from '@/components/ui/data'
 import { PageHeader } from '@/components/ui/layout'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
-import { StatusBadge } from '@/components/ui/status'
+import { StatusBadge, StatusDot } from '@/components/ui/status'
 import { FilterBar, SearchInput, SelectFilter, Avatar } from '@/components/ui/actions'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
 import { fullName, dateShort, money, grossSalary } from '@/utils/format'
@@ -310,34 +310,34 @@ export default function EmployeesPage() {
   }
 
   const columns: Column<any>[] = [
-    { key: 'employee_code', header: 'Emp. ID', sortable: true, className: 'w-24', render: (r) => <span className="font-mono text-xs font-bold text-blue-700 whitespace-nowrap bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{r.employee_code}</span> },
-    { key: 'status', header: 'Status', className: 'w-24', render: (r) => <StatusBadge status={r.status} /> },
-    { key: 'name', header: 'Employee Name', sortable: true, className: 'min-w-56', render: (r) => (
-      <span className="flex items-center gap-2.5 min-w-0">
-        <Avatar name={fullName(r.first_name, r.last_name)} size="sm" />
-        <button onClick={() => openEdit(r.id)} className="text-xs sm:text-[13px] font-bold text-slate-900 hover:text-blue-600 truncate max-w-48 cursor-pointer text-left">{fullName(r.first_name, r.last_name)}</button>
+    { key: 'employee_code', header: 'ID', sortable: true, className: 'w-[70px]', render: (r) => <span className="font-mono text-[11px] font-bold text-blue-700 whitespace-nowrap bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">{r.employee_code}</span> },
+    { key: 'status', header: 'Status', className: 'w-9', render: (r) => <StatusDot status={r.status} /> },
+    { key: 'name', header: 'Employee Name', sortable: true, className: 'min-w-44', render: (r) => (
+      <span className="flex items-center gap-2 min-w-0">
+        <Avatar name={fullName(r.first_name, r.last_name)} size="xs" />
+        <button onClick={() => openEdit(r.id)} className="text-[11.5px] sm:text-xs font-bold text-slate-900 hover:text-blue-600 truncate max-w-40 cursor-pointer text-left">{fullName(r.first_name, r.last_name)}</button>
       </span>
     ) },
-    { key: 'father_name', header: 'Father\'s/Spouse', hideSm: true, render: (r) => <span className="text-xs text-slate-600">{r.father_name || r.spouse_name || '—'}</span> },
-    { key: 'aadhaar', header: 'Aadhaar No.', render: (r) => <span className="text-xs font-mono text-slate-700">{r.aadhaar || '—'}</span> },
-    { key: 'state', header: 'State', hideSm: true, render: (r) => <span className="text-xs font-medium text-slate-700">{stateShort(permanentState(r))}</span> },
-    { key: 'mobile', header: 'Contact No.', render: (r) => <span className="text-xs text-slate-700 whitespace-nowrap tabular-nums font-mono">{r.mobile || '—'}</span> },
-    { key: 'designation', header: 'Job Title', render: (r) => <span className="text-xs text-slate-700 font-medium">{r.designation || '—'}</span> },
+    { key: 'father_name', header: 'Father\'s/Spouse', hideSm: true, render: (r) => <span className="text-[11.5px] text-slate-600">{r.father_name || r.spouse_name || '—'}</span> },
+    { key: 'aadhaar', header: 'Aadhaar No.', render: (r) => <span className="text-[11.5px] font-mono text-slate-700">{r.aadhaar || '—'}</span> },
+    { key: 'state', header: 'State', hideSm: true, render: (r) => <span className="text-[11.5px] font-medium text-slate-700">{stateShort(permanentState(r))}</span> },
+    { key: 'mobile', header: 'Contact No.', render: (r) => <span className="text-[11.5px] text-slate-700 whitespace-nowrap tabular-nums font-mono">{r.mobile || '—'}</span> },
+    { key: 'designation', header: 'Job Title', render: (r) => <span className="text-[11.5px] text-slate-700 font-medium">{r.designation || '—'}</span> },
     {
       key: 'gross',
       header: 'Gross',
       render: (r) => {
         const gross = grossSalary(r)
-        return <span className="text-xs text-slate-800 font-bold whitespace-nowrap tabular-nums">{gross ? money(gross) : '—'}</span>
+        return <span className="text-[11.5px] text-slate-800 font-bold whitespace-nowrap tabular-nums">{gross ? money(gross) : '—'}</span>
       },
     },
-    { key: 'joining', header: 'Joining Date', sortable: true, render: (r) => <span className="text-xs text-slate-600 whitespace-nowrap tabular-nums">{dateShort(r.joining_date)}</span> },
-    { key: 'exit_date', header: 'Exit Date', render: (r) => <span className="text-xs text-slate-600 whitespace-nowrap tabular-nums">{r.exit_date ? dateShort(r.exit_date) : '—'}</span> },
-    { key: 'bank_account', header: 'A/C No.', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.bank_account || '—'}</span> },
-    { key: 'bank_ifsc', header: 'IFSC', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.bank_ifsc || '—'}</span> },
-    { key: 'uan', header: 'UAN', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.uan || '—'}</span> },
-    { key: 'esi_number', header: 'ESIC No.', hideSm: true, render: (r) => <span className="text-xs font-mono text-slate-700">{r.esi_number || '—'}</span> },
-    { key: 'actions', header: 'Actions', sticky: 'right', className: 'w-12', render: (r) => (
+    { key: 'joining', header: 'Joined', sortable: true, render: (r) => <span className="text-[11.5px] text-slate-600 whitespace-nowrap tabular-nums">{dateShort(r.joining_date)}</span> },
+    { key: 'exit_date', header: 'Exit Date', render: (r) => <span className="text-[11.5px] text-slate-600 whitespace-nowrap tabular-nums">{r.exit_date ? dateShort(r.exit_date) : '—'}</span> },
+    { key: 'bank_account', header: 'A/C No.', hideSm: true, render: (r) => <span className="text-[11.5px] font-mono text-slate-700">{r.bank_account || '—'}</span> },
+    { key: 'bank_ifsc', header: 'IFSC', hideSm: true, render: (r) => <span className="text-[11.5px] font-mono text-slate-700">{r.bank_ifsc || '—'}</span> },
+    { key: 'uan', header: 'UAN', hideSm: true, render: (r) => <span className="text-[11.5px] font-mono text-slate-700">{r.uan || '—'}</span> },
+    { key: 'esi_number', header: 'ESIC No.', hideSm: true, render: (r) => <span className="text-[11.5px] font-mono text-slate-700">{r.esi_number || '—'}</span> },
+    { key: 'actions', header: 'Actions', sticky: 'right', className: 'w-9', render: (r) => (
       <div className="flex items-center justify-center">
         <button
           onClick={(e) => {
@@ -348,9 +348,9 @@ export default function EmployeesPage() {
           aria-label="More actions"
           aria-haspopup="menu"
           aria-expanded={actionMenuOpen === r.id}
-          className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation"
+          className="inline-flex items-center justify-center w-8 h-8 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200/70 transition-colors cursor-pointer touch-manipulation"
         >
-          <MoreHorizontal className="w-5 h-5" />
+          <MoreHorizontal className="w-4 h-4" />
         </button>
       </div>
     ) },
@@ -510,7 +510,7 @@ export default function EmployeesPage() {
             <div className="flex-1 min-h-[420px] flex flex-col">
               <ResponsiveTable
                 bare
-                maxHeight="max-h-[calc(100vh-16rem)] min-h-[420px]"
+                maxHeight="max-h-[calc(100vh-13rem)] min-h-[360px]"
                 columns={columns}
                 data={employees}
                 keyFn={(r) => String(r.id)}
@@ -518,7 +518,7 @@ export default function EmployeesPage() {
                 sortDir={order}
                 onSort={handleSort}
                 emptyMessage="No employees match your search criteria."
-                minWidth="1500px"
+                minWidth="1180px"
               />
             </div>
             {employees.length > 0 && meta.total_pages > 1 && (

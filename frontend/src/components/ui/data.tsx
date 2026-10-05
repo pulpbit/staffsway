@@ -189,7 +189,7 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
   return (
     <Fragment>
       <div ref={scrollRef} onScroll={syncFromMain} className={bare ? `overflow-auto scrollbar-thin ${maxHeight}` : `overflow-auto scrollbar-thin ${maxHeight} -mx-4 sm:mx-0 rounded-2xl border border-slate-200/80 bg-white shadow-xs responsive-table-container`}>
-        <table className="w-full text-left" style={{ minWidth }}>
+        <table className="w-full text-left border-collapse" style={{ minWidth }}>
           <thead className="sticky top-0 z-20">
             <tr className="border-b border-slate-200/80 bg-slate-100">
               {columns.map((col) => (
@@ -197,7 +197,7 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
                   key={col.key}
                   ref={col.sticky === 'left' ? (el) => { if (el) headRefs.current[col.key] = el } : undefined}
                   style={stickyStyle(col)}
-                  className={`px-4 py-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider select-none whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-slate-900' : ''} ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyHeadClass(col.sticky) : ''} ${col.className || ''}`}
+                  className={`px-2.5 py-2 text-[10.5px] font-bold text-slate-500 uppercase tracking-wider select-none whitespace-nowrap ${col.sortable ? 'cursor-pointer hover:text-slate-900' : ''} ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyHeadClass(col.sticky) : ''} ${col.className || ''}`}
                   onClick={() => col.sortable && onSort?.(col.key)}
                 >
                   <span className="inline-flex items-center gap-1.5">
@@ -209,7 +209,7 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 text-xs sm:text-[13px]">
+          <tbody className="divide-y divide-slate-100 text-[11.5px] sm:text-xs">
             {data.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-12 text-center text-slate-400 font-medium">
@@ -228,7 +228,7 @@ export function Table<T>({ columns, data, keyFn, sortKey, sortDir, onSort, empty
                         <td
                           key={col.key}
                           style={stickyStyle(col)}
-                          className={`px-4 py-3 align-middle whitespace-nowrap ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyClass(col.sticky, rowBg) : ''} ${col.className || ''}`}
+                          className={`px-2.5 py-1.5 align-middle whitespace-nowrap ${col.hideSm ? 'hidden md:table-cell' : ''} ${col.sticky ? stickyClass(col.sticky, rowBg) : ''} ${col.className || ''}`}
                         >
                           {col.render ? col.render(row, idx) : String((row as Record<string, unknown>)[col.key] ?? '')}
                         </td>

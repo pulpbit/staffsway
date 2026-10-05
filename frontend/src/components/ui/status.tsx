@@ -57,6 +57,26 @@ export function StatusBadge({ status, dot = true, className = '', tone }: { stat
   )
 }
 
+/**
+ * Dot-only status, for dense tables where a text label costs more width than
+ * it earns. The accessible name still comes from `formatStatus`, so screen
+ * readers and hover tooltips both announce the real value.
+ */
+export function StatusDot({ status, tone, className = '', size = 'md' }: { status?: string | null; tone?: Tone; className?: string; size?: 'sm' | 'md' }) {
+  const resolved = tone || statusTone(status)
+  const px = size === 'sm' ? 'w-2 h-2' : 'w-2.5 h-2.5'
+  const ring = size === 'sm' ? 'ring-2 ring-white' : 'ring-2 ring-white'
+  const label = formatStatus(status)
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={label}
+      className={`inline-block rounded-full ${px} ${ring} ${dotClass[resolved]} ${className}`}
+    />
+  )
+}
+
 export function StatusText({ status, className = '' }: { status?: string | null; className?: string }) {
   const tone = statusTone(status)
   return <span className={`inline-flex items-center text-xs font-semibold ${dotClass[tone].replace('bg-', 'text-')} ${className}`}>{formatStatus(status)}</span>

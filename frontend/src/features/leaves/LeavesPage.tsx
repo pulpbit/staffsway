@@ -5,7 +5,7 @@ import { Button, Input, Textarea, Select } from '@/components/ui/fields'
 import { Table, Tabs } from '@/components/ui/data'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
 import { PageHeader } from '@/components/ui/layout'
-import { StatusBadge, type Tone } from '@/components/ui/status'
+import { StatusBadge, StatusDot, type Tone } from '@/components/ui/status'
 import { NativeSelect, Avatar } from '@/components/ui/actions'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { fullName, dateShort } from '@/utils/format'
@@ -128,7 +128,7 @@ export default function LeavesPage() {
         </div>
       </div>
     ) },
-    { key: 'status', header: 'Final Status', render: (r: LeaveRequestRow) => <StatusBadge status={r.status} tone={REQ_TONE[r.status]} /> },
+    { key: 'status', header: 'Status', className: 'w-9', render: (r: LeaveRequestRow) => <StatusDot status={r.status} tone={REQ_TONE[r.status]} /> },
     { key: 'actions', header: 'Actions', className: 'text-right', render: (r: LeaveRequestRow) => (
       <div className="flex items-center justify-end gap-1.5 flex-wrap">
         {canApproveManager && r.status === 'pending_manager' && <>

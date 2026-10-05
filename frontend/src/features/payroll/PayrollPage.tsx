@@ -5,7 +5,7 @@ import { Button, Input, Select } from '@/components/ui/fields'
 import { Table, Tabs, StatCard } from '@/components/ui/data'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
 import { PageHeader } from '@/components/ui/layout'
-import { StatusBadge, statusTone, type Tone } from '@/components/ui/status'
+import { StatusBadge, StatusDot, statusTone, type Tone } from '@/components/ui/status'
 import { NativeSelect } from '@/components/ui/actions'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { money, monthYear, fullName } from '@/utils/format'
@@ -160,7 +160,7 @@ export default function PayrollPage() {
     { key: 'gross', header: 'Gross Earnings', render: (r: any) => <span className="text-xs font-bold text-slate-800 tabular-nums font-mono">₹{money(r.gross_total)}</span> },
     { key: 'deductions', header: 'Total Deductions', render: (r: any) => <span className="text-xs font-bold text-rose-600 tabular-nums font-mono">₹{money(r.deduction_total)}</span> },
     { key: 'net', header: 'Net Disbursement', render: (r: any) => <span className="text-xs font-black text-emerald-700 tabular-nums font-mono">₹{money(r.net_total)}</span> },
-    { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status} tone={payStatus(r.status)} /> },
+    { key: 'status', header: 'Status', className: 'w-9', render: (r: any) => <StatusDot status={r.status} tone={payStatus(r.status)} /> },
     { key: 'actions', header: 'Action', className: 'text-right', render: (r: any) => (
       <div className="flex items-center justify-end gap-1.5">
         <button onClick={() => { setDetailId(r.id); setShowDetail(true) }} className="px-3 py-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer inline-flex items-center gap-1 shadow-2xs">
@@ -316,7 +316,7 @@ export default function PayrollPage() {
                 { key: 'outstanding', header: 'Outstanding Balance', render: (r: any) => <span className={`text-xs font-black font-mono ${Number(r.outstanding) > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>₹{money(r.outstanding)}</span> },
                 { key: 'recovered', header: 'Recovered', hideSm: true, render: (r: any) => <span className="text-xs text-slate-600 font-mono">₹{money(r.recovered || 0)}</span> },
                 { key: 'start', header: 'Start Date', hideSm: true, render: (r: any) => <span className="text-xs text-slate-500">{monthYear(r.start_month, r.start_year)}</span> },
-                { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status} tone={payStatus(r.status)} /> },
+                { key: 'status', header: 'Status', className: 'w-9', render: (r: any) => <StatusDot status={r.status} tone={payStatus(r.status)} /> },
                 { key: 'actions', header: '', className: 'text-right', render: (r: any) => r.status !== 'active' ? null : (
                   <div className="flex justify-end gap-1.5">
                     <button onClick={() => setLoanAction({ id: r.id, action: 'close' })} className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg cursor-pointer">Close</button>
@@ -360,7 +360,7 @@ export default function PayrollPage() {
                   </span>
                 ) },
                 { key: 'net', header: 'Net Settlement', render: (r: any) => <span className="text-xs font-black text-emerald-700 font-mono">₹{money(r.net_payable)}</span> },
-                { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status} tone={r.status === 'paid' ? 'success' : 'neutral'} /> },
+                { key: 'status', header: 'Status', className: 'w-9', render: (r: any) => <StatusDot status={r.status} tone={r.status === 'paid' ? 'success' : 'neutral'} /> },
                 { key: 'actions', header: '', className: 'text-right', render: (r: any) => r.status !== 'prepared' ? null : (
                   <div className="flex justify-end">
                     <button onClick={() => settlePaidMut.mutate(r.id)} className="px-3 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 cursor-pointer inline-flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5" /> Mark Paid</button>

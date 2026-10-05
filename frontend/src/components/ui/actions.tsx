@@ -13,7 +13,7 @@ const avatarTones = {
   slate: 'bg-slate-200 text-slate-700',
 }
 
-const avatarSizes = { sm: 'w-8 h-8 text-[11px]', md: 'w-10 h-10 text-[13px]', lg: 'w-14 h-14 text-lg' }
+const avatarSizes = { xs: 'w-6 h-6 text-[9px]', sm: 'w-8 h-8 text-[11px]', md: 'w-10 h-10 text-[13px]', lg: 'w-14 h-14 text-lg' }
 
 export function Avatar({
   name,

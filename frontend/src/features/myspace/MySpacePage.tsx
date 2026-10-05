@@ -4,7 +4,7 @@ import { essApi, leaveApi, slipApi, helpdeskApi } from '@/services/api'
 import type { SalarySlipDetail } from '@/types/api'
 import { Table, Tabs, StatCard } from '@/components/ui/data'
 import { PageHeader, SectionCard } from '@/components/ui/layout'
-import { StatusBadge, type Tone } from '@/components/ui/status'
+import { StatusBadge, StatusDot, type Tone } from '@/components/ui/status'
 import { Avatar, NativeSelect } from '@/components/ui/actions'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { Button, Input, Select, Textarea } from '@/components/ui/fields'
@@ -224,7 +224,7 @@ function AttendanceTab() {
               { key: 'paid_leave', header: 'Paid Leave', render: (r: any) => <span className="font-mono text-xs text-blue-600">{r.paid_leave} d</span> },
               { key: 'unpaid_leave', header: 'Unpaid Leave', render: (r: any) => <span className="font-mono text-xs text-slate-600">{r.unpaid_leave} d</span> },
               { key: 'ot_hours', header: 'Overtime', render: (r: any) => <span className="font-mono text-xs font-bold text-indigo-600">{r.ot_hours} hrs</span> },
-              { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status} tone={regTone(r.status)} /> },
+              { key: 'status', header: 'Status', className: 'w-9', render: (r: any) => <StatusDot status={r.status} tone={regTone(r.status)} /> },
               { key: 'remarks', header: 'Remarks', render: (r: any) => <span className="text-xs text-slate-500">{r.remarks || '—'}</span> },
             ]}
             data={attQ.data?.data || []}
@@ -241,7 +241,7 @@ function AttendanceTab() {
               { key: 'period', header: 'Period', render: (r: any) => <span className="font-semibold text-xs text-slate-900">{monthYear(r.month, r.year)}</span> },
               { key: 'proposed', header: 'Proposed Days (P / A / PL / UL)', render: (r: any) => <span className="font-mono text-xs font-bold text-slate-800">{r.present_days} / {r.absent_days} / {r.paid_leave} / {r.unpaid_leave}</span> },
               { key: 'reason', header: 'Explanation', render: (r: any) => <p className="text-xs text-slate-600 max-w-[200px] truncate">{r.reason}</p> },
-              { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status} tone={regTone(r.status)} /> },
+              { key: 'status', header: 'Status', className: 'w-9', render: (r: any) => <StatusDot status={r.status} tone={regTone(r.status)} /> },
               { key: 'reply', header: 'HR Decision / Remarks', render: (r: any) => <span className="text-xs text-slate-500">{r.reply || 'Pending HR Review'}</span> },
             ]}
             data={regsQ.data?.data || []}
@@ -350,7 +350,7 @@ function LeaveTab({ empId }: { empId: number }) {
               { key: 'dates', header: 'Leave Duration', render: (r: any) => <span className="font-semibold text-xs text-slate-900">{dateShort(r.start_date)} → {dateShort(r.end_date)}</span> },
               { key: 'type_name', header: 'Leave Category', render: (r: any) => <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-100 text-slate-700">{r.type_name || 'General'}</span> },
               { key: 'days', header: 'Total Days', render: (r: any) => <span className="font-mono text-xs font-bold text-indigo-700">{r.days} d</span> },
-              { key: 'status', header: 'Review Status', render: (r: any) => <StatusBadge status={r.status.replace('_', ' ')} tone={leaveTone(r.status)} /> },
+              { key: 'status', header: 'Review', className: 'w-9', render: (r: any) => <StatusDot status={r.status.replace('_', ' ')} tone={leaveTone(r.status)} /> },
               { key: 'actions', header: '', render: (r: any) => r.status.startsWith('pending') ? (
                 <button onClick={() => cancelMut.mutate(r.id)} className="px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors">
                   Cancel Request
@@ -418,7 +418,7 @@ function PayslipsTab() {
             { key: 'slip_number', header: 'Voucher Number', render: (r: any) => <span className="font-mono text-xs font-bold text-indigo-600">{r.slip_number}</span> },
             { key: 'month', header: 'Payroll Period', render: (r: any) => <span className="font-semibold text-xs text-slate-900">{monthYear(r.month, r.year)}</span> },
             { key: 'net_salary', header: 'Net Disbursed Pay', render: (r: any) => <span className="font-mono text-xs font-bold text-emerald-700">{money(r.net_salary)}</span> },
-            { key: 'status', header: 'Disbursement Status', render: (r: any) => <StatusBadge status={r.payroll_status} tone={slipTone(r.payroll_status)} /> },
+            { key: 'status', header: 'Status', className: 'w-9', render: (r: any) => <StatusDot status={r.payroll_status} tone={slipTone(r.payroll_status)} /> },
             { key: 'generated_at', header: 'Date Generated', render: (r: any) => <span className="text-xs text-slate-500">{r.generated_at?.slice(0, 10)}</span> },
             { key: 'actions', header: '', render: (r: any) => (
               <div className="flex justify-end">

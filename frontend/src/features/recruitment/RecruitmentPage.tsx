@@ -6,7 +6,7 @@ import { Table, Tabs, StatCard } from '@/components/ui/data'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
 import { PageHeader } from '@/components/ui/layout'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
-import { StatusBadge } from '@/components/ui/status'
+import { StatusBadge, StatusDot } from '@/components/ui/status'
 import { toast } from 'sonner'
 import { Briefcase, UserPlus, CalendarPlus, FileSignature, Trash2, CheckCircle, XCircle, PauseCircle, PlayCircle, Users, PenLine, Phone, Mail, Clock, Plus } from 'lucide-react'
 
@@ -183,7 +183,7 @@ export default function RecruitmentPage() {
                 ) },
                 { key: 'role', header: 'Applied Position', render: (r: any) => <span className="text-xs font-semibold text-slate-800">{r.opening_title || 'General Pool'}</span> },
                 { key: 'exp', header: 'Experience', render: (r: any) => <span className="text-xs text-slate-600">{r.experience || '—'}</span> },
-                { key: 'status', header: 'Stage', render: (r: any) => <StatusBadge status={r.status} /> },
+                { key: 'status', header: 'Stage', className: 'w-9', render: (r: any) => <StatusDot status={r.status} /> },
                 { key: 'actions', header: 'Update Status', className: 'text-right', render: (r: any) => (
                   <div className="flex items-center justify-end gap-1.5">
                     {r.status === 'new' && <button onClick={() => cdStatusMut.mutate({ id: r.id, status: 'screening' })} className="px-2.5 py-1 text-xs font-bold text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 cursor-pointer">Screen</button>}

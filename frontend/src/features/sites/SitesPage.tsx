@@ -6,7 +6,7 @@ import { Modal, ConfirmDialog } from '@/components/ui/overlay'
 import { useFormValidation, type FieldRule } from '@/components/ui/validation'
 import { Table, StatCard } from '@/components/ui/data'
 import { PageHeader } from '@/components/ui/layout'
-import { StatusBadge } from '@/components/ui/status'
+import { StatusBadge, StatusDot } from '@/components/ui/status'
 import { FilterBar, SearchInput, SelectFilter } from '@/components/ui/actions'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { STATE_OPTIONS } from '@/utils/indianStates'
@@ -157,7 +157,7 @@ export default function SitesPage() {
         {r.headcount || 0} Deployed
       </span>
     ) },
-    { key: 'status', header: 'Status', render: (r: any) => <StatusBadge status={r.status} /> },
+    { key: 'status', header: 'Status', className: 'w-9', render: (r: any) => <StatusDot status={r.status} /> },
     { key: 'actions', header: 'Action', className: 'text-right', render: (r: any) => (
       <div className="flex items-center justify-end gap-1.5">
         <button onClick={() => openEdit(r.id)} className="px-3 py-1 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors cursor-pointer inline-flex items-center gap-1">
