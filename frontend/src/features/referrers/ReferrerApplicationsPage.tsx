@@ -5,6 +5,7 @@ import { Button, Input, Select, Textarea, FormSection, FormGrid } from '@/compon
 import { Table, Badge, Tabs } from '@/components/ui/data'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
 import { PageHeader, LoadingState, PageError, EmptyState } from '@/components/ui/state'
+import { FieldErrorsDialog, useFormValidation, type FieldRule } from '@/components/ui/validation'
 import { SearchInput, SelectFilter, Toolbar } from '@/components/ui/actions'
 import { DetailGrid, InfoRow, Metric, SectionCard } from '@/components/ui/layout'
 import { toast } from 'sonner'
@@ -37,6 +38,34 @@ const emptyReferrer = {
   name: '', referrer_code: '', contact_person: '', phone: '', email: '', status: 'active',
 }
 
+const REFERRER_RULES: FieldRule[] = [
+  { key: 'name', label: 'Referrer / Partner Name', required: true },
+  {
+    key: 'email',
+    label: 'Email Address',
+    test: (v) =>
+      v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v).trim()) ? 'Enter a valid email address.' : null,
+  },
+  { key: 'phone', label: 'Phone Number', test: (v) => (String(v ?? '').trim().length > 20 ? 'Phone must be 20 characters or fewer.' : null) },
+  { key: 'contact_person', label: 'Contact Person', test: (v) => (String(v ?? '').trim().length > 191 ? 'Contact person must be 191 characters or fewer.' : null) },
+]
+
+/**
+ * Database rows carry NULL for optional contacts. Spreading those straight into
+ * the form sent `email: null` to referrerSchema, which is a string schema - the
+ * save failed with "Please correct the highlighted fields." while nothing in the
+ * form was highlighted, so switching a referrer back to Active looked broken.
+ */
+const referrerFormFrom = (r: Partial<ReferrerRow>) => ({
+  ...emptyReferrer,
+  ...r,
+  referrer_code: r.referrer_code ?? '',
+  contact_person: r.contact_person ?? '',
+  phone: r.phone ?? '',
+  email: r.email ?? '',
+  status: r.status ?? 'active',
+})
+
 const emptyApproveForm = () => ({
   joining_date: new Date().toISOString().slice(0, 10), site_id: '', designation: '', department: '',
   employee_type: 'contract', shift_type: 'General', basic: '', hra: '', conveyance: '', other_allowance: '',
@@ -57,7 +86,8 @@ export default function ReferrerApplicationsPage() {
   const [showReferrer, setShowReferrer] = useState(false)
   const [editReferrer, setEditReferrer] = useState<ReferrerRow | null>(null)
   const [referrerForm, setReferrerForm] = useState({ ...emptyReferrer })
-  const [confirmDeactivate, setConfirmDeactivate] = useState<ReferrerRow | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<ReferrerRow | null>(null)
+  const { errors, validate, applyServerErrors, clear, clearAll, invalidLabels, popupOpen, closePopup } = useFormValidation()
 
   const [viewApp, setViewApp] = useState<ReferrerApplication | null>(null)
   const [approveFor, setApproveFor] = useState<ReferrerApplication | null>(null)
@@ -94,14 +124,25 @@ export default function ReferrerApplicationsPage() {
   const saveReferrer = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       editReferrer ? referrerApi.update(editReferrer.id, body) : referrerApi.create(body),
-    onSuccess: () => { invalidate(); setShowReferrer(false); toast.success(editReferrer ? 'Referrer updated.' : 'Referrer added.') },
-    onError: (err: any) => toast.error(err?.error?.message || 'Could not save the referrer.'),
+    onSuccess: () => { invalidate(); clearAll(); setShowReferrer(false); setEditReferrer(null); toast.success(editReferrer ? 'Referrer updated.' : 'Referrer added.') },
+    onError: (err: any) => {
+      if (err?.error?.fields) { applyServerErrors(err.error.fields); toast.error('Please correct the highlighted fields.') }
+      else toast.error(err?.error?.message || 'Could not save the referrer.')
+    },
   })
 
-  const deactivateReferrer = useMutation({
+  const deleteReferrer = useMutation({
     mutationFn: (id: number) => referrerApi.deactivate(id),
-    onSuccess: () => { invalidate(); setConfirmDeactivate(null); toast.success('Referrer marked inactive.') },
-    onError: (err: any) => { setConfirmDeactivate(null); toast.error(err?.error?.message || 'Could not update the referrer.') },
+    onSuccess: () => { invalidate(); setConfirmDelete(null); toast.success('Referrer deleted.') },
+    onError: (err: any) => { setConfirmDelete(null); toast.error(err?.error?.message || 'Could not delete the referrer.') },
+  })
+
+  // One-click activate/deactivate. Only the status field is sent, so the rest of
+  // the referrer row is left exactly as it is.
+  const toggleStatus = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: 'active' | 'inactive' }) => referrerApi.update(id, { status }),
+    onSuccess: () => { invalidate(); toast.success('Referrer status updated.') },
+    onError: (err: any) => toast.error(err?.error?.message || 'Could not update the referrer status.'),
   })
 
   const approve = useMutation({
@@ -155,8 +196,8 @@ export default function ReferrerApplicationsPage() {
   }
 
   const submitReferrer = () => {
-    if (!referrerForm.name.trim()) { toast.error('Enter the referrer name.'); return }
-    saveReferrer.mutate({ ...referrerForm, referrer_code: referrerForm.referrer_code || undefined })
+    if (!validate(REFERRER_RULES, referrerForm)) return
+    saveReferrer.mutate({ ...referrerForm, referrer_code: referrerForm.referrer_code.trim() || undefined })
   }
 
   const applications = appQuery.data || []
@@ -257,14 +298,20 @@ export default function ReferrerApplicationsPage() {
     ) },
     { key: 'actions', header: '', render: (r: ReferrerRow) => (
       <div className="flex items-center gap-1.5 justify-end">
-        <button onClick={() => { setEditReferrer(r); setReferrerForm({ ...emptyReferrer, ...r } as any); setShowReferrer(true) }} className="px-2.5 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+        <button onClick={() => { clearAll(); setEditReferrer(r); setReferrerForm(referrerFormFrom(r)); setShowReferrer(true) }} className="px-2.5 py-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
           Edit
         </button>
-        {r.status === 'active' && (
-          <button onClick={() => setConfirmDeactivate(r)} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Deactivate">
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
+        <button
+          onClick={() => toggleStatus.mutate({ id: r.id, status: r.status === 'active' ? 'inactive' : 'active' })}
+          disabled={toggleStatus.isPending}
+          className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors disabled:opacity-50"
+          title={r.status === 'active' ? 'Deactivate referrer' : 'Activate referrer'}
+        >
+          {r.status === 'active' ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+        </button>
+        <button onClick={() => setConfirmDelete(r)} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete referrer">
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     ) },
   ]
@@ -284,7 +331,7 @@ export default function ReferrerApplicationsPage() {
         </div>
         <div className="flex items-center gap-3">
           <Button
-            onClick={() => { setEditReferrer(null); setReferrerForm({ ...emptyReferrer }); setShowReferrer(true) }}
+            onClick={() => { clearAll(); setEditReferrer(null); setReferrerForm({ ...emptyReferrer }); setShowReferrer(true) }}
             className="shadow-sm hover:shadow transition-all"
           >
             <Plus className="w-4 h-4 mr-1.5" /> Add Referrer Partner
@@ -350,7 +397,7 @@ export default function ReferrerApplicationsPage() {
           ) : refQuery.isError ? (
             <div className="p-8"><PageError onRetry={() => refQuery.refetch()} /></div>
           ) : referrers.length === 0 ? (
-            <div className="p-8"><EmptyState icon={UserCheck} title="No Referrers Added" description="Create a referrer partner to enable source attribution on the public intake form." action={<Button onClick={() => setShowReferrer(true)}><Plus className="w-4 h-4 mr-1.5" /> Add Referrer</Button>} /></div>
+            <div className="p-8"><EmptyState icon={UserCheck} title="No Referrers Added" description="Create a referrer partner to enable source attribution on the public intake form." action={<Button onClick={() => { clearAll(); setEditReferrer(null); setReferrerForm({ ...emptyReferrer }); setShowReferrer(true) }}><Plus className="w-4 h-4 mr-1.5" /> Add Referrer</Button>} /></div>
           ) : (
             <Table columns={refCols} data={referrers} keyFn={(r: ReferrerRow) => r.id} />
           )
@@ -361,15 +408,15 @@ export default function ReferrerApplicationsPage() {
       <Modal open={showReferrer} onClose={() => setShowReferrer(false)} title={editReferrer ? 'Edit Referrer Partner' : 'Add Referrer Partner'} size="md">
         <div className="space-y-4 pt-1">
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Referrer / Partner Name" placeholder="e.g. Apex Workforce Solutions" value={referrerForm.name} onChange={(e) => setReferrerForm((f) => ({ ...f, name: e.target.value }))} required />
+            <Input label="Referrer / Partner Name" placeholder="e.g. Apex Workforce Solutions" value={referrerForm.name} onChange={(e) => { setReferrerForm((f) => ({ ...f, name: e.target.value })); clear('name') }} error={errors.name} required />
             <Input label="Referrer Code" placeholder="Auto-generated if empty" value={referrerForm.referrer_code} onChange={(e) => setReferrerForm((f) => ({ ...f, referrer_code: e.target.value.toUpperCase() }))} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Contact Person" placeholder="e.g. Rajesh Sharma" value={referrerForm.contact_person} onChange={(e) => setReferrerForm((f) => ({ ...f, contact_person: e.target.value }))} />
-            <Input label="Phone Number" placeholder="+91 98765 43210" value={referrerForm.phone} onChange={(e) => setReferrerForm((f) => ({ ...f, phone: e.target.value }))} />
+            <Input label="Contact Person" placeholder="e.g. Rajesh Sharma" value={referrerForm.contact_person} onChange={(e) => { setReferrerForm((f) => ({ ...f, contact_person: e.target.value })); clear('contact_person') }} error={errors.contact_person} />
+            <Input label="Phone Number" placeholder="+91 98765 43210" value={referrerForm.phone} onChange={(e) => { setReferrerForm((f) => ({ ...f, phone: e.target.value })); clear('phone') }} error={errors.phone} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Email Address" type="email" placeholder="partner@domain.com" value={referrerForm.email} onChange={(e) => setReferrerForm((f) => ({ ...f, email: e.target.value }))} />
+            <Input label="Email Address" type="email" placeholder="partner@domain.com" value={referrerForm.email} onChange={(e) => { setReferrerForm((f) => ({ ...f, email: e.target.value })); clear('email') }} error={errors.email} />
             <Select label="Partner Status" options={[{ value: 'active', label: 'Active Partner' }, { value: 'inactive', label: 'Inactive' }]} value={referrerForm.status} onChange={(e) => setReferrerForm((f) => ({ ...f, status: e.target.value }))} />
           </div>
           <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
@@ -515,13 +562,17 @@ export default function ReferrerApplicationsPage() {
       </Modal>
 
       <ConfirmDialog
-        open={!!confirmDeactivate}
-        onClose={() => setConfirmDeactivate(null)}
-        onConfirm={() => deactivateReferrer.mutate(confirmDeactivate!.id)}
-        title="Deactivate Referrer Partner?"
-        message={`${confirmDeactivate?.name} will be hidden from candidate intake options. Past candidate records remain intact.`}
-        loading={deactivateReferrer.isPending}
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => deleteReferrer.mutate(confirmDelete!.id)}
+        title="Delete Referrer Partner?"
+        message={`${confirmDelete?.name} will be permanently removed. Employees and registrations it brought in are kept, but will no longer be linked to it.`}
+        confirmText="Delete"
+        danger
+        loading={deleteReferrer.isPending}
       />
+
+      <FieldErrorsDialog open={popupOpen} onClose={closePopup} labels={invalidLabels(REFERRER_RULES)} />
     </div>
   )
 }

@@ -24,12 +24,24 @@ import { createEmployee, EmployeeConflictError } from '../services/employeeCreat
 
 // Contact only. Adding a commercial field here needs a real reason: the point of
 // this table is "who referred this person", not "what they bill us".
+//
+// contact_person / phone / email are nullable in the database, so a row that was
+// loaded and sent straight back carries null rather than ''. Zod would reject
+// null on a string field, which failed the save with "Please correct the
+// highlighted fields." while the form itself had nothing wrong - switching a
+// referrer's status looked broken because of it. null is normalised to '' here
+// and the handlers store '' as null, so both shapes mean "no value".
+const nullableText = (max: number, opts: { email?: boolean } = {}) => {
+  const base = opts.email ? z.string().trim().email().max(max) : z.string().trim().max(max)
+  return z.preprocess((v) => (v === null ? '' : v), base.optional().or(z.literal('')))
+}
+
 const referrerSchema = z.object({
   name: z.string().trim().min(1).max(191),
   referrer_code: z.string().trim().max(20).optional(),
-  contact_person: z.string().trim().max(191).optional().or(z.literal('')),
-  phone: z.string().trim().max(20).optional().or(z.literal('')),
-  email: z.string().trim().email().max(191).optional().or(z.literal('')),
+  contact_person: nullableText(191),
+  phone: nullableText(20),
+  email: nullableText(191, { email: true }),
   status: z.enum(['active', 'inactive']).optional(),
 })
 
@@ -409,27 +421,23 @@ referrerRoutes.put('/:id', async (c) => {
   return c.json({ data: updated })
 })
 
-// Referrers are referenced by employees and registrations, so this deactivates
-// rather than deletes. Deleting would orphan provenance on every employee they
-// referred and drop the registration history with it.
+// A real delete. employees.referrer_id and referrer_applications.referrer_id
+// are declared ON DELETE SET NULL (migration 0029), so staff and registration
+// history survive the removal of the referrer itself - only the link goes.
+//
+// The links are cleared explicitly rather than relying on the FK: SQLite only
+// honours foreign keys when the pragma is on for that connection, so depending
+// on it would leave dangling referrer_id rows on a connection where it is off.
 referrerRoutes.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   const db = getDb(c.env)
   const referrer = await db.prepare('SELECT id, name FROM referrers WHERE id = ?').bind(id).first()
   if (!referrer) return c.json({ error: { code: 'not_found', message: 'Referrer not found.' } }, 404)
 
-  const active = await db
-    .prepare("SELECT COUNT(*) AS n FROM employees WHERE referrer_id = ? AND status = 'active'")
-    .bind(id)
-    .first()
-  if (Number((active as any)?.n || 0) > 0) {
-    return c.json(
-      { error: { code: 'conflict', message: 'This referrer still has active employees. Mark inactive instead.' } },
-      409
-    )
-  }
+  await db.prepare('UPDATE employees SET referrer_id = NULL, updated_at = datetime(\'now\') WHERE referrer_id = ?').bind(id).run()
+  await db.prepare('UPDATE referrer_applications SET referrer_id = NULL, updated_at = datetime(\'now\') WHERE referrer_id = ?').bind(id).run()
 
-  const res = await db.prepare("UPDATE referrers SET status = 'inactive', updated_at = datetime('now') WHERE id = ?").bind(id).run()
+  const res = await db.prepare('DELETE FROM referrers WHERE id = ?').bind(id).run()
   if (!res.meta.changes) return c.json({ error: { code: 'not_found', message: 'Referrer not found.' } }, 404)
-  return c.json({ data: { ok: true }, message: `${(referrer as any).name} marked inactive.` })
+  return c.json({ data: { ok: true }, message: `${(referrer as any).name} deleted.` })
 })
