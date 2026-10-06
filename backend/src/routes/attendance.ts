@@ -568,7 +568,7 @@ attendanceRoutes.put('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   const body = await c.req.json().catch(() => null)
   const parsed = updateSchema.safeParse(body)
-  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.' } }, 400)
+  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.', fields: parsed.error.flatten().fieldErrors } }, 400)
   const d = parsed.data
   const db = getDb(c.env)
   const existing = await db.prepare('SELECT * FROM attendance_monthly WHERE id = ?').bind(id).first()

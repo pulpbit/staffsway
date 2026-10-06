@@ -158,9 +158,11 @@ export default function EmployeeForm({ employeeId, onClose, onSaved, onSwitchToE
   const allSites = (allSitesRes?.data || []) as any[]
 
   const update = (key: string, value: any) => { setForm(f => ({ ...f, [key]: value })); clear(key) }
-  const updateSalary = (key: string, value: any) => setForm(f => ({ ...f, salary: { ...f.salary, [key]: value } }))
-  const updateStatutory = (key: string, value: any) => setForm(f => ({ ...f, statutory: { ...f.statutory, [key]: value } }))
-  const updateNominee = (key: string, value: any) => setForm(f => ({ ...f, nominee: { ...f.nominee, [key]: value } }))
+  // Nested groups report under dotted keys (salary.basic), so clear those too -
+  // otherwise a server error stays pinned on screen after the value is fixed.
+  const updateSalary = (key: string, value: any) => { setForm(f => ({ ...f, salary: { ...f.salary, [key]: value } })); clear(`salary.${key}`) }
+  const updateStatutory = (key: string, value: any) => { setForm(f => ({ ...f, statutory: { ...f.statutory, [key]: value } })); clear(`statutory.${key}`) }
+  const updateNominee = (key: string, value: any) => { setForm(f => ({ ...f, nominee: { ...f.nominee, [key]: value } })); clear(`nominee.${key}`) }
 
   useEffect(() => {
     if (emp?.data) {
@@ -377,30 +379,29 @@ const checkedBanner = !isEdit && unlocked && (
                 />
                 <div className="mt-2">
                   {parentType === 'father' ? (
-                    <Input label="Father's Name" value={form.father_name} onChange={e => update('father_name', e.target.value)} ref={fieldRefs.father_name} />
+                    <Input label="Father's Name" value={form.father_name} onChange={e => update('father_name', e.target.value)} ref={fieldRefs.father_name} error={errors['father_name']} />
                   ) : (
-                    <Input label="Husband / Spouse Name" value={form.spouse_name} onChange={e => update('spouse_name', e.target.value)} />
+                    <Input label="Husband / Spouse Name" value={form.spouse_name} onChange={e => update('spouse_name', e.target.value)} error={errors['spouse_name']} />
                   )}
                 </div>
               </div>
-              <Input label="Date of Birth" type="date" value={form.dob} onChange={e => update('dob', e.target.value)} ref={fieldRefs.dob} />
+              <Input label="Date of Birth" type="date" value={form.dob} onChange={e => update('dob', e.target.value)} ref={fieldRefs.dob} error={errors['dob']} />
             </FormGrid>
             <FormGrid cols={3}>
-              <Select label="Gender" options={GENDERS.map(g => ({ value: g, label: g }))} value={form.gender} onChange={e => update('gender', e.target.value)} />
-              <Select label="Marital Status" options={MARITAL_STATUSES.map(m => ({ value: m, label: m }))} value={form.marital_status} onChange={e => update('marital_status', e.target.value)} />
+              <Select label="Gender" options={GENDERS.map(g => ({ value: g, label: g }))} value={form.gender} onChange={e => update('gender', e.target.value)} error={errors['gender']} />
+              <Select label="Marital Status" options={MARITAL_STATUSES.map(m => ({ value: m, label: m }))} value={form.marital_status} onChange={e => update('marital_status', e.target.value)} error={errors['marital_status']} />
               <div>
                 <Input label="Emp. Code" readOnly value={isEdit ? form.employee_code : (nextCode || 'Auto-assigned')} />
                 <p className="text-[11px] text-slate-500 mt-1">Employee ID · My Space password = Date of Birth (DDMMYY).</p>
               </div>
             </FormGrid>
             <FormGrid cols={3}>
-              <Input label="Nationality" value={form.nationality} onChange={e => update('nationality', e.target.value)} />
+              <Input label="Nationality" value={form.nationality} onChange={e => update('nationality', e.target.value)} error={errors['nationality']} />
               <Select
                 label="Qualification"
                 options={QUALIFICATIONS.map(q => ({ value: q, label: q }))}
                 value={form.qualification}
-                onChange={e => update('qualification', e.target.value)}
-              />
+                onChange={e => update('qualification', e.target.value)} error={errors['qualification']} />
               <div>
                 <span className="block text-[12.5px] font-semibold text-slate-700 mb-1.5">Experience</span>
                 <div className="flex items-center gap-2">
@@ -408,15 +409,13 @@ const checkedBanner = !isEdit && unlocked && (
                     type="number" min={0} max={60} placeholder="0"
                     aria-label="Total experience in years"
                     value={form.experience_years}
-                    onChange={e => update('experience_years', e.target.value)}
-                  />
+                    onChange={e => update('experience_years', e.target.value)} error={errors['experience_years']} />
                   <span className="text-[12px] text-slate-500 shrink-0">Years</span>
                   <Input
                     type="number" min={0} max={11} placeholder="0"
                     aria-label="Total experience in months"
                     value={form.experience_months}
-                    onChange={e => update('experience_months', e.target.value)}
-                  />
+                    onChange={e => update('experience_months', e.target.value)} error={errors['experience_months']} />
                   <span className="text-[12px] text-slate-500 shrink-0">Months</span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">Total experience before joining. Months 0-11.</p>
@@ -427,24 +426,24 @@ const checkedBanner = !isEdit && unlocked && (
           <FormSection icon={Phone} title="Contact Details" subtitle="Communication and address information" className="mb-4" anchor="stage-personal">
             <FormGrid cols={3}>
               <Input label="Primary Contact No." value={form.mobile} onChange={e => update('mobile', e.target.value)} error={errors.mobile} />
-              <Input label="Alternate Contact No." value={form.alternate_mobile} onChange={e => update('alternate_mobile', e.target.value)} />
+              <Input label="Alternate Contact No." value={form.alternate_mobile} onChange={e => update('alternate_mobile', e.target.value)} error={errors['alternate_mobile']} />
               <Input label="Email" type="email" value={form.email} onChange={e => update('email', e.target.value)} error={errors.email} />
             </FormGrid>
-            <Textarea label="Present Address" value={form.address} onChange={e => update('address', e.target.value)} />
+            <Textarea label="Present Address" value={form.address} onChange={e => update('address', e.target.value)} error={errors['address']} />
             <FormGrid cols={3}>
-              <Input label="District" value={form.district} onChange={e => update('district', e.target.value)} />
-              <Select label="State" options={stateOptions} value={form.state} onChange={e => update('state', e.target.value)} />
-              <Input label="Pincode" value={form.pincode} onChange={e => update('pincode', e.target.value)} />
+              <Input label="District" value={form.district} onChange={e => update('district', e.target.value)} error={errors['district']} />
+              <Select label="State" options={stateOptions} value={form.state} onChange={e => update('state', e.target.value)} error={errors['state']} />
+              <Input label="Pincode" value={form.pincode} onChange={e => update('pincode', e.target.value)} error={errors['pincode']} />
             </FormGrid>
             <FormDivider label="Permanent Address" />
             <Toggle label="Permanent address is same as present" checked={form.permanent_same_as_present} onChange={v => update('permanent_same_as_present', v)} />
             {!form.permanent_same_as_present && (
               <>
-                <Textarea label="Permanent Address" value={form.permanent_address} onChange={e => update('permanent_address', e.target.value)} />
+                <Textarea label="Permanent Address" value={form.permanent_address} onChange={e => update('permanent_address', e.target.value)} error={errors['permanent_address']} />
                 <FormGrid cols={3}>
-                  <Input label="District" value={form.permanent_district} onChange={e => update('permanent_district', e.target.value)} />
-                  <Select label="State" options={stateOptions} value={form.permanent_state} onChange={e => update('permanent_state', e.target.value)} />
-                  <Input label="Pincode" value={form.permanent_pincode} onChange={e => update('permanent_pincode', e.target.value)} />
+                  <Input label="District" value={form.permanent_district} onChange={e => update('permanent_district', e.target.value)} error={errors['permanent_district']} />
+                  <Select label="State" options={stateOptions} value={form.permanent_state} onChange={e => update('permanent_state', e.target.value)} error={errors['permanent_state']} />
+                  <Input label="Pincode" value={form.permanent_pincode} onChange={e => update('permanent_pincode', e.target.value)} error={errors['permanent_pincode']} />
                 </FormGrid>
               </>
             )}
@@ -456,29 +455,27 @@ const checkedBanner = !isEdit && unlocked && (
                 label="Client"
                 options={[{ value: '', label: 'None' }, ...(clients?.data || []).map((c: any) => ({ value: String(c.id), label: c.name }))]}
                 value={form.client_id}
-                onChange={e => update('client_id', e.target.value)}
-              />
+                onChange={e => update('client_id', e.target.value)} error={errors['client_id']} />
               <Select
                 label="Site"
                 options={[{ value: '', label: 'None' }, ...sites.map((s: any) => ({ value: String(s.id), label: s.name }))]}
                 value={form.site_id}
-                onChange={e => update('site_id', e.target.value)}
-              />
-              <Input label="Reporting Manager" value={form.reporting_manager} onChange={e => update('reporting_manager', e.target.value)} />
+                onChange={e => update('site_id', e.target.value)} error={errors['site_id']} />
+              <Input label="Reporting Manager" value={form.reporting_manager} onChange={e => update('reporting_manager', e.target.value)} error={errors['reporting_manager']} />
             </FormGrid>
             <FormGrid cols={3}>
-              <Input label="Department" value={form.department} onChange={e => update('department', e.target.value)} />
-              <Input label="Designation" value={form.designation} onChange={e => update('designation', e.target.value)} />
-              <Input label="Date of Joining" type="date" value={form.joining_date} onChange={e => update('joining_date', e.target.value)} />
+              <Input label="Department" value={form.department} onChange={e => update('department', e.target.value)} error={errors['department']} />
+              <Input label="Designation" value={form.designation} onChange={e => update('designation', e.target.value)} error={errors['designation']} />
+              <Input label="Date of Joining" type="date" value={form.joining_date} onChange={e => update('joining_date', e.target.value)} error={errors['joining_date']} />
             </FormGrid>
             <FormGrid cols={3}>
-              <Select label="Employment Type" options={EMP_TYPES} value={form.employee_type} onChange={e => update('employee_type', e.target.value)} />
-              <Select label="Shift" options={SHIFTS.map(s => ({ value: s, label: s }))} value={form.shift_type} onChange={e => update('shift_type', e.target.value)} />
-              <Select label="Working Days in a Week" options={WEEKDAYS.map(d => ({ value: d, label: `${d} days` }))} value={form.working_days_week} onChange={e => update('working_days_week', e.target.value)} />
+              <Select label="Employment Type" options={EMP_TYPES} value={form.employee_type} onChange={e => update('employee_type', e.target.value)} error={errors['employee_type']} />
+              <Select label="Shift" options={SHIFTS.map(s => ({ value: s, label: s }))} value={form.shift_type} onChange={e => update('shift_type', e.target.value)} error={errors['shift_type']} />
+              <Select label="Working Days in a Week" options={WEEKDAYS.map(d => ({ value: d, label: `${d} days` }))} value={form.working_days_week} onChange={e => update('working_days_week', e.target.value)} error={errors['working_days_week']} />
             </FormGrid>
             <FormGrid cols={3}>
-              <Select label="Notice Period" options={[{ value: '', label: 'Not applicable' }, ...NOTICE_PERIODS]} value={form.notice_period_days} onChange={e => update('notice_period_days', e.target.value)} />
-              <Input label="Working Hours / Day" type="number" min={1} max={24} step={1} value={form.working_hours} onChange={e => update('working_hours', e.target.value)} />
+              <Select label="Notice Period" options={[{ value: '', label: 'Not applicable' }, ...NOTICE_PERIODS]} value={form.notice_period_days} onChange={e => update('notice_period_days', e.target.value)} error={errors['notice_period_days']} />
+              <Input label="Working Hours / Day" type="number" min={1} max={24} step={1} value={form.working_hours} onChange={e => update('working_hours', e.target.value)} error={errors['working_hours']} />
               {isEdit && (
                 // Exiting is not a status you set here — it is a dated process
                 // run from Exit Management, so only active/inactive are offered.
@@ -486,27 +483,26 @@ const checkedBanner = !isEdit && unlocked && (
                   label="Status"
                   options={['active', 'inactive'].map(s => ({ value: s, label: s === 'active' ? 'Active' : 'Inactive' }))}
                   value={form.status}
-                  onChange={e => update('status', e.target.value)}
-                />
+                  onChange={e => update('status', e.target.value)} error={errors['status']} />
               )}
             </FormGrid>
           </FormSection>
 
           <FormSection icon={Wallet} title="Salary & Statutory" subtitle="Compensation structure and PF / ESIC / LWF / PT applicability" className="mb-4" anchor="stage-statutory">
             <FormGrid cols={3}>
-              <Input label="CTC / Gross Salary" type="number" min={0} value={form.ctc} onChange={e => update('ctc', e.target.value)} />
-              <Input label="Basic Salary" type="number" min={0} value={form.salary.basic} onChange={e => updateSalary('basic', e.target.value)} />
-              <Input label="HRA" type="number" min={0} value={form.salary.hra} onChange={e => updateSalary('hra', e.target.value)} />
+              <Input label="CTC / Gross Salary" type="number" min={0} value={form.ctc} onChange={e => update('ctc', e.target.value)} error={errors['ctc']} />
+              <Input label="Basic Salary" type="number" min={0} value={form.salary.basic} onChange={e => updateSalary('basic', e.target.value)} error={errors['salary.basic']} />
+              <Input label="HRA" type="number" min={0} value={form.salary.hra} onChange={e => updateSalary('hra', e.target.value)} error={errors['salary.hra']} />
             </FormGrid>
             <FormGrid cols={3}>
-              <Input label="Conveyance" type="number" min={0} value={form.salary.conveyance} onChange={e => updateSalary('conveyance', e.target.value)} />
+              <Input label="Conveyance" type="number" min={0} value={form.salary.conveyance} onChange={e => updateSalary('conveyance', e.target.value)} error={errors['salary.conveyance']} />
             </FormGrid>
             <FormDivider label="Other Allowances" />
             <Toggle label="Other allowance applicable" checked={otherAllowanceOn} onChange={v => updateSalary('other_allowance', v ? (Number(form.salary.other_allowance) || 1) : 0)} />
             {otherAllowanceOn && (
               <FormGrid cols={2}>
-                <Input label="Other Allowance Field Name" value={form.salary.other_allowance_label} placeholder="e.g. Performance Allowance" onChange={e => updateSalary('other_allowance_label', e.target.value)} />
-                <Input label="Other Allowance (₹)" type="number" min={0} value={form.salary.other_allowance} onChange={e => updateSalary('other_allowance', e.target.value)} />
+                <Input label="Other Allowance Field Name" value={form.salary.other_allowance_label} placeholder="e.g. Performance Allowance" onChange={e => updateSalary('other_allowance_label', e.target.value)} error={errors['salary.other_allowance_label']} />
+                <Input label="Other Allowance (₹)" type="number" min={0} value={form.salary.other_allowance} onChange={e => updateSalary('other_allowance', e.target.value)} error={errors['salary.other_allowance']} />
               </FormGrid>
             )}
             <FormDivider label="Statutory Applicability" />
@@ -518,12 +514,12 @@ const checkedBanner = !isEdit && unlocked && (
             </div>
             {form.statutory.pf_applicable && (
               <FormGrid cols={2}>
-                <Input label="UAN No." value={form.uan} onChange={e => update('uan', e.target.value)} ref={fieldRefs.uan} />
+                <Input label="UAN No." value={form.uan} onChange={e => update('uan', e.target.value)} ref={fieldRefs.uan} error={errors['uan']} />
               </FormGrid>
             )}
             {form.statutory.esi_applicable && (
               <FormGrid cols={2}>
-                <Input label="ESI No." value={form.esi_number} onChange={e => update('esi_number', e.target.value)} ref={fieldRefs.esi_number} />
+                <Input label="ESI No." value={form.esi_number} onChange={e => update('esi_number', e.target.value)} ref={fieldRefs.esi_number} error={errors['esi_number']} />
               </FormGrid>
             )}
             <p className="text-[11px] text-slate-500">Other deductions are managed via payroll salary revisions. Working Hours / Day (set under Official Information) drives the hourly rate: monthly earnings ÷ days in month ÷ working hours.</p>
@@ -531,38 +527,38 @@ const checkedBanner = !isEdit && unlocked && (
 
           <FormSection icon={Landmark} title="Bank Details" subtitle="Salary disbursement account (masked elsewhere in the app)" className="mb-4" anchor="stage-bank">
             <FormGrid cols={3}>
-              <Input label="Bank Name" value={form.bank_name} onChange={e => update('bank_name', e.target.value)} />
-              <Input label="A/C No." value={form.bank_account} onChange={e => update('bank_account', e.target.value)} ref={fieldRefs.bank_account} />
-              <Input label="IFSC" value={form.bank_ifsc} onChange={e => update('bank_ifsc', e.target.value)} ref={fieldRefs.bank_ifsc} />
+              <Input label="Bank Name" value={form.bank_name} onChange={e => update('bank_name', e.target.value)} error={errors['bank_name']} />
+              <Input label="A/C No." value={form.bank_account} onChange={e => update('bank_account', e.target.value)} ref={fieldRefs.bank_account} error={errors['bank_account']} />
+              <Input label="IFSC" value={form.bank_ifsc} onChange={e => update('bank_ifsc', e.target.value)} ref={fieldRefs.bank_ifsc} error={errors['bank_ifsc']} />
             </FormGrid>
             <FormGrid cols={3}>
-              <Input label="A/C Holder Name" value={form.bank_holder_name} onChange={e => update('bank_holder_name', e.target.value)} />
+              <Input label="A/C Holder Name" value={form.bank_holder_name} onChange={e => update('bank_holder_name', e.target.value)} error={errors['bank_holder_name']} />
             </FormGrid>
           </FormSection>
 
           <FormSection icon={FileText} title="Identity Documents" subtitle="Government-issued IDs — stored as text records" className="mb-4" anchor="stage-documents">
             <FormGrid cols={3}>
-              <Input label="Aadhaar No." value={form.aadhaar} maxLength={12} onChange={e => update('aadhaar', e.target.value.replace(/\D/g, ''))} />
-              <Input label="PAN" value={form.pan} onChange={e => update('pan', e.target.value.toUpperCase())} />
+              <Input label="Aadhaar No." value={form.aadhaar} maxLength={12} onChange={e => update('aadhaar', e.target.value.replace(/\D/g, ''))} error={errors['aadhaar']} />
+              <Input label="PAN" value={form.pan} onChange={e => update('pan', e.target.value.toUpperCase())} error={errors['pan']} />
             </FormGrid>
           </FormSection>
 
           <FormSection icon={HeartHandshake} title="Nominee Details" subtitle="Single nominee per employee — used for EDLI / gratuity" className="mb-4">
             <FormGrid cols={3}>
-              <Input label="Name" value={form.nominee.name} onChange={e => updateNominee('name', e.target.value)} />
-              <Input label="Relation" value={form.nominee.relation} onChange={e => updateNominee('relation', e.target.value)} />
-              <Input label="Share (%)" type="number" min={0} max={100} value={form.nominee.share} onChange={e => updateNominee('share', e.target.value)} />
+              <Input label="Name" value={form.nominee.name} onChange={e => updateNominee('name', e.target.value)} error={errors['nominee.name']} />
+              <Input label="Relation" value={form.nominee.relation} onChange={e => updateNominee('relation', e.target.value)} error={errors['nominee.relation']} />
+              <Input label="Share (%)" type="number" min={0} max={100} value={form.nominee.share} onChange={e => updateNominee('share', e.target.value)} error={errors['nominee.share']} />
             </FormGrid>
             <FormGrid cols={3}>
-              <Input label="Contact No." value={form.nominee.contact} onChange={e => updateNominee('contact', e.target.value)} />
+              <Input label="Contact No." value={form.nominee.contact} onChange={e => updateNominee('contact', e.target.value)} error={errors['nominee.contact']} />
             </FormGrid>
           </FormSection>
 
           <FormSection icon={Siren} title="Emergency Contact" subtitle="Someone to reach in case of emergency" className="mb-4">
             <FormGrid cols={3}>
-              <Input label="Contact Person Name" value={form.emergency_contact_name} onChange={e => update('emergency_contact_name', e.target.value)} />
-              <Input label="Relation" value={form.emergency_contact_relation} onChange={e => update('emergency_contact_relation', e.target.value)} />
-              <Input label="Contact No." value={form.emergency_contact_phone} onChange={e => update('emergency_contact_phone', e.target.value)} />
+              <Input label="Contact Person Name" value={form.emergency_contact_name} onChange={e => update('emergency_contact_name', e.target.value)} error={errors['emergency_contact_name']} />
+              <Input label="Relation" value={form.emergency_contact_relation} onChange={e => update('emergency_contact_relation', e.target.value)} error={errors['emergency_contact_relation']} />
+              <Input label="Contact No." value={form.emergency_contact_phone} onChange={e => update('emergency_contact_phone', e.target.value)} error={errors['emergency_contact_phone']} />
             </FormGrid>
           </FormSection>
 

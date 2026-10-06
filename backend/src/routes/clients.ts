@@ -100,7 +100,7 @@ clientRoutes.post('/', async (c) => {
   const db = getDb(c.env)
 
   const dup = await db.prepare('SELECT id FROM clients WHERE name = ?').bind(d.name).first()
-  if (dup) return c.json({ error: { code: 'conflict', message: 'A client with this name already exists.' } }, 409)
+  if (dup) return c.json({ error: { code: 'conflict', message: 'A client with this name already exists.', fields: { name: ['A client with this name already exists.'] } } }, 409)
 
   // Generate code with retry-on-contention so a UNIQUE race never blocks creation.
   let clientCode: string
@@ -159,7 +159,7 @@ clientRoutes.put('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   const body = await c.req.json().catch(() => null)
   const parsed = clientSchema.partial().safeParse(body)
-  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.' } }, 400)
+  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.', fields: parsed.error.flatten().fieldErrors } }, 400)
   const d = parsed.data
   const db = getDb(c.env)
 
@@ -168,7 +168,7 @@ clientRoutes.put('/:id', async (c) => {
   if (d.client_code && d.client_code !== '') {
     const wanted = d.client_code.toUpperCase()
     const dup = await db.prepare('SELECT id FROM clients WHERE client_code = ? AND id != ?').bind(wanted, id).first()
-    if (dup) return c.json({ error: { code: 'conflict', message: 'Client code already in use by another client.' } }, 409)
+    if (dup) return c.json({ error: { code: 'conflict', message: 'Client code already in use by another client.', fields: { client_code: ['Client code already in use by another client.'] } } }, 409)
     clientCodeset = wanted
   }
 

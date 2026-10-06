@@ -13,7 +13,8 @@ export interface FieldRule {
 const isEmpty = (v: any): boolean => {
   if (v === null || v === undefined) return true
   if (typeof v === 'string') return v.trim() === ''
-  if (typeof v === 'number') return Number.isNaN(v) || v <= 0
+  // 0 is a real value (zero OT hours, zero allowance). Only NaN counts as blank.
+  if (typeof v === 'number') return Number.isNaN(v)
   return false
 }
 
@@ -46,10 +47,22 @@ export function useFormValidation() {
 
   const applyServerErrors = (fields: Record<string, any>) => {
     const next: Record<string, string> = {}
-    for (const [key, raw] of Object.entries(fields)) {
-      const msg = Array.isArray(raw) ? raw[0] : raw
-      if (typeof msg === 'string' && msg) next[key] = msg
+    // Zod reports nested objects either as flat dotted keys ("salary.basic") or
+    // as nested objects, depending on version. Flatten both into one dotted key
+    // so a field can always look up its own message.
+    const walk = (raw: any, prefix: string) => {
+      if (Array.isArray(raw)) {
+        const msg = raw.find(m => typeof m === 'string' && m)
+        if (typeof msg === 'string' && msg) next[prefix] = msg
+        return
+      }
+      if (raw && typeof raw === 'object') {
+        for (const [k, v] of Object.entries(raw)) walk(v, prefix ? `${prefix}.${k}` : k)
+        return
+      }
+      if (typeof raw === 'string' && raw) next[prefix] = raw
     }
+    for (const [key, raw] of Object.entries(fields)) walk(raw, key)
     setErrors(next)
     if (Object.keys(next).length) setPopupOpen(true)
   }
@@ -65,11 +78,25 @@ export function useFormValidation() {
 
   const closePopup = () => setPopupOpen(false)
 
+  const prettyLabel = (key: string) => key.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+
+  /**
+   * Rows for the error dialog. Each row keeps the reason the server gave, so a
+   * field the form never rendered (client_code, pincode, ...) is still
+   * actionable instead of showing up as a bare, un-highlightable name.
+   */
   const invalidLabels = (rules: FieldRule[]) => {
     const byKey = new Map(rules.map(r => [r.key, r.label]))
-    return Object.keys(errors)
-      .filter(k => errors[k])
-      .map(k => byKey.get(k) ?? k.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
+    const seen = new Set<string>()
+    const rows: string[] = []
+    for (const [key, message] of Object.entries(errors)) {
+      if (!message || seen.has(message)) continue
+      seen.add(message)
+      const label = byKey.get(key) ?? prettyLabel(key)
+      // "Client Name is required." already names the field - do not repeat it.
+      rows.push(message.toLowerCase().startsWith(label.toLowerCase()) ? message : `${label} — ${message}`)
+    }
+    return rows
   }
 
   return { errors, validate, applyServerErrors, clear, clearAll, closePopup, popupOpen, invalidLabels }

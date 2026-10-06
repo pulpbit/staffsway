@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { siteApi, clientApi } from '@/services/api'
 import { Button, Input, Select, Toggle, FormSection, FormGrid } from '@/components/ui/fields'
 import { Modal, ConfirmDialog } from '@/components/ui/overlay'
-import { useFormValidation, type FieldRule } from '@/components/ui/validation'
+import { useFormValidation, FieldErrorsDialog, type FieldRule } from '@/components/ui/validation'
 import { Table, StatCard } from '@/components/ui/data'
 import { PageHeader } from '@/components/ui/layout'
 import { StatusBadge, StatusDot } from '@/components/ui/status'
@@ -61,7 +61,7 @@ export default function SitesPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm)
   const qc = useQueryClient()
-  const { errors, validate, applyServerErrors, clear, clearAll } = useFormValidation()
+  const { errors, validate, applyServerErrors, clear, clearAll, invalidLabels, popupOpen, closePopup } = useFormValidation()
 
   const params: Record<string, string> = {}
   if (search) params.search = search
@@ -237,19 +237,19 @@ export default function SitesPage() {
 
             <FormSection title="Supervisor / Site Incharge">
               <FormGrid cols={2}>
-                <Input label="Site Incharge Name" value={form.site_incharge} onChange={e => setForm(f => ({ ...f, site_incharge: e.target.value }))} placeholder="Supervisor full name" />
-                <Input label="Designation" value={form.site_incharge_designation} onChange={e => setForm(f => ({ ...f, site_incharge_designation: e.target.value }))} placeholder="e.g. Site Operations Lead" />
-                <Input label="Contact Mobile" value={form.site_incharge_contact} onChange={e => setForm(f => ({ ...f, site_incharge_contact: e.target.value }))} placeholder="10-digit mobile" />
-                <Input label="Incharge Email" type="email" value={form.site_incharge_email} onChange={e => setForm(f => ({ ...f, site_incharge_email: e.target.value }))} placeholder="incharge@site.com" />
+                <Input label="Site Incharge Name" value={form.site_incharge} onChange={e => { setForm(f => ({ ...f, site_incharge: e.target.value })); clear('site_incharge') }} error={errors.site_incharge} placeholder="Supervisor full name" />
+                <Input label="Designation" value={form.site_incharge_designation} onChange={e => { setForm(f => ({ ...f, site_incharge_designation: e.target.value })); clear('site_incharge_designation') }} error={errors.site_incharge_designation} placeholder="e.g. Site Operations Lead" />
+                <Input label="Contact Mobile" value={form.site_incharge_contact} onChange={e => { setForm(f => ({ ...f, site_incharge_contact: e.target.value })); clear('site_incharge_contact') }} error={errors.site_incharge_contact} placeholder="10-digit mobile" />
+                <Input label="Incharge Email" type="email" value={form.site_incharge_email} onChange={e => { setForm(f => ({ ...f, site_incharge_email: e.target.value })); clear('site_incharge_email') }} error={errors.site_incharge_email} placeholder="incharge@site.com" />
               </FormGrid>
             </FormSection>
 
             <FormSection title="Location & Address">
               <FormGrid cols={2}>
-                <Input label="Address Line 1" value={form.address_line1} onChange={e => setForm(f => ({ ...f, address_line1: e.target.value }))} placeholder="Plot/Building number" />
-                <Input label="Address Line 2" value={form.address_line2} onChange={e => setForm(f => ({ ...f, address_line2: e.target.value }))} placeholder="Industrial area" />
-                <Select label="State" options={[{ value: '', label: 'Select State' }, ...STATE_OPTIONS]} value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} />
-                <Input label="District / City" value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} placeholder="City / District" />
+                <Input label="Address Line 1" value={form.address_line1} onChange={e => { setForm(f => ({ ...f, address_line1: e.target.value })); clear('address_line1') }} error={errors.address_line1} placeholder="Plot/Building number" />
+                <Input label="Address Line 2" value={form.address_line2} onChange={e => { setForm(f => ({ ...f, address_line2: e.target.value })); clear('address_line2') }} error={errors.address_line2} placeholder="Industrial area" />
+                <Select label="State" options={[{ value: '', label: 'Select State' }, ...STATE_OPTIONS]} value={form.state} onChange={e => { setForm(f => ({ ...f, state: e.target.value })); clear('state') }} error={errors.state} />
+                <Input label="District / City" value={form.district} onChange={e => { setForm(f => ({ ...f, district: e.target.value })); clear('district') }} error={errors.district} placeholder="City / District" />
               </FormGrid>
             </FormSection>
 
@@ -262,6 +262,8 @@ export default function SitesPage() {
           </form>
         </Modal>
       )}
+
+      <FieldErrorsDialog open={popupOpen} labels={invalidLabels(SITE_RULES)} onClose={closePopup} />
 
       {deleteId && (
         <ConfirmDialog

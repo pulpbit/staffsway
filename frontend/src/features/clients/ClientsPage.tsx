@@ -53,7 +53,16 @@ const SALARY_CALC_OPTIONS = [
 
 const CLIENT_RULES: FieldRule[] = [
   { key: 'name', label: 'Client Name', required: true },
+  { key: 'client_code', label: 'Client Code', test: (v: any) => v && v.trim().length > 10 ? 'Client Code must be 10 characters or fewer.' : null },
+  { key: 'primary_contact_person', label: 'Primary Contact Person', test: (v: any) => v && v.length > 191 ? 'Must be 191 characters or fewer.' : null },
   { key: 'company_email', label: 'Company Email', test: (v: any) => v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'Enter a valid email address.' : null },
+  { key: 'address_line1', label: 'Address Line 1', test: (v: any) => v && v.length > 191 ? 'Must be 191 characters or fewer.' : null },
+  { key: 'address_line2', label: 'Address Line 2', test: (v: any) => v && v.length > 191 ? 'Must be 191 characters or fewer.' : null },
+  { key: 'state', label: 'State', test: (v: any) => v && v.length > 100 ? 'Must be 100 characters or fewer.' : null },
+  { key: 'district', label: 'District / City', test: (v: any) => v && v.length > 100 ? 'Must be 100 characters or fewer.' : null },
+  { key: 'pincode', label: 'Pincode', test: (v: any) => v && !/^\d{6}$/.test(v) ? 'Enter a valid 6-digit pincode.' : null },
+  { key: 'gst_no', label: 'GSTIN Number', test: (v: any) => v && !/^\d{2}[A-Z]{5}\d{4}[A-Z]\d[A-Z\d]Z[A-Z\d]$/.test(v) ? 'Enter a valid 15-character GSTIN.' : null },
+  { key: 'company_pan', label: 'Company PAN', test: (v: any) => v && !/^[A-Z]{5}\d{4}[A-Z]$/.test(v) ? 'Enter a valid 10-character PAN.' : null },
 ]
 
 export default function ClientsPage() {
@@ -221,20 +230,20 @@ export default function ClientsPage() {
             <FormSection title="Enterprise Profile">
               <FormGrid cols={2}>
                 <Input label="Client Name" required value={form.name} onChange={e => { setForm(f => ({ ...f, name: e.target.value })); clear('name') }} error={errors.name} placeholder="e.g. ABC Manufacturing Ltd." />
-                <Input label="Client Code" value={form.client_code} onChange={e => setForm(f => ({ ...f, client_code: e.target.value.toUpperCase() }))} placeholder="e.g. ABCM" />
-                <Input label="Primary Contact Person" value={form.primary_contact_person} onChange={e => setForm(f => ({ ...f, primary_contact_person: e.target.value }))} placeholder="Contact manager name" />
+                <Input label="Client Code" value={form.client_code} onChange={e => { setForm(f => ({ ...f, client_code: e.target.value.toUpperCase() })); clear('client_code') }} error={errors.client_code} placeholder="e.g. ABCM" />
+                <Input label="Primary Contact Person" value={form.primary_contact_person} onChange={e => { setForm(f => ({ ...f, primary_contact_person: e.target.value })); clear('primary_contact_person') }} error={errors.primary_contact_person} placeholder="Contact manager name" />
                 <Input label="Company Email" type="email" value={form.company_email} onChange={e => { setForm(f => ({ ...f, company_email: e.target.value })); clear('company_email') }} error={errors.company_email} placeholder="billing@client.com" />
               </FormGrid>
             </FormSection>
 
             <FormSection title="Address & Location">
               <FormGrid cols={2}>
-                <Input label="Address Line 1" value={form.address_line1} onChange={e => setForm(f => ({ ...f, address_line1: e.target.value }))} placeholder="Building, Street name" />
-                <Input label="Address Line 2" value={form.address_line2} onChange={e => setForm(f => ({ ...f, address_line2: e.target.value }))} placeholder="Area, Landmark" />
-                <Select label="State" options={[{ value: '', label: 'Select State' }, ...STATE_OPTIONS]} value={form.state} onChange={e => setForm(f => ({ ...f, state: e.target.value }))} />
-                <Input label="District / City" value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} placeholder="e.g. Faridabad" />
-                <Input label="Pincode" value={form.pincode} onChange={e => setForm(f => ({ ...f, pincode: e.target.value }))} placeholder="e.g. 121004" />
-                <Input label="GSTIN Number" value={form.gst_no} onChange={e => setForm(f => ({ ...f, gst_no: e.target.value.toUpperCase() }))} placeholder="15-digit GSTIN" />
+                <Input label="Address Line 1" value={form.address_line1} onChange={e => { setForm(f => ({ ...f, address_line1: e.target.value })); clear('address_line1') }} error={errors.address_line1} placeholder="Building, Street name" />
+                <Input label="Address Line 2" value={form.address_line2} onChange={e => { setForm(f => ({ ...f, address_line2: e.target.value })); clear('address_line2') }} error={errors.address_line2} placeholder="Area, Landmark" />
+                <Select label="State" options={[{ value: '', label: 'Select State' }, ...STATE_OPTIONS]} value={form.state} onChange={e => { setForm(f => ({ ...f, state: e.target.value })); clear('state') }} error={errors.state} />
+                <Input label="District / City" value={form.district} onChange={e => { setForm(f => ({ ...f, district: e.target.value })); clear('district') }} error={errors.district} placeholder="e.g. Faridabad" />
+                <Input label="Pincode" value={form.pincode} onChange={e => { setForm(f => ({ ...f, pincode: e.target.value.replace(/[^\d]/g, '').slice(0, 6) })); clear('pincode') }} error={errors.pincode} placeholder="e.g. 121004" />
+                <Input label="GSTIN Number" value={form.gst_no} onChange={e => { setForm(f => ({ ...f, gst_no: e.target.value.toUpperCase() })); clear('gst_no') }} error={errors.gst_no} placeholder="15-digit GSTIN" />
               </FormGrid>
             </FormSection>
 
@@ -256,6 +265,8 @@ export default function ClientsPage() {
           </form>
         </Modal>
       )}
+
+      <FieldErrorsDialog open={popupOpen} labels={invalidLabels(CLIENT_RULES)} onClose={closePopup} />
 
       {deleteId && (
         <ConfirmDialog

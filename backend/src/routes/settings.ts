@@ -121,7 +121,7 @@ settingsRoutes.put('/', requireRole('super_admin', 'admin'), async (c) => {
 settingsRoutes.post('/leave-types', requireRole('super_admin', 'admin'), async (c) => {
   const body = await c.req.json().catch(() => null)
   const parsed = leaveTypeSchema.safeParse(body)
-  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.' } }, 400)
+  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.', fields: parsed.error.flatten().fieldErrors } }, 400)
   const d = parsed.data
   const db = getDb(c.env)
   try {
@@ -136,7 +136,7 @@ settingsRoutes.post('/leave-types', requireRole('super_admin', 'admin'), async (
 settingsRoutes.post('/shift-types', requireRole('super_admin', 'admin'), async (c) => {
   const body = await c.req.json().catch(() => null)
   const parsed = shiftTypeSchema.safeParse(body)
-  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.' } }, 400)
+  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.', fields: parsed.error.flatten().fieldErrors } }, 400)
   const d = parsed.data
   const db = getDb(c.env)
   await db.prepare('INSERT INTO shift_types (name, start_time, end_time) VALUES (?,?,?)').bind(d.name, d.start_time ?? null, d.end_time ?? null).run()
@@ -185,7 +185,7 @@ settingsRoutes.patch('/users/:id', requireRole('super_admin', 'admin'), async (c
   if (!Number.isInteger(id)) return c.json({ error: { code: 'validation_error', message: 'Invalid user id.' } }, 400)
   const body = await c.req.json().catch(() => null)
   const parsed = userUpdateSchema.safeParse(body)
-  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.' } }, 400)
+  if (!parsed.success) return c.json({ error: { code: 'validation_error', message: 'Please correct the highlighted fields.', fields: parsed.error.flatten().fieldErrors } }, 400)
   const d = parsed.data
   const caller = c.get('user')
   const db = getDb(c.env)

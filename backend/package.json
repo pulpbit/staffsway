@@ -8,8 +8,9 @@
     "build": "wrangler build",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "wrangler d1 migrations apply staffsway-demo --local",
-    "db:seed": "wrangler d1 execute staffsway-demo --local --file=./db/seed.sql",
+    "db:migrate": "wrangler d1 migrations apply staffsway-db --local",
+    "db:seed": "wrangler d1 execute staffsway-db --local --file=./db/seed.sql",
+    "db:reset": "node scripts/reset-local-d1.mjs && npm run db:migrate && npm run db:seed",
     "db:setup": "npm run db:migrate && npm run db:seed"
   },
   "dependencies": {

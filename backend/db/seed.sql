@@ -28,23 +28,42 @@ INSERT OR IGNORE INTO shift_types (id, name, start_time, end_time) VALUES
   (5, 'Rotational', NULL, NULL),
   (6, 'Split', '10:00', '14:00');
 
-INSERT OR IGNORE INTO clients (id, name, contact_person, phone, email, address, contract_start, contract_end, status) VALUES
-  (1, 'ABC Facility Services', 'Anil Kapoor', '98220 11001', 'accounts@abcfacilities.in', '210 Trade Centre, Andheri East, Mumbai, Maharashtra 400069', '2025-01-01', '2027-12-31', 'active'),
-  (2, 'Metro Mall Management', 'Priya Nair', '98330 22002', 'ops@metromalls.in', '4-1-20 Metro House, Banjara Hills, Hyderabad, Telangana 500034', '2025-04-01', '2026-12-31', 'active'),
-  (3, 'SecureTech Industries', 'Rajesh Menon', '98440 33003', 'hr@securetech.in', 'Plot 12, Industrial Estate, Ambattur, Chennai, Tamil Nadu 600058', '2025-02-15', '2027-02-14', 'active'),
-  (4, 'Greenfield Hospital', 'Dr. Sunita Rao', '98550 44004', 'admin@greenfieldhosp.in', '5 Andheri West, Mumbai, Maharashtra 400053', '2024-11-01', '2026-10-31', 'active');
+INSERT OR IGNORE INTO clients (id, client_code, name, primary_contact_person, hr_contact_person, company_email,
+  address_line1, address_line2, state, district, pincode, gst_no, company_pan,
+  payroll_cycle, salary_calculation, overtime_enabled, leave_policy_enabled, arrears_enabled, advance_loan_enabled,
+  bank_name, bank_account, bank_ifsc, bank_account_holder, status, contact_person, phone, email, address, contract_start, contract_end) VALUES
+  (1, 'AFS', 'ABC Facility Services', 'Anil Kapoor', 'Meera Desai', 'accounts@abcfacilities.in',
+   '210 Trade Centre', 'Andheri East, Mumbai', 'Maharashtra', 'Mumbai', '400069', '27AAECA1234F1Z8', 'AAECA1234F',
+   'monthly', 'calendar_days', 1, 1, 0, 1,
+   'HDFC Bank', '50200012345678', 'HDFC0000401', 'ABC Facility Services Pvt Ltd', 'active', 'Anil Kapoor', '9822011001', 'accounts@abcfacilities.in', '210 Trade Centre, Andheri East, Mumbai, Maharashtra 400069', '2025-01-01', '2027-12-31'),
+  (2, 'MMM', 'Metro Mall Management', 'Priya Nair', 'Anand Pillai', 'ops@metromalls.in',
+   '4-1-20 Metro House', 'Banjara Hills, Hyderabad', 'Telangana', 'Hyderabad', '500034', '36AABCM4567G1Z2', 'AABCM4567G',
+   'monthly', 'working_days', 1, 1, 1, 0,
+   'ICICI Bank', '00450123456789', 'ICIC0000045', 'Metro Mall Management LLP', 'active', 'Priya Nair', '9833022002', 'ops@metromalls.in', '4-1-20 Metro House, Banjara Hills, Hyderabad, Telangana 500034', '2025-04-01', '2026-12-31'),
+  (3, 'STI', 'SecureTech Industries', 'Rajesh Menon', 'Kavya Iyer', 'hr@securetech.in',
+   'Plot 12, Industrial Estate', 'Ambattur, Chennai', 'Tamil Nadu', 'Chennai', '600058', '33AABCS7890H1Z4', 'AABCS7890H',
+   'monthly', 'calendar_days', 1, 1, 0, 1,
+   'Axis Bank', '91501023456789', 'UTIB0000512', 'SecureTech Industries Ltd', 'active', 'Rajesh Menon', '9844033003', 'hr@securetech.in', 'Plot 12, Industrial Estate, Ambattur, Chennai, Tamil Nadu 600058', '2025-02-15', '2027-02-14'),
+  (4, 'GFH', 'Greenfield Hospital', 'Dr. Sunita Rao', 'Dr. Nikhil Bose', 'admin@greenfieldhosp.in',
+   '5 Andheri West', 'Mumbai', 'Maharashtra', 'Mumbai', '400053', '27AABCG1122J1Z6', 'AABCG1122J',
+   'monthly', 'working_days', 0, 1, 0, 0,
+   'SBI', '38291023456789', 'SBIN0000234', 'Greenfield Hospital Trust', 'active', 'Dr. Sunita Rao', '9855044004', 'admin@greenfieldhosp.in', '5 Andheri West, Mumbai, Maharashtra 400053', '2024-11-01', '2026-10-31');
 
-INSERT OR IGNORE INTO sites (id, client_id, name, location, supervisor_name, shift_type, status) VALUES
-  (1, 1, 'Corporate Park Chennai', '1 Highfield Road, Chennai, Tamil Nadu 600028', 'R. Subramaniam', 'General', 'active'),
-  (2, 1, 'Highland Towers Mumbai', '22 Marine Drive, Mumbai, Maharashtra 400002', 'V. Kulkarni', 'Rotational', 'active'),
-  (3, 1, 'Riverside Tech Hub Bengaluru', '88 Koramangala, Bengaluru, Karnataka 560095', 'M. Narayan', 'General', 'active'),
-  (4, 2, 'City Centre Mall Pune', '45 FC Road, Pune, Maharashtra 411004', 'A. Deshpande', 'Morning', 'active'),
-  (5, 2, 'Grand Galleria Mall Hyderabad', '7 Banjara Hills, Hyderabad, Telangana 500034', 'P. Varma', 'Rotational', 'active'),
-  (6, 2, 'Urban Square Mall Delhi', '101 Connaught Place, New Delhi, Delhi 110001', 'S. Khanna', 'Rotational', 'active'),
-  (7, 3, 'Alpha Industrial Estate Chennai', '33 Ambattur Industrial Estate, Chennai, Tamil Nadu 600058', 'R. Venkatesan', 'Night', 'active'),
-  (8, 3, 'Sigma Electronics Park Bengaluru', '12 Whitefield, Bengaluru, Karnataka 560066', 'T. Prabhakar', 'General', 'active'),
-  (9, 4, 'Greenfield Main Hospital Mumbai', '5 Andheri West, Mumbai, Maharashtra 400053', 'Dr. K. Shah', 'Rotational', 'active'),
-  (10, 4, 'Greenfield Annex Clinic Pune', '118 Kothrud, Pune, Maharashtra 411038', 'Dr. A. Joshi', 'General', 'active');
+INSERT OR IGNORE INTO sites (id, client_id, name, address_line1, address_line2, state, district, pincode,
+  site_incharge, site_incharge_designation, site_incharge_contact, site_incharge_email, shift_type,
+  weekly_off, overtime_enabled, payroll_applicable, leave_policy_enabled, arrears_enabled,
+  pf_applicable, pf_percent, esic_applicable, esic_percent, lwf_applicable, lwf_percent,
+  pt_applicable, pt_amount, tds_applicable, tds_percent, gratuity_applicable, status, location, supervisor_name) VALUES
+  (1, 1, 'Corporate Park Chennai', '1 Highfield Road', 'Chennai', 'Tamil Nadu', 'Chennai', '600028', 'R. Subramaniam', 'Site Supervisor', '9840011223', 'corporate.park@abcfacilities.in', 'General', 'Sun', 1, 1, 1, 0, 1, 12, 0, 0.75, 0, 0.5, 1, 200, 1, 2, 1, 'active', '1 Highfield Road, Chennai, Tamil Nadu 600028', 'R. Subramaniam'),
+  (2, 1, 'Highland Towers Mumbai', '22 Marine Drive', 'Mumbai', 'Maharashtra', 'Mumbai', '400002', 'V. Kulkarni', 'Facility Manager', '9840011224', 'highland.towers@abcfacilities.in', 'Rotational', 'Sun', 1, 1, 1, 0, 1, 12, 0, 0.75, 0, 0.5, 1, 200, 1, 2, 1, 'active', '22 Marine Drive, Mumbai, Maharashtra 400002', 'V. Kulkarni'),
+  (3, 1, 'Riverside Tech Hub Bengaluru', '88 Koramangala', 'Bengaluru', 'Karnataka', 'Bengaluru', '560095', 'M. Narayan', 'Site Supervisor', '9840011225', 'riverside.hub@abcfacilities.in', 'General', 'Sun', 1, 1, 1, 0, 1, 12, 0, 0.75, 0, 0.5, 1, 200, 1, 2, 1, 'active', '88 Koramangala, Bengaluru, Karnataka 560095', 'M. Narayan'),
+  (4, 2, 'City Centre Mall Pune', '45 FC Road', 'Pune', 'Maharashtra', 'Pune', '411004', 'A. Deshpande', 'Mall Operations Lead', '9840011226', 'citycentre@metromalls.in', 'Morning', 'Tue', 1, 1, 1, 1, 1, 12, 0, 0.75, 0, 0.5, 1, 200, 1, 2, 1, 'active', '45 FC Road, Pune, Maharashtra 411004', 'A. Deshpande'),
+  (5, 2, 'Grand Galleria Mall Hyderabad', '7 Banjara Hills', 'Hyderabad', 'Telangana', 'Hyderabad', '500034', 'P. Varma', 'Mall Operations Lead', '9840011227', 'grandgalleria@metromalls.in', 'Rotational', 'Sun', 1, 1, 1, 1, 1, 12, 0, 0.75, 0, 0.5, 1, 200, 1, 2, 1, 'active', '7 Banjara Hills, Hyderabad, Telangana 500034', 'P. Varma'),
+  (6, 2, 'Urban Square Mall Delhi', '101 Connaught Place', 'New Delhi', 'Delhi', 'New Delhi', '110001', 'S. Khanna', 'Facility Manager', '9840011228', 'urbansquare@metromalls.in', 'Rotational', 'Sun', 1, 1, 1, 1, 1, 12, 0, 0.75, 0, 0.5, 1, 200, 1, 2, 1, 'active', '101 Connaught Place, New Delhi, Delhi 110001', 'S. Khanna'),
+  (7, 3, 'Alpha Industrial Estate Chennai', '33 Ambattur Industrial Estate', 'Chennai', 'Tamil Nadu', 'Chennai', '600058', 'R. Venkatesan', 'Security Manager', '9840011229', 'alpha.estate@securetech.in', 'Night', 'Sun', 1, 1, 1, 0, 1, 12, 0, 0.75, 0, 0.5, 1, 200, 1, 2, 1, 'active', '33 Ambattur Industrial Estate, Chennai, Tamil Nadu 600058', 'R. Venkatesan'),
+  (8, 3, 'Sigma Electronics Park Bengaluru', '12 Whitefield', 'Bengaluru', 'Karnataka', 'Bengaluru', '560066', 'T. Prabhakar', 'Plant Security Head', '9840011230', 'sigma.park@securetech.in', 'General', 'Sun', 1, 1, 1, 0, 1, 12, 0, 0.75, 0, 0.5, 1, 200, 1, 2, 1, 'active', '12 Whitefield, Bengaluru, Karnataka 560066', 'T. Prabhakar'),
+  (9, 4, 'Greenfield Main Hospital Mumbai', '5 Andheri West', 'Mumbai', 'Maharashtra', 'Mumbai', '400053', 'Dr. K. Shah', 'Facility Administrator', '9840011231', 'main.hospital@greenfieldhosp.in', 'Rotational', 'Sun', 0, 1, 1, 0, 1, 12, 0, 0.75, 0, 0.5, 1, 200, 1, 2, 1, 'active', '5 Andheri West, Mumbai, Maharashtra 400053', 'Dr. K. Shah'),
+  (10, 4, 'Greenfield Annex Clinic Pune', '118 Kothrud', 'Pune', 'Maharashtra', 'Pune', '411038', 'Dr. A. Joshi', 'Clinic In-charge', '9840011232', 'annex.clinic@greenfieldhosp.in', 'General', 'Sun', 0, 1, 1, 0, 1, 12, 0, 0.75, 0, 0.5, 1, 200, 1, 2, 1, 'active', '118 Kothrud, Pune, Maharashtra 411038', 'Dr. A. Joshi');
 
 INSERT OR IGNORE INTO employees (id, employee_code, first_name, last_name, father_name, gender, dob, mobile, email, aadhaar, address, state, pincode, emergency_contact_name, emergency_contact_phone, bank_name, bank_account, bank_ifsc, pan, uan, joining_date, designation, department, grade, reporting_manager, previous_employment, employee_type, shift_type, site_id, status)
 VALUES (1, 'SW0001', 'Rahul', 'Sharma', 'Suresh Sharma', 'Male', '1988-04-12', '98100 10001', 'rahul.sharma@staffsway.in', '789600000001', 'Chennai, Tamil Nadu 600028', 'Tamil Nadu', '600028', 'Ajay Sharma', '9820000137', 'HDFC Bank', '60010000000001', 'HDFC0000401', 'AABPC0001K', '101000000001', '2023-01-10', 'Security Supervisor', 'Security', 'B', NULL, NULL, 'permanent', 'General', 1, 'active');
