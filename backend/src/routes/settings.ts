@@ -51,6 +51,49 @@ const shiftTypeSchema = z.object({
 
 const ADMIN_ROLES = ['super_admin', 'admin'] as const
 
+/**
+ * Migrations create the settings table but never insert a row - only the seed
+ * script does - so a freshly deployed database has no settings at all and
+ * GET /api/settings answers null. The joining form, both letters and the top
+ * bar all treat this object as mandatory, so "no row yet" is answered with the
+ * columns' own defaults rather than null.
+ */
+const defaultSettings = () => ({
+  id: 1,
+  company_name: 'Staffsway',
+  company_tagline: 'Manpower Staffing & HR Services',
+  address: null,
+  state: null,
+  pincode: null,
+  phone: null,
+  email: null,
+  website: null,
+  gstin: null,
+  pan: null,
+  cin: null,
+  currency: 'INR',
+  financial_year_start: 4,
+  salary_basis_days: 26,
+  pf_rate: 12,
+  pf_cap: 1800,
+  pf_eligibility: 15000,
+  esic_rate: 0.75,
+  esic_eligibility: 21000,
+  professional_tax_amount: 200,
+  professional_tax_min_gross: 10000,
+  default_ot_rate: 80,
+  attendance_lock_enabled: 1,
+  lwf_employee_amount: 0,
+  lwf_employer_amount: 0,
+  tds_percent: 0,
+  state_name: 'Haryana',
+  bonus_percent: 8.33,
+  bonus_max_percent: 20,
+  bonus_wage_ceiling: 21000,
+  created_at: null,
+  updated_at: null,
+})
+
 const assignableRoles = (callerRole: string): string[] =>
   ROLES.filter((r) => callerRole === 'super_admin' || r !== 'super_admin')
 
@@ -91,7 +134,7 @@ settingsRoutes.get('/', async (c) => {
         FROM users u LEFT JOIN employees e ON e.id = u.employee_id ORDER BY u.id`).all()
       : Promise.resolve({ results: [] as unknown[] }),
   ])
-  return c.json({ data: { settings, leave_types: leaveTypes.results, shift_types: shiftTypes.results, users: users.results } })
+  return c.json({ data: { settings: settings || defaultSettings(), leave_types: leaveTypes.results, shift_types: shiftTypes.results, users: users.results } })
 })
 
 settingsRoutes.put('/', requireRole('super_admin', 'admin'), async (c) => {
@@ -113,6 +156,9 @@ settingsRoutes.put('/', requireRole('super_admin', 'admin'), async (c) => {
   }
   sets.push("updated_at = datetime('now')")
   params.push(1)
+  // With no row yet - a database that has only ever run migrations - the
+  // UPDATE below would touch nothing and the save would silently vanish.
+  await db.prepare('INSERT OR IGNORE INTO settings (id) VALUES (1)').run()
   await db.prepare(`UPDATE settings SET ${sets.join(', ')} WHERE id = ?`).bind(...params).run()
   const updated = await db.prepare('SELECT * FROM settings WHERE id = 1').first()
   return c.json({ data: updated, message: 'Settings saved.' })

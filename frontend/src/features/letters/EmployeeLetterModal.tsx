@@ -25,12 +25,21 @@ export default function EmployeeLetterModal({
   defaultType?: LetterType
   onClose: () => void
 }) {
-  const { data: emp } = useQuery({
+  const {
+    data: emp,
+    isError: empFailed,
+    error: empError,
+    refetch: refetchEmployee,
+  } = useQuery({
     queryKey: ['employee-letter', employeeId],
     queryFn: () => employeeApi.get(employeeId!),
     enabled: !!employeeId,
   })
-  const { data: settingsRes } = useQuery({ queryKey: ['settings'], queryFn: () => settingsApi.get() })
+  const {
+    data: settingsRes,
+    isError: settingsFailed,
+    refetch: refetchSettings,
+  } = useQuery({ queryKey: ['settings'], queryFn: () => settingsApi.get() })
 
   const employee = emp?.data
   const settings = settingsRes?.data?.settings
@@ -113,6 +122,25 @@ export default function EmployeeLetterModal({
     document.body.classList.add('print-joining')
     return () => document.body.classList.remove('print-joining')
   }, [content])
+
+  // A failed request used to fall through to the spinner below, which then never
+  // resolves: the letter only renders once both queries return data. Say what
+  // happened instead of waiting forever.
+  if (empFailed || settingsFailed) {
+    const detail = (empError as { error?: { message?: string } })?.error?.message || 'Could not reach the server.'
+    return (
+      <Modal open onClose={onClose} title="Generate Letter">
+        <div className="py-8 text-center">
+          <p className="text-sm font-medium text-slate-700">Couldn&apos;t load the letter.</p>
+          <p className="text-xs text-slate-500 mt-1">{detail}</p>
+          <div className="mt-5 flex justify-center gap-2">
+            <Button onClick={() => { refetchEmployee(); refetchSettings() }}>Try again</Button>
+            <Button variant="secondary" onClick={onClose}>Close</Button>
+          </div>
+        </div>
+      </Modal>
+    )
+  }
 
   if (!employee || !settings || !form) {
     return (
