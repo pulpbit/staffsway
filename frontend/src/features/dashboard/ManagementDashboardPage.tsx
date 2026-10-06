@@ -51,7 +51,7 @@ import {
   CartesianGrid,
 } from 'recharts'
 import type { DashboardData, ManagementDashboard } from '@/types/api'
-import { monthYear, fullName, dateDMY, dateShort } from '@/utils/format'
+import { monthYear, fullName, dateDMY, dateShort, timeHM } from '@/utils/format'
 import { PENDING_LABELS } from '@/utils/pending'
 import { Avatar } from '@/components/ui/actions'
 
@@ -198,7 +198,7 @@ export default function ManagementDashboardPage() {
     return {
       name: a.who,
       action: a.action,
-      time: new Date(a.at.replace(' ', 'T')).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+      time: timeHM(a.at),
       tag: a.tag,
       icon: meta.icon,
       color: meta.color,

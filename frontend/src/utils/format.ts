@@ -17,21 +17,53 @@ export const shortMonth = (month: number): string => {
 }
 
 /**
+ * Timestamps coming back from the API are UTC - SQLite's datetime('now') and
+ * `new Date().toISOString()` both write UTC - but they arrive without a 'Z', and
+ * JavaScript reads an unstamped ISO string as *local* time. Anchoring it to Z
+ * here is what makes "11:44" show up as 17:14 for a viewer in IST.
+ *
+ * Returns null for date-only values ("2026-10-06"), which carry no time and must
+ * not be shifted.
+ */
+const parseTimestamp = (v: string): Date | null => {
+  if (!/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(v)) return null
+  const iso = v.trim().replace(' ', 'T')
+  const d = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso) ? iso : iso + 'Z')
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+/**
  * The app-wide date format: dd-mm-yyyy (Indian standard). Every date shown to a
  * person - tables, cards, drawers, letters, the dashboard - goes through this.
  *
- * ISO input is split on its own capture groups instead of being handed to
- * `new Date(...)`: "2026-04-05" parses as UTC midnight, so in a timezone west
- * of UTC it prints the previous day.
+ * A value that carries a time is an instant: it is read as UTC and printed as
+ * the viewer's local calendar date, so an event at 00:30 IST does not print
+ * yesterday's date. Date-only values are split on their own capture groups
+ * instead of being handed to `new Date(...)`, which would read them as UTC
+ * midnight and drop a day west of UTC.
  */
 export const dateDMY = (d: string | number | Date | null | undefined): string => {
   if (d === null || d === undefined || d === '') return '—'
-  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d).trim())
+  const s = String(d).trim()
+  const pad = (n: number) => String(n).padStart(2, '0')
+
+  const ts = parseTimestamp(s)
+  if (ts) return `${pad(ts.getDate())}-${pad(ts.getMonth() + 1)}-${ts.getFullYear()}`
+
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s)
   if (iso) return `${iso[3]}-${iso[2]}-${iso[1]}`
+
   const t = d instanceof Date ? d : new Date(d)
   if (Number.isNaN(t.getTime())) return '—'
-  const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(t.getDate())}-${pad(t.getMonth() + 1)}-${t.getFullYear()}`
+}
+
+/** Local wall-clock time for a UTC timestamp from the API, e.g. "17:14". */
+export const timeHM = (d: string | null | undefined): string => {
+  if (!d) return '—'
+  const t = parseTimestamp(String(d)) ?? new Date(String(d))
+  if (Number.isNaN(t.getTime())) return '—'
+  return t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 
 /**
