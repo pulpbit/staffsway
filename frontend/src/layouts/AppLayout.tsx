@@ -41,7 +41,7 @@ import { useAuth } from '@/context/AuthContext'
 import { employeeApi, settingsApi } from '@/services/api'
 import { Avatar } from '@/components/ui/actions'
 import { StatusBadge } from '@/components/ui/status'
-import { fullName } from '@/utils/format'
+import { fullName, dateDMY } from '@/utils/format'
 
 interface NavItem { to: string; label: string; icon: any; end?: boolean }
 interface NavGroup { label: string; items: NavItem[] }
@@ -466,12 +466,7 @@ function TopBar({ onToggleSidebar, sidebarOpen }: { onToggleSidebar: () => void;
     return () => clearInterval(timer)
   }, [])
 
-  const formattedDate = currentTime.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    weekday: 'short',
-  })
+  const formattedDate = `${dateDMY(currentTime)} ${currentTime.toLocaleDateString('en-IN', { weekday: 'short' })}`
 
   const formattedTime = currentTime.toLocaleTimeString('en-IN', {
     hour: '2-digit',

@@ -9,6 +9,7 @@ import { FieldErrorsDialog, useFormValidation, type FieldRule } from '@/componen
 import { SearchInput, SelectFilter, Toolbar } from '@/components/ui/actions'
 import { DetailGrid, InfoRow, Metric, SectionCard } from '@/components/ui/layout'
 import { toast } from 'sonner'
+import { dateDMY } from '@/utils/format'
 import {
   UserCheck, ClipboardList, CheckCircle2, XCircle, Plus, Trash2, Eye, Users, Phone, MapPin, Banknote, Fingerprint,
   Briefcase, ShieldCheck, Share2, Sparkles, AlertCircle
@@ -73,7 +74,7 @@ const emptyApproveForm = () => ({
   pf_applicable: true, esi_applicable: true, pt_applicable: true,
 })
 
-const fmtDate = (v?: string | null) => (v ? new Date(v).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—')
+const fmtDate = (v?: string | null) => dateDMY(v)
 
 export default function ReferrerApplicationsPage() {
   const [tab, setTab] = useState('registrations')

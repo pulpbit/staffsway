@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Employee, Settings } from '@/types/api'
+import { dateDMY } from '@/utils/format'
 
 export type LetterType = 'offer' | 'appointment'
 
@@ -35,13 +36,10 @@ const dash = (v: unknown) => {
 
 const yesNo = (v: unknown) => (Number(v) === 1 ? 'Yes' : 'No')
 
-const MONTHS = 'January February March April May June July August September October November December'.split(' ')
-
+/** Letters print dates in the same dd-mm-yyyy format as the rest of the app. */
 function prettyDate(v?: string | null) {
   if (!v) return ''
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v.slice(0, 10))
-  if (!m) return v
-  return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1] ?? m[2]} ${m[1]}`
+  return dateDMY(v)
 }
 
 function Block({ n, title, children }: { n: number; title: string; children: ReactNode }) {
@@ -92,7 +90,7 @@ export default function EmployeeLetterTemplate({
     Number(form.basic || 0) + Number(form.hra || 0) + Number(form.conveyance || 0) + Number(form.other_allowance || 0)
   const annual = gross * 12
   const code = employee.employee_code || 'NA'
-  const ref = `${isOffer ? 'OFF' : 'APP'}/${code}/${form.issue_date}`
+  const ref = `${isOffer ? 'OFF' : 'APP'}/${code}/${form.issue_date ? dateDMY(form.issue_date) : ''}`
 
   const companyLine1 = [settings.address, [settings.state, settings.pincode].filter(Boolean).join(' ')].filter(Boolean).join(', ')
   const companyLine2 = [settings.phone && `Ph: ${settings.phone}`, settings.email, settings.website].filter(Boolean).join('   ·   ')

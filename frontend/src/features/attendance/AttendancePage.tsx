@@ -8,7 +8,7 @@ import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { downloadCsv } from '@/utils/csv'
 import { toast } from 'sonner'
 import { Save, Lock, Download, CalendarCheck, CalendarX2, CalendarDays, Palmtree, Sun, Moon, BadgeCheck, IndianRupee, Clock } from 'lucide-react'
-import { monthYear, money } from '@/utils/format'
+import { monthYear, money, dateShort } from '@/utils/format'
 import type { AttendanceSheetRow, AttendanceMark } from '@/types/api'
 import { MARK_ORDER, MARK_LABEL, MARK_CHIP, WEEKDAY_DOW, defaultMark, isPreJoining, effectiveMark, buildGridMarks, summarizeGrid, isOutsideEmployment, computeSummary, r2 } from './attendanceGrid'
 
@@ -494,7 +494,7 @@ export default function AttendancePage() {
             className="fixed z-50 w-44 bg-white rounded-xl shadow-lg border border-slate-200/80 py-1.5"
             style={{ left: Math.min(menu.x, typeof window !== 'undefined' ? window.innerWidth - 192 : menu.x), top: Math.min(menu.y, typeof window !== 'undefined' ? window.innerHeight - 300 : menu.y) }}
           >
-            <p className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 mb-1">Mark {menu.date}</p>
+            <p className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 mb-1">Mark {dateShort(menu.date)}</p>
             {MARK_ORDER.map((m) => (
               <button key={m} onClick={() => { const row = rows.find((r) => r.employee_id === menu.empId); if (row) setMark(row, menu.date, m) }} className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[12.5px] font-medium text-left rounded-lg text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
                 <span className={`w-6 h-5 rounded-md text-[10px] font-bold inline-flex items-center justify-center ${MARK_CHIP[m]}`}>{MARK_TEXT[m]}</span>

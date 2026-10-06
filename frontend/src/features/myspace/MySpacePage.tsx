@@ -419,7 +419,7 @@ function PayslipsTab() {
             { key: 'month', header: 'Payroll Period', render: (r: any) => <span className="font-semibold text-xs text-slate-900">{monthYear(r.month, r.year)}</span> },
             { key: 'net_salary', header: 'Net Disbursed Pay', render: (r: any) => <span className="font-mono text-xs font-bold text-emerald-700">{money(r.net_salary)}</span> },
             { key: 'status', header: 'Status', className: 'w-9', render: (r: any) => <StatusDot status={r.payroll_status} tone={slipTone(r.payroll_status)} /> },
-            { key: 'generated_at', header: 'Date Generated', render: (r: any) => <span className="text-xs text-slate-500">{r.generated_at?.slice(0, 10)}</span> },
+            { key: 'generated_at', header: 'Date Generated', render: (r: any) => <span className="text-xs text-slate-500">{r.generated_at ? dateShort(r.generated_at) : '—'}</span> },
             { key: 'actions', header: '', render: (r: any) => (
               <div className="flex justify-end">
                 <Button size="sm" onClick={() => setOpenSlipId(r.id)}>

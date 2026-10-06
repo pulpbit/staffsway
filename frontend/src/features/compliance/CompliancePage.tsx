@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/ui/layout'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
 import { Button, Input, Select } from '@/components/ui/fields'
 import { Modal } from '@/components/ui/overlay'
-import { money, monthYear } from '@/utils/format'
+import { money, monthYear, dateShort } from '@/utils/format'
 import { downloadCsv } from '@/utils/csv'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
@@ -313,7 +313,7 @@ export default function CompliancePage() {
               <div key={c.id} className="py-3.5 flex items-center justify-between">
                 <div>
                   <h4 className="text-xs sm:text-[13px] font-bold text-slate-900">{c.activity_name}</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">Due Date: <strong className="text-slate-800">{c.due_date}</strong> &bull; {c.authority_name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Due Date: <strong className="text-slate-800">{dateShort(c.due_date)}</strong> &bull; {c.authority_name}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`px-2.5 py-1 text-xs font-bold rounded-full ${

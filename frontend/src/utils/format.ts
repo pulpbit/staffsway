@@ -16,10 +16,29 @@ export const shortMonth = (month: number): string => {
   return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][month - 1]
 }
 
-export const dateShort = (d: string | null | undefined): string => {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+/**
+ * The app-wide date format: dd-mm-yyyy (Indian standard). Every date shown to a
+ * person - tables, cards, drawers, letters, the dashboard - goes through this.
+ *
+ * ISO input is split on its own capture groups instead of being handed to
+ * `new Date(...)`: "2026-04-05" parses as UTC midnight, so in a timezone west
+ * of UTC it prints the previous day.
+ */
+export const dateDMY = (d: string | number | Date | null | undefined): string => {
+  if (d === null || d === undefined || d === '') return '—'
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d).trim())
+  if (iso) return `${iso[3]}-${iso[2]}-${iso[1]}`
+  const t = d instanceof Date ? d : new Date(d)
+  if (Number.isNaN(t.getTime())) return '—'
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(t.getDate())}-${pad(t.getMonth() + 1)}-${t.getFullYear()}`
 }
+
+/**
+ * The name every table and card already imports for a date. It now prints the
+ * app-wide dd-mm-yyyy format, so changing the format here changes it everywhere.
+ */
+export const dateShort = (d: string | null | undefined): string => dateDMY(d)
 
 export const fullName = (first: string, last: string): string => [first, last].filter(Boolean).join(' ')
 

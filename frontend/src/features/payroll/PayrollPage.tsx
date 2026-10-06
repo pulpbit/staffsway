@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/ui/layout'
 import { StatusBadge, StatusDot, statusTone, type Tone } from '@/components/ui/status'
 import { NativeSelect } from '@/components/ui/actions'
 import { LoadingState, PageError, EmptyState } from '@/components/ui/state'
-import { money, monthYear, fullName } from '@/utils/format'
+import { money, monthYear, fullName, dateShort } from '@/utils/format'
 import { toast } from 'sonner'
 import { IndianRupee, CheckCircle, Play, ExternalLink, Plus, Trash2, Wallet, Landmark, HandCoins, Save, XCircle, ArrowRight, Sparkles } from 'lucide-react'
 
@@ -348,7 +348,7 @@ export default function PayrollPage() {
                     <p className="text-[11px] text-slate-500 font-mono">{r.employee_code} &bull; {r.designation}</p>
                   </div>
                 ) },
-                { key: 'exit', header: 'Last Working Day', render: (r: any) => <span className="text-xs text-slate-700 font-mono">{r.exit_date}</span> },
+                { key: 'exit', header: 'Last Working Day', render: (r: any) => <span className="text-xs text-slate-700 font-mono">{r.exit_date ? dateShort(r.exit_date) : '—'}</span> },
                 { key: 'dues', header: 'Dues Payable (+)', render: (r: any) => (
                   <span className="text-xs text-slate-800 font-medium font-mono">
                     Unpaid: ₹{Number(r.unpaid_amount).toLocaleString('en-IN')} ({r.unpaid_days}d) + Encash: ₹{Number(r.encashment_amount).toLocaleString('en-IN')} ({r.encash_days}d)

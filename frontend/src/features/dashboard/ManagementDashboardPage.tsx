@@ -51,7 +51,7 @@ import {
   CartesianGrid,
 } from 'recharts'
 import type { DashboardData, ManagementDashboard } from '@/types/api'
-import { monthYear, fullName } from '@/utils/format'
+import { monthYear, fullName, dateDMY, dateShort } from '@/utils/format'
 import { PENDING_LABELS } from '@/utils/pending'
 import { Avatar } from '@/components/ui/actions'
 
@@ -165,7 +165,7 @@ export default function ManagementDashboardPage() {
     ...dueCompliance.map((c) => ({
       title: c.obligation,
       subtitle: `Statutory filing`,
-      due: `Due ${c.due_date}`,
+      due: `Due ${dateShort(c.due_date)}`,
       type: 'due' as const,
     })),
     ...upcomingBirthdays.slice(0, 3).map((b) => ({
@@ -180,7 +180,7 @@ export default function ManagementDashboardPage() {
   const holidays = (d.holidays || []).map((h) => {
     const dt = new Date(h.date)
     return {
-      date: dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      date: dateDMY(dt),
       day: `(${dt.toLocaleDateString('en-GB', { weekday: 'short' })})`,
       name: h.name,
     }
@@ -862,7 +862,7 @@ export default function ManagementDashboardPage() {
 
           {upcomingHoliday && (
             <div className="mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-500 text-center">
-              Next holiday: <strong className="text-slate-800">{upcomingHoliday.name} ({upcomingHoliday.date})</strong>
+              Next holiday: <strong className="text-slate-800">{upcomingHoliday.name} ({dateDMY(upcomingHoliday.date)})</strong>
             </div>
           )}
         </div>
@@ -898,7 +898,7 @@ export default function ManagementDashboardPage() {
                   <span className="text-xs font-semibold text-slate-800 truncate">{c.obligation}</span>
                 </div>
                 <span className="text-[11px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded-full whitespace-nowrap">
-                  Due {c.due_date}
+                  Due {dateShort(c.due_date)}
                 </span>
               </div>
             )) : (

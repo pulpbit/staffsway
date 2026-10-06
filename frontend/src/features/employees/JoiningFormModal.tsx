@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/overlay'
 import { Button } from '@/components/ui/fields'
 import { LoadingState } from '@/components/ui/state'
 import { Printer, X } from 'lucide-react'
-import { fullName, dateShort, money } from '@/utils/format'
+import { fullName, dateShort, dateDMY, money } from '@/utils/format'
 import type { Employee, Settings } from '@/types/api'
 
 interface Props {
@@ -52,7 +52,7 @@ export default function JoiningFormModal({ employeeId, onClose }: Props) {
         <div>
           <div className="flex items-center justify-between gap-2 mb-3 print:hidden">
             <p className="text-[12px] text-slate-500">
-              Generated on {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
+              Generated on {dateDMY(new Date())}
             </p>
             <div className="flex items-center gap-2">
               <Button variant="secondary" onClick={() => window.print()}><Printer className="w-3.5 h-3.5" /> Print / Save as PDF</Button>

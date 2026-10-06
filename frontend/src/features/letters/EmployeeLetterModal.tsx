@@ -7,6 +7,7 @@ import { Button, Input, Label, Select, Textarea } from '@/components/ui/fields'
 import { Modal } from '@/components/ui/overlay'
 import { LoadingState } from '@/components/ui/state'
 import EmployeeLetterTemplate, { type LetterForm, type LetterType } from './EmployeeLetterTemplate'
+import { dateDMY } from '@/utils/format'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const plusDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10)
@@ -282,7 +283,7 @@ export default function EmployeeLetterModal({
             <p className="text-[11px] text-slate-500">
               Reference on the letter:{' '}
               <span className="font-mono font-semibold text-slate-700">
-                {`${isOffer ? 'OFF' : 'APP'}/${employee.employee_code}/${form.issue_date}`}
+                {`${isOffer ? 'OFF' : 'APP'}/${employee.employee_code}/${form.issue_date ? dateDMY(form.issue_date) : ''}`}
               </span>
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
