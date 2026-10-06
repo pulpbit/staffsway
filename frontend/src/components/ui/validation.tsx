@@ -111,8 +111,8 @@ export function FieldErrorsDialog({ open, labels, onClose }: { open: boolean; la
             <AlertTriangle className="w-5 h-5 text-amber-600" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-[15px] font-bold text-slate-900 tracking-tight">Please correct the highlighted fields</h3>
-            <p className="text-[12.5px] text-slate-500 mt-1">The fields marked red in the form need attention before saving.</p>
+            <h3 className="text-[15px] font-bold text-slate-900 tracking-tight">Please correct these fields</h3>
+            <p className="text-[12.5px] text-slate-500 mt-1">Fix each item listed below. Fields that appear in this form are also highlighted in red.</p>
           </div>
         </div>
         <ul className="mt-4 space-y-1.5">

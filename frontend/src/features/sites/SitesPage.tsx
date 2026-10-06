@@ -53,6 +53,12 @@ const SITE_RULES: FieldRule[] = [
   { key: 'name', label: 'Site Name', required: true },
 ]
 
+// Held in form state as strings (they are edited through inputs), but
+// siteSchema declares them as numbers. Sending the raw string fails with
+// "expected number, received string" on a field this modal does not render, so
+// the error dialog opened with nothing to highlight.
+const SITE_NUMERIC_FIELDS = ['pf_percent', 'esic_percent', 'lwf_percent', 'pt_amount', 'tds_percent'] as const
+
 export default function SitesPage() {
   const [search, setSearch] = useState('')
   const [clientFilter, setClientFilter] = useState('')
@@ -126,7 +132,14 @@ export default function SitesPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate(SITE_RULES, form)) return
-    saveMut.mutate({ ...form, client_id: Number(form.client_id) })
+    const payload: Record<string, unknown> = { ...form, client_id: Number(form.client_id) }
+    for (const key of SITE_NUMERIC_FIELDS) {
+      const raw = String(form[key as keyof typeof form] ?? '').trim()
+      // Blank means "leave the server default" rather than 0.
+      if (raw === '') delete payload[key]
+      else payload[key] = Number(raw)
+    }
+    saveMut.mutate(payload)
   }
 
   const cols: any[] = [
