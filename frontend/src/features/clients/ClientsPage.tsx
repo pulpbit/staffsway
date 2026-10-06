@@ -156,7 +156,7 @@ export default function ClientsPage() {
     ) },
     { key: 'manpower', header: 'Active Headcount', render: (r: any) => (
       <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
-        {r.headcount || 0} Employees
+        {r.active_employees || 0} Employees
       </span>
     ) },
     { key: 'sites', header: 'Deployments', render: (r: any) => (
@@ -198,8 +198,10 @@ export default function ClientsPage() {
       {/* Top Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard icon={Building2} label="Total Clients" value={clients.length} tone="primary" sub="Pan-India client accounts" />
-        <StatCard icon={Users} label="Managed Headcount" value={clients.reduce((acc, c) => acc + (c.headcount || 0), 0) || 128} tone="success" sub="Deployed on-site staff" />
-        <StatCard icon={MapPin} label="Active Sites" value={clients.reduce((acc, c) => acc + (c.site_count || 0), 0) || 28} tone="info" sub="Facility deployments" />
+        {/* Summed from the list's own active_employees / site_count counts. No
+            fallback constant: an empty database must read 0, not a demo figure. */}
+        <StatCard icon={Users} label="Managed Headcount" value={clients.reduce((acc, c) => acc + Number(c.active_employees || 0), 0)} tone="success" sub="Deployed on-site staff" />
+        <StatCard icon={MapPin} label="Active Sites" value={clients.reduce((acc, c) => acc + Number(c.site_count || 0), 0)} tone="info" sub="Facility deployments" />
       </div>
 
       <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">

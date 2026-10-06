@@ -167,7 +167,7 @@ export default function SitesPage() {
     ) },
     { key: 'manpower', header: 'Manpower', render: (r: any) => (
       <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-100">
-        {r.headcount || 0} Deployed
+        {r.active_employees || 0} Deployed
       </span>
     ) },
     { key: 'status', header: 'Status', className: 'w-9', render: (r: any) => <StatusDot status={r.status} /> },
@@ -204,8 +204,10 @@ export default function SitesPage() {
       {/* Top Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard icon={MapPin} label="Active Sites" value={sites.length} tone="info" sub="Live client deployments" />
-        <StatCard icon={Building2} label="Client Accounts" value={clients?.data?.length || 12} tone="primary" sub="Linked corporate entities" />
-        <StatCard icon={Users} label="Total On-Site Staff" value={sites.reduce((acc, s) => acc + (s.headcount || 0), 0) || 128} tone="success" sub="Active headcount" />
+        <StatCard icon={Building2} label="Client Accounts" value={clients?.data?.length ?? 0} tone="primary" sub="Linked corporate entities" />
+        {/* Summed from the list's own active_employees count. No fallback
+            constant: an empty deployment must read 0, not a demo figure. */}
+        <StatCard icon={Users} label="Total On-Site Staff" value={sites.reduce((acc, s) => acc + Number(s.active_employees || 0), 0)} tone="success" sub="Active headcount" />
       </div>
 
       <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
